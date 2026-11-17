@@ -924,7 +924,7 @@
       const maxRackStock = 2 + racksLvl * 2;
       const racks = Object.values(this.data.RACKS).map((r) =>
         Object.assign({}, r, {
-          stock: 2,
+          stock: maxRackStock,
           maxStock: maxRackStock
         })
       );
@@ -969,7 +969,7 @@
           level: staffLvl,
           x: startPos.x,
           y: startPos.y,
-          speed: 155 * (1 + Math.max(0, staffLvl - 1) * 0.3),
+          speed: staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185,
           color: st.color,
           hatColor: st.hatColor,
           held: [],
@@ -1621,6 +1621,13 @@
       }
     }
 
+    _getStaffSpeedMultiplier(worker) {
+      if (!worker || worker.isPlayer) return 1.0;
+      if (worker.level <= 1) return 0.48;
+      if (worker.level === 2) return 0.82;
+      return 1.25;
+    }
+
     _getPrepDuration(itemId, worker) {
       const base = this.data.ITEMS[itemId].prepTime;
       let upgLevel = 1;
@@ -1631,7 +1638,7 @@
       else if (itemId === 'crate') upgLevel = this.save.upgrades.racks || 1;
 
       const upgFactor = 1 + (upgLevel - 1) * 0.3;
-      const staffFactor = worker.isPlayer ? 1 : 1 + Math.max(0, worker.level - 1) * 0.35;
+      const staffFactor = this._getStaffSpeedMultiplier(worker);
       return Math.max(0.45, base / (upgFactor * staffFactor));
     }
 
@@ -1893,6 +1900,33 @@
       }
 
       const task = w.currentTask;
+      if (!w.isPlayer) {
+        if (task.type === 'serveCustomer') {
+          const cust = this.levelState.customers.find((c) => c.id === task.custId);
+          const stillNeeds =
+            cust &&
+            cust.state !== 'leaving' &&
+            cust.state !== 'paying' &&
+            cust.state !== 'returning_to_car' &&
+            cust.state !== 'waiting_driver' &&
+            cust.orders.some((o) => o.itemId === task.itemId && !o.done);
+          if (!stillNeeds || !w.held.includes(task.itemId)) {
+            w.currentTask = null;
+            w.waypoints = [];
+            w.moving = false;
+            return;
+          }
+        } else if (task.type === 'serveCar') {
+          const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
+          const stillNeeds = car && car.orders.some((o) => o.itemId === task.itemId && !o.done);
+          if (!stillNeeds || !w.held.includes(task.itemId)) {
+            w.currentTask = null;
+            w.waypoints = [];
+            w.moving = false;
+            return;
+          }
+        }
+      }
       if (w.waypoints && w.waypoints.length > 0) {
         const wp = w.waypoints[0];
         const wdx = wp.x - w.x;
@@ -1942,11 +1976,11 @@
         w.actionTimer = w.actionDuration;
       } else if (task.type === 'restockRack') {
         const rack = this.levelState.racks.find((r) => r.id === task.rackId);
-        if (!rack || !w.held.includes('crate')) {
+        if (!rack || !w.held.includes('crate') || (!w.isPlayer && rack.stock >= rack.maxStock / 2)) {
           w.currentTask = null;
           return;
         }
-        w.actionDuration = w.isPlayer ? 0.85 : Math.max(0.45, 0.9 / (1 + (w.level - 1) * 0.3));
+        w.actionDuration = w.isPlayer ? 0.85 : Math.max(0.45, 0.85 / this._getStaffSpeedMultiplier(w));
         w.actionTimer = w.actionDuration;
       } else if (task.type === 'fuelCar') {
         const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
@@ -2003,7 +2037,7 @@
         if (arrivedPaying.length === 0) {
           return;
         }
-        w.actionDuration = w.isPlayer ? 0.65 : Math.max(0.35, 0.75 / (1 + (w.level - 1) * 0.3));
+        w.actionDuration = w.isPlayer ? 0.65 : Math.max(0.35, 0.65 / this._getStaffSpeedMultiplier(w));
         w.actionTimer = w.actionDuration;
       } else if (task.type === 'cleanSpill') {
         const sp = this.levelState.spills.find((s) => s.id === task.spillId);
@@ -2011,13 +2045,19 @@
           w.currentTask = null;
           return;
         }
-        w.actionDuration = w.isPlayer ? 1.1 : Math.max(0.55, 1.2 / (1 + (w.level - 1) * 0.3));
+        w.actionDuration = w.isPlayer ? 1.1 : Math.max(0.55, 1.1 / this._getStaffSpeedMultiplier(w));
         w.actionTimer = w.actionDuration;
       } else if (task.type === 'trash') {
         if (w.held.length > 0) {
-          const removed = w.held.shift();
-          const icon = this.data.ITEMS[removed] ? this.data.ITEMS[removed].icon : '';
-          this._spawnParticle(w.x, w.y - 35, `🗑️ ${icon}`, '#7d6b5d');
+          if (!w.isPlayer) {
+            const icons = w.held.map((id) => (this.data.ITEMS[id] ? this.data.ITEMS[id].icon : '')).join('');
+            w.held = [];
+            this._spawnParticle(w.x, w.y - 35, `🗑️ ${icons}`.trim(), '#7d6b5d');
+          } else {
+            const removed = w.held.shift();
+            const icon = this.data.ITEMS[removed] ? this.data.ITEMS[removed].icon : '';
+            this._spawnParticle(w.x, w.y - 35, `🗑️ ${icon}`, '#7d6b5d');
+          }
           this.audio.playClick();
         }
         w.currentTask = null;
@@ -2378,7 +2418,34 @@
       if (idleWorkers.length === 0) return;
 
       idleWorkers.forEach((w) => {
+        const trash = this.data.STATIONS.trash;
+
         if (w.role === 'tonik') {
+          if (w.held.length > 0) {
+            const heldWashCar = state.cars.find(
+              (c) =>
+                c.state === 'waiting' &&
+                !this._isTaskClaimed('carId', c.id, w) &&
+                c.orders.some((o) => !o.done && w.held.includes(o.itemId))
+            );
+            if (heldWashCar) {
+              const pump = this.data.STATIONS[`pump_${heldWashCar.pumpIndex}`];
+              const heldOrd = heldWashCar.orders.find((o) => !o.done && w.held.includes(o.itemId));
+              if (pump && heldOrd) {
+                w.taskQueue.push({
+                  type: 'serveCar',
+                  carId: heldWashCar.id,
+                  itemId: heldOrd.itemId,
+                  x: pump.walkX,
+                  y: pump.walkY + 34
+                });
+                return;
+              }
+            }
+            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
+            return;
+          }
+
           const targetCar = state.cars.find(
             (c) =>
               c.state === 'waiting' &&
@@ -2400,56 +2467,70 @@
           }
           const washOrder = targetCar.orders.find((o) => !o.done && o.itemId === 'wash');
           if (washOrder) {
-            if (w.held.includes('wash')) {
-              w.taskQueue.push({
-                type: 'serveCar',
-                carId: targetCar.id,
-                itemId: 'wash',
-                x: pump.walkX,
-                y: pump.walkY + 34
-              });
-            } else {
-              const bucket = this.data.STATIONS.bucket;
-              w.taskQueue.push({
-                type: 'prep',
-                stationId: bucket.id,
-                itemId: 'wash',
-                x: bucket.walkX,
-                y: bucket.walkY
-              });
-              w.taskQueue.push({
-                type: 'serveCar',
-                carId: targetCar.id,
-                itemId: 'wash',
-                x: pump.walkX,
-                y: pump.walkY + 34
-              });
-            }
+            const bucket = this.data.STATIONS.bucket;
+            w.taskQueue.push({
+              type: 'prep',
+              stationId: bucket.id,
+              itemId: 'wash',
+              x: bucket.walkX,
+              y: bucket.walkY
+            });
+            w.taskQueue.push({
+              type: 'serveCar',
+              carId: targetCar.id,
+              itemId: 'wash',
+              x: pump.walkX,
+              y: pump.walkY + 34
+            });
           }
         } else if (w.role === 'anicka') {
+          if (w.held.length > 0) {
+            const heldTarget =
+              state.customers.find(
+                (c) =>
+                  c.state === 'waiting' &&
+                  c.spotIndex >= 0 &&
+                  !this._isTaskClaimed('custId', c.id, w) &&
+                  c.orders.some((o) => !o.done && w.held.includes(o.itemId))
+              ) ||
+              state.customers.find(
+                (c) =>
+                  (c.state === 'arriving' || c.state === 'shopping') &&
+                  c.spotIndex >= 0 &&
+                  !this._isTaskClaimed('custId', c.id, w) &&
+                  c.orders.some((o) => !o.done && w.held.includes(o.itemId))
+              );
+            if (heldTarget) {
+              const spot = this.data.SHOP_SPOTS[heldTarget.spotIndex];
+              const heldMatch = heldTarget.orders.find((o) => !o.done && w.held.includes(o.itemId));
+              if (spot && heldMatch) {
+                w.taskQueue.push({
+                  type: 'serveCustomer',
+                  custId: heldTarget.id,
+                  itemId: heldMatch.itemId,
+                  x: spot.serveX,
+                  y: spot.serveY
+                });
+                return;
+              }
+            }
+            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
+            return;
+          }
+
           const shopCust = state.customers.find(
             (c) =>
               c.state === 'waiting' &&
+              c.spotIndex >= 0 &&
               !this._isTaskClaimed('custId', c.id, w) &&
               c.orders.some((o) => !o.done && (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink'))
           );
           if (shopCust) {
             const spot = this.data.SHOP_SPOTS[shopCust.spotIndex];
-            const heldMatch = shopCust.orders.find((o) => !o.done && w.held.includes(o.itemId));
-            if (heldMatch) {
-              w.taskQueue.push({
-                type: 'serveCustomer',
-                custId: shopCust.id,
-                itemId: heldMatch.itemId,
-                x: spot.serveX,
-                y: spot.serveY
-              });
-              return;
-            }
             const nextOrd = shopCust.orders.find(
               (o) => !o.done && (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink')
             );
-            if (nextOrd) {
+            if (spot && nextOrd) {
               const st = this.data.STATIONS[this.data.ITEMS[nextOrd.itemId].stationId];
               w.taskQueue.push({
                 type: 'prep',
@@ -2476,10 +2557,11 @@
             return;
           }
 
-          // Restock empty or low shop stands
-          const lowRack = state.racks.find(
-            (r) => r.stock <= 1 && !this._isTaskClaimed('rackId', r.id, w)
-          );
+          // Restock shop stands strictly below half stock (lowest first)
+          const lowRacks = state.racks
+            .filter((r) => r.stock < r.maxStock / 2 && !this._isTaskClaimed('rackId', r.id, w))
+            .sort((a, b) => a.stock - b.stock);
+          const lowRack = lowRacks[0];
           if (lowRack) {
             if (w.held.includes('crate')) {
               w.taskQueue.push({
@@ -2504,6 +2586,11 @@
                 y: lowRack.walkY
               });
             }
+            return;
+          }
+
+          if (w.held.length > 0) {
+            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
             return;
           }
 
