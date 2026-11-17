@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Útulná Benzínka – Na cestách</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="js/data.js"></script>
+  <script defer src="js/audio.js"></script>
+  <script defer src="js/renderer.js"></script>
+  <script defer src="js/game.js"></script>
+</head>
+<body>
+  <div id="app-shell">
+    <!-- MAPA ZASTÁVEK -->
+    <section id="map-screen" class="screen">
+      <header class="cozy-topbar">
+        <div class="brand-group">
+          <span class="brand-logo">⛽</span>
+          <div>
+            <h1>Útulná Benzínka</h1>
+            <p class="subtitle">Cesta napříč malebnými zastávkami</p>
+          </div>
+        </div>
+        <div class="topbar-stats">
+          <div class="pill-stat user-pill">
+            <span>👤</span>
+            <strong id="user-badge-name">Host</strong>
+          </div>
+          <div class="pill-stat">
+            <span>💰 Pokladna:</span>
+            <strong id="map-coins">160 Kč</strong>
+          </div>
+          <div class="pill-stat">
+            <span>⭐ Hvězdy:</span>
+            <strong id="map-stars">0 / 24 ⭐</strong>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="open-shop-map-btn" type="button" class="btn-primary">
+            🛠️ Vylepšit &amp; Zaměstnanci
+          </button>
+          <button id="help-btn" type="button" class="btn-soft">❓ Jak hrát</button>
+          <button id="settings-btn" type="button" class="btn-soft">⚙️ Nastavení a účet</button>
+        </div>
+      </header>
+
+      <main class="map-stage-wrapper">
+        <div class="map-banner">
+          <span>🗺️ Klikni na odemčenou zastávku na mapě pro přípravu a start směny!</span>
+        </div>
+        <div class="map-canvas-box">
+          <svg id="map-road-svg" viewBox="0 0 1150 560" preserveAspectRatio="xMidYMid meet"></svg>
+          <div id="map-nodes-layer"></div>
+        </div>
+      </main>
+    </section>
+
+    <!-- HRACÍ OBRAZOVKA -->
+    <section id="game-screen" class="screen hidden">
+      <header class="cozy-topbar game-hud">
+        <div class="hud-left">
+          <strong id="hud-level-name" class="hud-title">1. Slunečná paseka</strong>
+          <span id="hud-customers-left" class="hud-sub">Zákazníků zbývá: 7 / 7</span>
+        </div>
+
+        <div class="hud-progress-wrap">
+          <div class="hud-earned-row">
+            <span>Tržba směny: <strong id="hud-earned-coins">0 Kč</strong></span>
+            <span id="hud-star-targets" class="star-targets">☆ 140 · ☆ 200 · ☆ 260 Kč</span>
+          </div>
+          <div class="star-bar-track">
+            <div id="hud-star-fill" class="star-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="hud-tray">
+          <span class="tray-label">🎒 V rukou:</span>
+          <div id="hud-held-items" class="tray-items">
+            <span class="tray-empty">Prázdné ruce (0/2)</span>
+          </div>
+        </div>
+
+        <div class="hud-actions">
+          <button id="clear-queue-btn" type="button" class="btn-soft" title="Zrušit naplánované kroky">
+            🧹 Zrušit trasu
+          </button>
+          <button id="pause-btn" type="button" class="btn-soft">⏸️ Pauza</button>
+          <button id="game-settings-btn" type="button" class="btn-soft">⚙️ Nastavení</button>
+        </div>
+      </header>
+
+      <main class="station-stage">
+        <canvas id="station-canvas" width="1260" height="650"></canvas>
+      </main>
+      <footer class="game-tip-bar">
+        💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!
+      </footer>
+    </section>
+
+    <!-- MODÁL PŘIHLÁŠENÍ / REGISTRACE -->
+    <div id="auth-modal" class="modal-backdrop hidden">
+      <div class="modal-card auth-modal-card">
+        <div class="auth-hero">
+          <span class="brand-logo">⛽</span>
+          <div>
+            <h2>Vítej v Útulné Benzínce!</h2>
+            <p class="modal-sub">Přihlas se jménem a heslem nebo si založ nový profil. Tvůj postup se automaticky uloží.</p>
+          </div>
+        </div>
+
+        <form id="auth-form" class="auth-form" onsubmit="return false;">
+          <label class="auth-field">
+            <span>👤 Jméno hráče</span>
+            <input id="auth-username" type="text" placeholder="Např. Mamka" autocomplete="username" required />
+          </label>
+          <label class="auth-field">
+            <span>🔒 Heslo</span>
+            <input id="auth-password" type="password" placeholder="Zadej heslo" autocomplete="current-password" required />
+          </label>
+
+          <p id="auth-message" class="auth-message hidden"></p>
+
+          <div class="auth-actions">
+            <button id="auth-login-btn" type="button" class="btn-primary">🔑 Přihlásit se</button>
+            <button id="auth-register-btn" type="button" class="btn-start">✨ Vytvořit nový účet</button>
+            <button id="auth-guest-btn" type="button" class="btn-soft">🎮 Hrát bez přihlášení (neukládá se)</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODÁL PŘÍPRAVY PŘED LEVELEM (VYLEPŠENÍ & ZAMĚSTNANCI) -->
+    <div id="prep-modal" class="modal-backdrop hidden">
+      <div class="modal-card prep-modal-card">
+        <div class="modal-header">
+          <div>
+            <h2 id="prep-level-title">1. Slunečná paseka</h2>
+            <p id="prep-level-subtitle" class="modal-sub">Klidný rozjezd na venkovské silnici</p>
+            <p id="prep-level-meta" class="modal-meta"></p>
+          </div>
+          <div class="modal-header-right">
+            <div class="pill-stat">
+              <span>💰 Pokladna:</span>
+              <strong id="prep-coins">160 Kč</strong>
+            </div>
+            <button id="prep-bonus-btn" type="button" class="btn-soft" title="Přidat 200 Kč pro pohodové hraní">
+              ✨ +200 Kč
+            </button>
+            <button id="close-prep-btn" type="button" class="btn-close" aria-label="Zavřít">✕</button>
+          </div>
+        </div>
+
+        <div class="prep-tabs">
+          <button type="button" class="prep-tab-btn active" data-tab="upgrades">
+            🛠️ Vylepšení benzínky
+          </button>
+          <button type="button" class="prep-tab-btn" data-tab="staff">
+            🧑‍🔧 Zaměstnanci
+          </button>
+        </div>
+
+        <div id="prep-panel-upgrades" class="prep-panel active">
+          <div id="upgrades-list" class="prep-grid"></div>
+        </div>
+
+        <div id="prep-panel-staff" class="prep-panel">
+          <div id="staff-list" class="prep-grid"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="start-level-btn" type="button" class="btn-start">
+            🚗 Začít směnu v této zastávce!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODÁL VÝSLEDKŮ SMĚNY -->
+    <div id="result-modal" class="modal-backdrop hidden">
+      <div class="modal-card result-modal-card">
+        <div id="result-stars" class="result-stars">⭐⭐⭐</div>
+        <h2 id="result-title">Směna hotová!</h2>
+        <p id="result-summary" class="result-summary"></p>
+        <p id="result-unlock-note" class="result-unlock hidden"></p>
+        <div class="result-actions">
+          <button id="result-replay-btn" type="button" class="btn-soft">🔁 Znovu</button>
+          <button id="result-map-btn" type="button" class="btn-soft">🗺️ Na mapu</button>
+          <button id="result-next-btn" type="button" class="btn-primary">➡️ Další zastávka</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODÁL NÁPOVĚDY -->
+    <div id="help-modal" class="modal-backdrop hidden">
+      <div class="modal-card help-modal-card">
+        <div class="modal-header">
+          <h2>☕ Jak hrát Útulnou Benzínku</h2>
+          <button id="close-help-btn" type="button" class="btn-close">✕</button>
+        </div>
+        <ul class="help-list">
+          <li><strong>👤 Účet a ukládání:</strong> Každý hráč má vlastní jméno a heslo. Všechny vydělané koruny, hvězdy, vylepšení i zaměstnanci se ukládají k tvému účtu.</li>
+          <li><strong>🗺️ Mapa zastávek:</strong> Kliknutím na číslo zastávky na silnici otevřeš přípravu před směnou.</li>
+          <li><strong>🛒 Obchod a doplňování stojanů:</strong> Zákazníci si berou křupky (🥨), sladkosti (🍫) i autokosmetiku (🧴) přímo z regálů. Kliknutím na poloprázdný nebo prázdný stojan dojdeš do <em>Skladu zboží (📦)</em> a stojan doplníš!</li>
+          <li><strong>🧑‍🔧 Zaměstnanci:</strong> <em>Toník</em> tankuje a myje okna autům, <em>Anička</em> obsluhuje kávu, gril i limonády a <em>Kuba</em> markuje pokladnu, doplňuje regály a uklízí louže.</li>
+          <li><strong>📠 Pokladna:</strong> Pěší hosté po nákupu i obsluze přijdou zaplatit k pokladně — nezapomeň na ni kliknout!</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- MODÁL NASTAVENÍ, OVLÁDÁNÍ A ÚČTU -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+      <div class="modal-card settings-modal-card">
+        <div class="modal-header">
+          <h2>⚙️ Nastavení, ovládání a účet</h2>
+          <button id="close-settings-btn" type="button" class="btn-close" aria-label="Zavřít">✕</button>
+        </div>
+
+        <div class="settings-section">
+          <h3>🔊 Hlasitost a zvuk</h3>
+          <div class="slider-row">
+            <label for="volume-slider">Hlavní hlasitost (efekty):</label>
+            <div class="slider-control">
+              <input id="volume-slider" type="range" min="0" max="100" value="80" />
+              <strong id="volume-label">80 %</strong>
+            </div>
+          </div>
+          <div class="slider-row">
+            <label for="music-slider">Hlasitost hudby na pozadí:</label>
+            <div class="slider-control">
+              <input id="music-slider" type="range" min="0" max="100" value="70" />
+              <strong id="music-label">70 %</strong>
+            </div>
+          </div>
+          <button id="mute-btn" type="button" class="btn-soft">🔊 Zvuk zapnut</button>
+        </div>
+
+        <div class="settings-section">
+          <h3>🎮 Ovládání</h3>
+          <label class="toggle-row">
+            <input id="ctrl-smart-assist" type="checkbox" checked />
+            <span><strong>Chytrá asistence kliknutí</strong> — při kliknutí na zákazníka nebo regál postava sama dojde pro surovinu či krabici</span>
+          </label>
+          <label class="toggle-row">
+            <input id="ctrl-right-cancel" type="checkbox" checked />
+            <span><strong>Pravé tlačítko myši</strong> ruší naplánovanou frontu kroků</span>
+          </label>
+          <label class="toggle-row">
+            <input id="ctrl-keys" type="checkbox" checked />
+            <span><strong>Klávesové zkratky:</strong> <code>Mezerník</code> / <code>P</code> = Pauza, <code>Esc</code> / <code>C</code> = Zrušit trasu</span>
+          </label>
+        </div>
+
+        <div class="settings-section">
+          <h3>👤 Účet hráče</h3>
+          <p id="settings-user-label" class="settings-user-text">Přihlášen: Host</p>
+          <div class="settings-account-actions">
+            <button id="logout-btn" type="button" class="btn-soft">🚪 Odhlásit / Přepnout účet</button>
+            <button id="reset-save-btn" type="button" class="btn-soft btn-danger-soft">🔄 Nová hra – vymazat postup</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
