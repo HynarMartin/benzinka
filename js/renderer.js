@@ -273,16 +273,6 @@
       roundRect(ctx, 30, 152, 466, 16, 6);
       ctx.fill();
 
-      // Canopy sign
-      ctx.fillStyle = '#4e3629';
-      roundRect(ctx, 153, 124, 220, 26, 10);
-      ctx.fill();
-      ctx.fillStyle = '#fff8eb';
-      ctx.font = '700 14px "Nunito", "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('⛽ ÚTULNÁ BENZÍNKA', 263, 137);
-
       // Decor upgrades: flower boxes and fairy lights
       if (decorLvl >= 1) {
         this._drawFlowerBox(ctx, 50, 270, t);
@@ -333,10 +323,6 @@
         ctx.arc(sx + 16, 156, 16, 0, Math.PI);
         ctx.fill();
       }
-      ctx.fillStyle = '#fff9ee';
-      ctx.font = '700 14px "Nunito", "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🛒 OBCHŮDEK & BISTRO', 798, 132);
 
       if (decorLvl >= 2) {
         this._drawFairyLights(ctx, 536, 162, 1060, 162, t + 1.3);
@@ -392,10 +378,6 @@
       ctx.fillStyle = '#7d6b5d';
       roundRect(ctx, 1074, 124, 174, 38, 12);
       ctx.fill();
-      ctx.fillStyle = '#fff9ee';
-      ctx.font = '700 13px "Nunito", "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('📦 SKLAD', 1161, 143);
 
       // Dividing wall segments with open doorway archway (y: 235..335)
       ctx.fillStyle = '#c49d74';
@@ -502,10 +484,14 @@
 
     _drawRacks(ctx, t, state) {
       if (!state.racks) return;
+      const rackColors = {
+        rack_snacks: '#e07a5f',
+        rack_sweets: '#8d5b4c',
+        rack_auto: '#4ea8de'
+      };
       state.racks.forEach((rack) => {
         const isHovered =
           state.hoveredTarget && state.hoveredTarget.kind === 'rack' && state.hoveredTarget.id === rack.id;
-        const itemDef = window.GAME_DATA.ITEMS[rack.itemId];
 
         ctx.save();
         if (isHovered) {
@@ -532,18 +518,18 @@
         roundRect(ctx, rack.x - 35, rack.y - 1, 70, 15, 4);
         ctx.fill();
 
-        // Draw product icons representing stock
+        // Draw painted mini-packages representing stock (no emojis)
         const slots = Math.min(rack.maxStock, 8);
-        ctx.font = '14px "Segoe UI Emoji", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        const itemColor = rackColors[rack.id] || '#e07a5f';
         for (let i = 0; i < slots; i++) {
           const row = Math.floor(i / 4);
           const col = i % 4;
           const ix = rack.x - 24 + col * 16;
           const iy = rack.y - 13 + row * 19;
-          ctx.globalAlpha = i < rack.stock ? 1 : 0.18;
-          ctx.fillText(itemDef ? itemDef.icon : rack.icon, ix, iy);
+          ctx.globalAlpha = i < rack.stock ? 1 : 0.16;
+          ctx.fillStyle = itemColor;
+          roundRect(ctx, ix - 5, iy - 5, 10, 11, 2);
+          ctx.fill();
         }
         ctx.globalAlpha = 1;
 
@@ -553,9 +539,7 @@
         const isEmpty = rack.stock === 0;
         const isLow = rack.stock === 1;
         const pulse = isEmpty ? Math.sin(t * 7) * 2.5 : 0;
-        const badgeText = isEmpty
-          ? `⚠️ DOPLNIT 0/${rack.maxStock}`
-          : `${rack.icon} ${rack.stock}/${rack.maxStock}`;
+        const badgeText = isEmpty ? `DOPLNIT 0/${rack.maxStock}` : `${rack.stock}/${rack.maxStock}`;
 
         ctx.save();
         ctx.font = '800 11px "Nunito", sans-serif';
@@ -614,10 +598,9 @@
       ctx.quadraticCurveTo(st.x + 34, st.y + 8, st.x + 22, st.y + 22);
       ctx.stroke();
 
-      ctx.font = '18px "Segoe UI Emoji", "Nunito", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(isLocked ? '🔒' : '⛽', st.x, st.y + 12);
+      ctx.fillStyle = isLocked ? '#7e766e' : '#c65d44';
+      roundRect(ctx, st.x - 13, st.y + 4, 26, 14, 3);
+      ctx.fill();
       ctx.restore();
 
       this._drawStationTag(

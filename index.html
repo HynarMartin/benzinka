@@ -37,6 +37,7 @@
           </div>
         </div>
         <div class="topbar-actions">
+          <button id="victory-badge-btn" type="button" class="btn-victory hidden">🏆 Výhra &amp; Statistiky</button>
           <button id="open-shop-map-btn" type="button" class="btn-primary">
             🛠️ Vylepšit &amp; Zaměstnanci
           </button>
@@ -187,6 +188,24 @@
           <button id="result-replay-btn" type="button" class="btn-soft">🔁 Znovu</button>
           <button id="result-map-btn" type="button" class="btn-soft">🗺️ Na mapu</button>
           <button id="result-next-btn" type="button" class="btn-primary">➡️ Další zastávka</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODÁL CELKOVÉ VÝHRY A STATISTIK -->
+    <div id="victory-modal" class="modal-backdrop hidden">
+      <div class="modal-card victory-modal-card">
+        <div class="victory-trophy">🏆</div>
+        <div id="victory-stars" class="result-stars">⭐⭐⭐</div>
+        <h2 id="victory-title">Gratulujeme! Útulná Benzínka je kompletní!</h2>
+        <p id="victory-subtitle" class="victory-subtitle">
+          Úspěšně jsi dokončil(a) poslední zastávku a vybudoval(a) vyhlášenou síť útulných benzínek!
+        </p>
+        <div id="victory-shift-banner" class="victory-shift-banner hidden"></div>
+        <div id="victory-stats-grid" class="victory-stats-grid"></div>
+        <div class="result-actions">
+          <button id="victory-replay-btn" type="button" class="btn-soft">🔁 Zopakovat finále</button>
+          <button id="victory-map-btn" type="button" class="btn-primary">🗺️ Zpět na mapu</button>
         </div>
       </div>
     </div>

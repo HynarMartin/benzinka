@@ -45,7 +45,7 @@
 
   function createDefaultSave() {
     return {
-      coins: 160,
+      coins: 0,
       unlockedLevel: 1,
       stars: {},
       upgrades: {
@@ -66,6 +66,14 @@
         tonik: true,
         anicka: true,
         kuba: true
+      },
+      stats: {
+        totalPlayTime: 0,
+        totalEarnedCoins: 0,
+        totalServedCustomers: 0,
+        totalAngryCustomers: 0,
+        shiftsPlayed: 0,
+        gameCompleted: false
       }
     };
   }
@@ -79,7 +87,8 @@
       stars: raw.stars && typeof raw.stars === 'object' ? raw.stars : {},
       upgrades: Object.assign({}, def.upgrades, raw.upgrades || {}),
       staff: Object.assign({}, def.staff, raw.staff || {}),
-      staffEnabled: Object.assign({}, def.staffEnabled, raw.staffEnabled || {})
+      staffEnabled: Object.assign({}, def.staffEnabled, raw.staffEnabled || {}),
+      stats: Object.assign({}, def.stats, raw.stats || {})
     };
   }
 
@@ -597,6 +606,31 @@
         this.exitLevelToMap();
       });
 
+      // Victory Modal Controls
+      const victoryBadgeBtn = document.getElementById('victory-badge-btn');
+      if (victoryBadgeBtn) {
+        victoryBadgeBtn.addEventListener('click', () => {
+          this.audio.playClick();
+          this.showVictoryModal(null);
+        });
+      }
+
+      document.getElementById('victory-replay-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        document.getElementById('victory-modal').classList.add('hidden');
+        const finalId = this.data.LEVELS[this.data.LEVELS.length - 1].id;
+        this.selectedLevelId = finalId;
+        this.startLevel(finalId);
+      });
+
+      document.getElementById('victory-map-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        document.getElementById('victory-modal').classList.add('hidden');
+        if (this.screen === 'game') {
+          this.exitLevelToMap();
+        }
+      });
+
       // Canvas mouse events
       this.canvas.addEventListener('mousemove', (e) => this._onCanvasMouseMove(e));
       this.canvas.addEventListener('mouseleave', () => {
@@ -650,6 +684,15 @@
       document.getElementById('map-coins').textContent = `${this.save.coins} Kč`;
       document.getElementById('map-stars').textContent = `${totalStars} / ${maxStars} ⭐`;
       document.getElementById('prep-coins').textContent = `${this.save.coins} Kč`;
+
+      const finalLvl = this.data.LEVELS[this.data.LEVELS.length - 1];
+      const isGameCompleted =
+        Boolean(this.save.stats && this.save.stats.gameCompleted) ||
+        Boolean(finalLvl && (this.save.stars[finalLvl.id] || 0) >= 1);
+      const victoryBadgeBtn = document.getElementById('victory-badge-btn');
+      if (victoryBadgeBtn) {
+        victoryBadgeBtn.classList.toggle('hidden', !isGameCompleted);
+      }
     }
 
     renderMap() {
@@ -695,6 +738,14 @@
         pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
           unlockedSegment ? '#fff5dc' : '#e6decb'
         }" stroke-width="3.5" stroke-dasharray="10 10" stroke-linecap="round" />`;
+      }
+
+      const finalLvl = levels[levels.length - 1];
+      const isGameCompleted =
+        Boolean(this.save.stats && this.save.stats.gameCompleted) ||
+        Boolean(finalLvl && (this.save.stars[finalLvl.id] || 0) >= 1);
+      if (isGameCompleted && finalLvl) {
+        pathMarkup += `<text x="${finalLvl.x}" y="${Math.max(36, finalLvl.y - 44)}" font-size="30" text-anchor="middle">🏆</text>`;
       }
 
       svg.innerHTML = pathMarkup;
@@ -1645,12 +1696,12 @@
     _getItemPrice(itemId) {
       const item = this.data.ITEMS[itemId];
       let bonus = 0;
-      if (itemId === 'coffee') bonus = ((this.save.upgrades.coffee || 1) - 1) * 5;
-      else if (itemId === 'snack') bonus = ((this.save.upgrades.grill || 1) - 1) * 6;
-      else if (itemId === 'wash') bonus = ((this.save.upgrades.wash || 1) - 1) * 6;
-      else if (itemId === 'drink') bonus = ((this.save.upgrades.wash || 1) - 1) * 5;
-      else if (itemId === 'fuel') bonus = ((this.save.upgrades.pumps || 1) - 1) * 4;
-      else if (item.isRackItem) bonus = ((this.save.upgrades.racks || 1) - 1) * 5;
+      if (itemId === 'coffee') bonus = ((this.save.upgrades.coffee || 1) - 1) * 3;
+      else if (itemId === 'snack') bonus = ((this.save.upgrades.grill || 1) - 1) * 3;
+      else if (itemId === 'wash') bonus = ((this.save.upgrades.wash || 1) - 1) * 3;
+      else if (itemId === 'drink') bonus = ((this.save.upgrades.wash || 1) - 1) * 2;
+      else if (itemId === 'fuel') bonus = ((this.save.upgrades.pumps || 1) - 1) * 2;
+      else if (item.isRackItem) bonus = ((this.save.upgrades.racks || 1) - 1) * 3;
       return item.basePrice + bonus;
     }
 
@@ -2136,9 +2187,9 @@
         if (idx !== -1) {
           const sp = this.levelState.spills[idx];
           this.levelState.spills.splice(idx, 1);
-          this.levelState.earnedCoins += 12;
+          this.levelState.earnedCoins += 6;
           this.audio.playWash();
-          this._spawnParticle(sp.x, sp.y - 20, '+12 Kč ✨', '#4f9d69');
+          this._spawnParticle(sp.x, sp.y - 20, '+6 Kč ✨', '#4f9d69');
         }
       }
     }
@@ -2149,8 +2200,8 @@
         base += this._getItemPrice(o.itemId);
       });
       const decorLvl = this.save.upgrades.decor || 1;
-      const tipBonus = 1 + (decorLvl - 1) * 0.2;
-      const tip = Math.round(base * 0.28 * Math.max(0, patienceRatio) * tipBonus);
+      const tipBonus = 1 + (decorLvl - 1) * 0.15;
+      const tip = Math.round(base * 0.15 * Math.max(0, patienceRatio) * tipBonus);
       return base + tip;
     }
 
@@ -2658,6 +2709,109 @@
       }
     }
 
+    _formatDuration(seconds) {
+      const totalSec = Math.max(0, Math.round(seconds || 0));
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      if (h > 0) return `${h} h ${m} min ${s} s`;
+      if (m > 0) return `${m} min ${s} s`;
+      return `${s} s`;
+    }
+
+    showVictoryModal(lastShift) {
+      const stats = Object.assign(
+        {
+          totalPlayTime: 0,
+          totalEarnedCoins: 0,
+          totalServedCustomers: 0,
+          totalAngryCustomers: 0,
+          shiftsPlayed: 0,
+          gameCompleted: false
+        },
+        this.save.stats || {}
+      );
+
+      const totalStars = Object.values(this.save.stars).reduce((acc, s) => acc + s, 0);
+      const maxStars = this.data.LEVELS.length * 3;
+      const finalLvl = this.data.LEVELS[this.data.LEVELS.length - 1];
+      const finalStars = lastShift ? lastShift.stars : this.save.stars[finalLvl.id] || 3;
+      const starsStr = '⭐'.repeat(finalStars) + '☆'.repeat(Math.max(0, 3 - finalStars));
+      document.getElementById('victory-stars').textContent = starsStr;
+
+      const shiftBanner = document.getElementById('victory-shift-banner');
+      if (lastShift) {
+        shiftBanner.textContent = `Poslední směna (${finalLvl.name}): +${lastShift.earned} Kč · Obslouženo: ${lastShift.served} · Čas směny: ${this._formatDuration(lastShift.time)}`;
+        shiftBanner.classList.remove('hidden');
+      } else {
+        shiftBanner.classList.add('hidden');
+      }
+
+      const totalVisitors = stats.totalServedCustomers + stats.totalAngryCustomers;
+      const successRate =
+        totalVisitors > 0 ? Math.round((stats.totalServedCustomers / totalVisitors) * 100) : 100;
+
+      const boughtUpgrades = this.data.UPGRADES.reduce(
+        (acc, u) => acc + Math.max(0, (this.save.upgrades[u.id] || 1) - 1),
+        0
+      );
+      const maxUpgrades = this.data.UPGRADES.reduce((acc, u) => acc + (u.maxLevel - 1), 0);
+
+      const hiredStaff = this.data.STAFF.filter((s) => (this.save.staff[s.id] || 0) > 0).length;
+      const staffLevels = this.data.STAFF.reduce((acc, s) => acc + (this.save.staff[s.id] || 0), 0);
+      const maxStaffLevels = this.data.STAFF.reduce((acc, s) => acc + s.maxLevel, 0);
+
+      const cards = [
+        {
+          label: '⏱️ Celkový odehraný čas',
+          value: this._formatDuration(stats.totalPlayTime),
+          sub:
+            stats.shiftsPlayed > 0
+              ? `Průměr na směnu: ${this._formatDuration(stats.totalPlayTime / stats.shiftsPlayed)}`
+              : 'Dokončený příběh benzínky'
+        },
+        {
+          label: '👥 Obsloužení zákazníci',
+          value: `${stats.totalServedCustomers} hostů`,
+          sub: `Úspěšnost: ${successRate} % (odešlo ${stats.totalAngryCustomers})`
+        },
+        {
+          label: '💰 Celkový výdělek',
+          value: `${stats.totalEarnedCoins} Kč`,
+          sub: `V pokladně zbývá: ${this.save.coins} Kč`
+        },
+        {
+          label: '⭐ Nasbírané hvězdy',
+          value: `${totalStars} / ${maxStars} ⭐`,
+          sub: totalStars >= maxStars ? 'Plný počet hvězd na celé mapě!' : 'Lze ještě vylepšit skóre na mapě'
+        },
+        {
+          label: '🛠️ Vylepšení a tým',
+          value: `${boughtUpgrades} / ${maxUpgrades} úrovní`,
+          sub: `Zaměstnanci: ${hiredStaff}/${this.data.STAFF.length} (úrovně ${staffLevels}/${maxStaffLevels})`
+        },
+        {
+          label: '🏁 Odehrané směny',
+          value: `${stats.shiftsPlayed} směn`,
+          sub: `Všech ${this.data.LEVELS.length} zastávek pokořeno!`
+        }
+      ];
+
+      const grid = document.getElementById('victory-stats-grid');
+      grid.innerHTML = cards
+        .map(
+          (c) => `
+          <div class="victory-stat-card">
+            <span class="victory-stat-label">${c.label}</span>
+            <strong class="victory-stat-value">${c.value}</strong>
+            <span class="victory-stat-sub">${c.sub}</span>
+          </div>`
+        )
+        .join('');
+
+      document.getElementById('victory-modal').classList.remove('hidden');
+    }
+
     _endLevel() {
       const state = this.levelState;
       const lvl = state.level;
@@ -2669,6 +2823,22 @@
       else if (earned >= lvl.stars[0]) starsEarned = 1;
 
       this.save.coins += earned;
+      if (!this.save.stats) {
+        this.save.stats = {
+          totalPlayTime: 0,
+          totalEarnedCoins: 0,
+          totalServedCustomers: 0,
+          totalAngryCustomers: 0,
+          shiftsPlayed: 0,
+          gameCompleted: false
+        };
+      }
+      this.save.stats.totalPlayTime += Math.max(0, state.time || 0);
+      this.save.stats.totalEarnedCoins += earned;
+      this.save.stats.totalServedCustomers += state.servedCount;
+      this.save.stats.totalAngryCustomers += state.angryCount;
+      this.save.stats.shiftsPlayed += 1;
+
       const prevStars = this.save.stars[lvl.id] || 0;
       if (starsEarned > prevStars) {
         this.save.stars[lvl.id] = starsEarned;
@@ -2680,10 +2850,27 @@
         unlockedNext = true;
       }
 
+      const isFinalVictory = lvl.id === this.data.LEVELS.length && starsEarned >= 1;
+      if (isFinalVictory) {
+        this.save.stats.gameCompleted = true;
+      }
+
       this.persistSave();
+      this.updateGlobalHUD();
       this.audio.stopAmbient();
       if (starsEarned >= 1) this.audio.playWin();
       else this.audio.playSad();
+
+      if (isFinalVictory) {
+        this.showVictoryModal({
+          earned,
+          served: state.servedCount,
+          angry: state.angryCount,
+          time: state.time,
+          stars: starsEarned
+        });
+        return;
+      }
 
       const starsStr = '⭐'.repeat(starsEarned) + '☆'.repeat(3 - starsEarned);
       document.getElementById('result-stars').textContent = starsStr;

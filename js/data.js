@@ -6,7 +6,7 @@
       id: 'fuel',
       name: 'Natural 95',
       icon: '⛽',
-      basePrice: 28,
+      basePrice: 14,
       prepTime: 2.6,
       stationId: 'pump',
       color: '#e07a5f'
@@ -15,7 +15,7 @@
       id: 'wash',
       name: 'Umytí oken',
       icon: '🧽',
-      basePrice: 22,
+      basePrice: 11,
       prepTime: 2.0,
       stationId: 'bucket',
       color: '#5ca4a9'
@@ -24,7 +24,7 @@
       id: 'coffee',
       name: 'Teplá káva',
       icon: '☕',
-      basePrice: 24,
+      basePrice: 12,
       prepTime: 1.8,
       stationId: 'coffee',
       color: '#8c5a3c'
@@ -33,7 +33,7 @@
       id: 'snack',
       name: 'Párek / Croissant',
       icon: '🌭',
-      basePrice: 30,
+      basePrice: 15,
       prepTime: 2.2,
       stationId: 'grill',
       color: '#d98a3c'
@@ -42,7 +42,7 @@
       id: 'drink',
       name: 'Domácí limonáda',
       icon: '🧃',
-      basePrice: 20,
+      basePrice: 10,
       prepTime: 1.2,
       stationId: 'fridge',
       color: '#7fb069'
@@ -60,7 +60,7 @@
       id: 'chips',
       name: 'Křupky a preclíky',
       icon: '🥨',
-      basePrice: 24,
+      basePrice: 11,
       prepTime: 1.0,
       rackId: 'rack_snacks',
       isRackItem: true,
@@ -70,7 +70,7 @@
       id: 'candy',
       name: 'Čokoláda a oplatky',
       icon: '🍫',
-      basePrice: 26,
+      basePrice: 12,
       prepTime: 1.0,
       rackId: 'rack_sweets',
       isRackItem: true,
@@ -80,7 +80,7 @@
       id: 'carcare',
       name: 'Autokosmetika',
       icon: '🧴',
-      basePrice: 32,
+      basePrice: 15,
       prepTime: 1.0,
       rackId: 'rack_auto',
       isRackItem: true,
@@ -94,7 +94,7 @@
       name: 'Rychlé stojany',
       icon: '⛽',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
+      costs: [75, 165, 310, 480],
       description: 'Zrychlí tankování o +30 % za úroveň. Od úrovně 2 odemkne 3. stojan!'
     },
     {
@@ -102,47 +102,47 @@
       name: 'Voňavý kávovar',
       icon: '☕',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
-      description: 'Vaří kávu o +30 % rychleji a zvýší cenu šálku o +5 Kč za úroveň.'
+      costs: [75, 165, 310, 480],
+      description: 'Vaří kávu o +30 % rychleji a zvýší cenu šálku o +3 Kč za úroveň.'
     },
     {
       id: 'grill',
       name: 'Gril a pekárna',
       icon: '🌭',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
-      description: 'Připraví párky a pečivo o +30 % rychleji a přidá +6 Kč k ceně.'
+      costs: [75, 165, 310, 480],
+      description: 'Připraví párky a pečivo o +30 % rychleji a přidá +3 Kč k ceně.'
     },
     {
       id: 'wash',
       name: 'Mycí sada a limonády',
       icon: '🧽',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
-      description: 'Zrychlí mytí oken o +30 %, přidá +6 Kč za mytí a +5 Kč za limonádu.'
+      costs: [75, 165, 310, 480],
+      description: 'Zrychlí mytí oken o +30 %, přidá +3 Kč za mytí a +2 Kč za limonádu.'
     },
     {
       id: 'racks',
       name: 'Prostorné regály',
       icon: '🛒',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
-      description: 'Zvýší kapacitu prodejních stojanů v obchodě (+2 ks za úroveň) a přidá +5 Kč za každý prodaný kus ze stojanu.'
+      costs: [75, 165, 310, 480],
+      description: 'Zvýší kapacitu prodejních stojanů v obchodě (+2 ks za úroveň) a přidá +3 Kč za každý prodaný kus ze stojanu.'
     },
     {
       id: 'decor',
       name: 'Útulná výzdoba',
       icon: '🌸',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
-      description: 'Přidá truhlíky s květinami a světýlka. +25 % trpělivosti a +20 % spropitné.'
+      costs: [75, 165, 310, 480],
+      description: 'Přidá truhlíky s květinami a světýlka. +25 % trpělivosti a +15 % spropitné.'
     },
     {
       id: 'shoes',
       name: 'Pohodlné tenisky',
       icon: '👟',
       maxLevel: 4,
-      costs: [80, 160, 280, 450],
+      costs: [75, 165, 310, 480],
       description: 'Chůze je o +22 % rychlejší. Od úrovně 2 uneseš 3 věci najednou!'
     }
   ];
@@ -155,8 +155,8 @@
       icon: '🧑‍🔧',
       color: '#4e79a7',
       hatColor: '#2d4d6e',
-      hireCost: 140,
-      upgradeCosts: [200, 340],
+      hireCost: 130,
+      upgradeCosts: [210, 350],
       maxLevel: 3,
       description: 'Sám dochází k přijíždějícím autům, tankuje palivo (⛽) a myje čelní skla (🧽).'
     },
@@ -167,7 +167,7 @@
       icon: '👩‍🍳',
       color: '#d4746b',
       hatColor: '#b5554c',
-      hireCost: 180,
+      hireCost: 160,
       upgradeCosts: [240, 380],
       maxLevel: 3,
       description: 'Připravuje kávu (☕), občerstvení (🌭) i limonády (🧃) a nosí je zákazníkům.'
@@ -179,8 +179,8 @@
       icon: '🧔',
       color: '#6b9a6f',
       hatColor: '#48704b',
-      hireCost: 160,
-      upgradeCosts: [220, 360],
+      hireCost: 145,
+      upgradeCosts: [225, 360],
       maxLevel: 3,
       description: 'Obsluhuje pokladnu (📠), doplňuje prázdné stojany v obchodě (📦) a uklízí louže (🧹).'
     }
@@ -284,7 +284,7 @@
       customers: 7,
       spawnInterval: 6.2,
       patienceBase: 46,
-      stars: [140, 200, 260],
+      stars: [100, 145, 180],
       orders: ['fuel', 'coffee', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.2,
@@ -300,7 +300,7 @@
       customers: 9,
       spawnInterval: 5.7,
       patienceBase: 44,
-      stars: [220, 300, 380],
+      stars: [160, 220, 270],
       orders: ['fuel', 'coffee', 'wash', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.3,
@@ -316,7 +316,7 @@
       customers: 11,
       spawnInterval: 5.3,
       patienceBase: 42,
-      stars: [300, 410, 500],
+      stars: [230, 315, 385],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.46,
       multiChance: 0.38,
@@ -332,7 +332,7 @@
       customers: 13,
       spawnInterval: 4.9,
       patienceBase: 40,
-      stars: [400, 540, 660],
+      stars: [310, 420, 515],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.45,
@@ -348,7 +348,7 @@
       customers: 15,
       spawnInterval: 4.6,
       patienceBase: 39,
-      stars: [520, 680, 820],
+      stars: [400, 540, 660],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.56,
@@ -364,7 +364,7 @@
       customers: 17,
       spawnInterval: 4.2,
       patienceBase: 37,
-      stars: [650, 840, 1020],
+      stars: [500, 675, 825],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.52,
       multiChance: 0.64,
@@ -380,7 +380,7 @@
       customers: 20,
       spawnInterval: 3.9,
       patienceBase: 36,
-      stars: [800, 1050, 1280],
+      stars: [640, 870, 1060],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.54,
       multiChance: 0.7,
@@ -396,7 +396,7 @@
       customers: 23,
       spawnInterval: 3.6,
       patienceBase: 35,
-      stars: [1000, 1300, 1600],
+      stars: [790, 1070, 1300],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.52,
       multiChance: 0.76,
