@@ -6,7 +6,7 @@
       id: 'fuel',
       name: 'Natural 95',
       icon: '⛽',
-      basePrice: 14,
+      basePrice: 4,
       prepTime: 2.6,
       stationId: 'pump',
       color: '#e07a5f'
@@ -15,7 +15,7 @@
       id: 'wash',
       name: 'Umytí oken',
       icon: '🧽',
-      basePrice: 11,
+      basePrice: 3,
       prepTime: 2.0,
       stationId: 'bucket',
       color: '#5ca4a9'
@@ -24,7 +24,7 @@
       id: 'coffee',
       name: 'Teplá káva',
       icon: '☕',
-      basePrice: 12,
+      basePrice: 4,
       prepTime: 1.8,
       stationId: 'coffee',
       color: '#8c5a3c'
@@ -33,7 +33,7 @@
       id: 'snack',
       name: 'Párek / Croissant',
       icon: '🌭',
-      basePrice: 15,
+      basePrice: 5,
       prepTime: 2.2,
       stationId: 'grill',
       color: '#d98a3c'
@@ -42,7 +42,7 @@
       id: 'drink',
       name: 'Domácí limonáda',
       icon: '🧃',
-      basePrice: 10,
+      basePrice: 3,
       prepTime: 1.2,
       stationId: 'fridge',
       color: '#7fb069'
@@ -60,7 +60,7 @@
       id: 'chips',
       name: 'Křupky a preclíky',
       icon: '🥨',
-      basePrice: 11,
+      basePrice: 3,
       prepTime: 1.0,
       rackId: 'rack_snacks',
       isRackItem: true,
@@ -70,7 +70,7 @@
       id: 'candy',
       name: 'Čokoláda a oplatky',
       icon: '🍫',
-      basePrice: 12,
+      basePrice: 4,
       prepTime: 1.0,
       rackId: 'rack_sweets',
       isRackItem: true,
@@ -80,70 +80,199 @@
       id: 'carcare',
       name: 'Autokosmetika',
       icon: '🧴',
-      basePrice: 15,
+      basePrice: 5,
       prepTime: 1.0,
       rackId: 'rack_auto',
       isRackItem: true,
       color: '#5ca4a9'
+    },
+    broom: {
+      id: 'broom',
+      name: 'Koště',
+      icon: '🧹',
+      basePrice: 0,
+      prepTime: 0.4,
+      stationId: 'broom',
+      color: '#a47148'
     }
   };
 
   const UPGRADES = [
     {
+      id: 'pump_unlock',
+      name: 'Další tankovací stojan',
+      icon: '⛽',
+      maxLevel: 3,
+      costs: [14, 28],
+      description: 'Postaví na nádvoří 2. a následně 3. tankovací stojan, takže může tankovat více aut najednou.'
+    },
+    {
+      id: 'wash_unlock',
+      name: 'Stanoviště: Mytí oken',
+      icon: '🧽',
+      maxLevel: 2,
+      costs: [12],
+      description: 'Otevře u stojanů kbelík se stěrkou (🧽). Řidiči si k tankování začnou přát i umytí čelního skla.'
+    },
+    {
+      id: 'rack_sweets_unlock',
+      name: '2. Regál: Sladkosti',
+      icon: '🍫',
+      maxLevel: 2,
+      costs: [14],
+      description: 'Postaví v obchodě druhý prodejní regál s čokoládou a oplatkami (🍫 za 4 Kč).'
+    },
+    {
+      id: 'fridge_unlock',
+      name: 'Chladnička s limonádou',
+      icon: '🧃',
+      maxLevel: 2,
+      costs: [16],
+      description: 'Postaví za pult chladničku na čepovanou domácí limonádu (🧃 za 3 Kč).'
+    },
+    {
+      id: 'grill_unlock',
+      name: 'Gril & Pečivo',
+      icon: '🌭',
+      maxLevel: 2,
+      costs: [22],
+      description: 'Postaví za pult rozpálený gril na párky v rohlíku a croissanty (🌭 za 5 Kč).'
+    },
+    {
+      id: 'rack_auto_unlock',
+      name: '3. Regál: Autodrogerie',
+      icon: '🧴',
+      maxLevel: 2,
+      costs: [24],
+      description: 'Postaví v obchodě třetí prodejní regál s autokosmetikou (🧴 za 5 Kč).'
+    },
+    {
       id: 'pumps',
-      name: 'Rychlé stojany',
+      name: 'Rychlost tankování',
       icon: '⛽',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Zrychlí tankování o +30 % za úroveň. Od úrovně 2 odemkne 3. stojan!'
+      costs: [10, 22, 45],
+      description: 'Zrychlí tankování paliva o +30 % za úroveň.'
+    },
+    {
+      id: 'pumps_price',
+      name: 'Prémiové palivo (Cena)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší prodejní cenu paliva o +1 Kč za úroveň.'
     },
     {
       id: 'coffee',
-      name: 'Voňavý kávovar',
+      name: 'Rychlost kávovaru',
       icon: '☕',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Vaří kávu o +30 % rychleji a zvýší cenu šálku o +3 Kč za úroveň.'
+      costs: [10, 22, 45],
+      description: 'Vaří kávu o +30 % rychleji za úroveň.'
+    },
+    {
+      id: 'coffee_price',
+      name: 'Výběrová káva (Cena)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší cenu šálku kávy o +1 Kč za úroveň.'
     },
     {
       id: 'grill',
-      name: 'Gril a pekárna',
+      name: 'Rychlost grilu a pekárny',
       icon: '🌭',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Připraví párky a pečivo o +30 % rychleji a přidá +3 Kč k ceně.'
+      costs: [10, 22, 45],
+      description: 'Připraví párky a pečivo o +30 % rychleji za úroveň.'
+    },
+    {
+      id: 'grill_price',
+      name: 'Farmářské suroviny (Cena)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší cenu občerstvení z grilu o +1 Kč za úroveň.'
     },
     {
       id: 'wash',
-      name: 'Mycí sada a limonády',
+      name: 'Rychlost mytí oken',
       icon: '🧽',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Zrychlí mytí oken o +30 %, přidá +3 Kč za mytí a +2 Kč za limonádu.'
+      costs: [10, 22, 45],
+      description: 'Zrychlí mytí čelních skel o +30 % za úroveň.'
+    },
+    {
+      id: 'wash_price',
+      name: 'Lešticí pěna (Cena mytí)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší odměnu za umytí oken o +1 Kč za úroveň.'
+    },
+    {
+      id: 'drink_speed',
+      name: 'Rychlost čepování limonád',
+      icon: '🧃',
+      maxLevel: 4,
+      costs: [10, 22, 45],
+      description: 'Zrychlí přípravu domácí limonády o +30 % za úroveň.'
+    },
+    {
+      id: 'drink_price',
+      name: 'Ovocný sirup (Cena limonády)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší cenu limonády o +1 Kč za úroveň.'
     },
     {
       id: 'racks',
-      name: 'Prostorné regály',
+      name: 'Kapacita regálů',
       icon: '🛒',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Zvýší kapacitu prodejních stojanů v obchodě (+2 ks za úroveň) a přidá +3 Kč za každý prodaný kus ze stojanu.'
+      costs: [10, 22, 45],
+      description: 'Zvýší kapacitu každého prodejního stojanu v obchodě o +2 ks za úroveň.'
+    },
+    {
+      id: 'racks_price',
+      name: 'Lepší sortiment regálů (Cena)',
+      icon: '💰',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší cenu každého prodaného kusu z regálu o +1 Kč za úroveň.'
     },
     {
       id: 'decor',
-      name: 'Útulná výzdoba',
+      name: 'Útulná výzdoba (Trpělivost)',
       icon: '🌸',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Přidá truhlíky s květinami a světýlka. +25 % trpělivosti a +15 % spropitné.'
+      costs: [10, 22, 45],
+      description: 'Přidá květiny a světýlka. Zákazníci jsou o +25 % trpělivější za úroveň.'
+    },
+    {
+      id: 'decor_tips',
+      name: 'Milá obsluha (Spropitné)',
+      icon: '💝',
+      maxLevel: 4,
+      costs: [12, 25, 48],
+      description: 'Zvýší spropitné od spokojených zákazníků o +15 % za úroveň.'
     },
     {
       id: 'shoes',
-      name: 'Pohodlné tenisky',
+      name: 'Pohodlné tenisky (Rychlost)',
       icon: '👟',
       maxLevel: 4,
-      costs: [75, 165, 310, 480],
-      description: 'Chůze je o +22 % rychlejší. Od úrovně 2 uneseš 3 věci najednou!'
+      costs: [10, 22, 45],
+      description: 'Chůze obsluhy je o +22 % rychlejší za úroveň.'
+    },
+    {
+      id: 'carry',
+      name: 'Větší tác (Nosnost rukou)',
+      icon: '🎒',
+      maxLevel: 3,
+      costs: [24, 55],
+      description: 'Uneseš v rukou více věcí najednou (+1 kus za úroveň, až 4 věci).'
     }
   ];
 
@@ -155,8 +284,8 @@
       icon: '🧑‍🔧',
       color: '#4e79a7',
       hatColor: '#2d4d6e',
-      hireCost: 130,
-      upgradeCosts: [210, 350],
+      hireCost: 28,
+      upgradeCosts: [52, 85],
       maxLevel: 3,
       description: 'Sám dochází k přijíždějícím autům, tankuje palivo (⛽) a myje čelní skla (🧽).'
     },
@@ -167,8 +296,8 @@
       icon: '👩‍🍳',
       color: '#d4746b',
       hatColor: '#b5554c',
-      hireCost: 160,
-      upgradeCosts: [240, 380],
+      hireCost: 35,
+      upgradeCosts: [62, 100],
       maxLevel: 3,
       description: 'Připravuje kávu (☕), občerstvení (🌭) i limonády (🧃) a nosí je zákazníkům.'
     },
@@ -179,8 +308,8 @@
       icon: '🧔',
       color: '#6b9a6f',
       hatColor: '#48704b',
-      hireCost: 145,
-      upgradeCosts: [225, 360],
+      hireCost: 32,
+      upgradeCosts: [56, 90],
       maxLevel: 3,
       description: 'Obsluhuje pokladnu (📠), doplňuje prázdné stojany v obchodě (📦) a uklízí louže (🧹).'
     }
@@ -284,8 +413,8 @@
       customers: 7,
       spawnInterval: 6.2,
       patienceBase: 46,
-      stars: [100, 145, 180],
-      orders: ['fuel', 'coffee', 'chips', 'candy', 'carcare'],
+      stars: [30, 40, 48],
+      orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.2,
       spillChance: 0.08
@@ -300,8 +429,8 @@
       customers: 9,
       spawnInterval: 5.7,
       patienceBase: 44,
-      stars: [160, 220, 270],
-      orders: ['fuel', 'coffee', 'wash', 'drink', 'chips', 'candy', 'carcare'],
+      stars: [48, 65, 78],
+      orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.3,
       spillChance: 0.12
@@ -316,7 +445,7 @@
       customers: 11,
       spawnInterval: 5.3,
       patienceBase: 42,
-      stars: [230, 315, 385],
+      stars: [78, 108, 130],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.46,
       multiChance: 0.38,
@@ -332,7 +461,7 @@
       customers: 13,
       spawnInterval: 4.9,
       patienceBase: 40,
-      stars: [310, 420, 515],
+      stars: [105, 145, 175],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.45,
@@ -348,7 +477,7 @@
       customers: 15,
       spawnInterval: 4.6,
       patienceBase: 39,
-      stars: [400, 540, 660],
+      stars: [140, 195, 238],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.48,
       multiChance: 0.56,
@@ -364,7 +493,7 @@
       customers: 17,
       spawnInterval: 4.2,
       patienceBase: 37,
-      stars: [500, 675, 825],
+      stars: [185, 255, 310],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.52,
       multiChance: 0.64,
@@ -380,7 +509,7 @@
       customers: 20,
       spawnInterval: 3.9,
       patienceBase: 36,
-      stars: [640, 870, 1060],
+      stars: [245, 335, 410],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.54,
       multiChance: 0.7,
@@ -396,7 +525,7 @@
       customers: 23,
       spawnInterval: 3.6,
       patienceBase: 35,
-      stars: [790, 1070, 1300],
+      stars: [305, 420, 515],
       orders: ['fuel', 'coffee', 'wash', 'snack', 'drink', 'chips', 'candy', 'carcare'],
       carChance: 0.52,
       multiChance: 0.76,
@@ -404,7 +533,7 @@
     }
   ];
 
-  // Logical scene dimensions: 1260 x 650
+  // Logical scene dimensions: 1540 x 780
   const STATIONS = {
     pump_0: {
       id: 'pump_0',
@@ -412,13 +541,13 @@
       pumpIndex: 0,
       label: 'Stojan 1',
       icon: '⛽',
-      x: 100,
-      y: 270,
-      walkX: 146,
-      walkY: 312,
-      carX: 95,
-      carY: 408,
-      radius: 44
+      x: 120,
+      y: 295,
+      walkX: 168,
+      walkY: 338,
+      carX: 115,
+      carY: 455,
+      radius: 46
     },
     pump_1: {
       id: 'pump_1',
@@ -426,13 +555,13 @@
       pumpIndex: 1,
       label: 'Stojan 2',
       icon: '⛽',
-      x: 260,
-      y: 270,
-      walkX: 306,
-      walkY: 312,
-      carX: 255,
-      carY: 408,
-      radius: 44
+      x: 300,
+      y: 295,
+      walkX: 348,
+      walkY: 338,
+      carX: 295,
+      carY: 455,
+      radius: 46
     },
     pump_2: {
       id: 'pump_2',
@@ -440,13 +569,13 @@
       pumpIndex: 2,
       label: 'Stojan 3',
       icon: '⛽',
-      x: 420,
-      y: 270,
-      walkX: 466,
-      walkY: 312,
-      carX: 415,
-      carY: 408,
-      radius: 44
+      x: 480,
+      y: 295,
+      walkX: 528,
+      walkY: 338,
+      carX: 475,
+      carY: 455,
+      radius: 46
     },
     bucket: {
       id: 'bucket',
@@ -454,11 +583,11 @@
       itemId: 'wash',
       label: 'Mytí oken',
       icon: '🧽',
-      x: 478,
+      x: 555,
       y: 205,
-      walkX: 478,
+      walkX: 555,
       walkY: 256,
-      radius: 36
+      radius: 38
     },
     coffee: {
       id: 'coffee',
@@ -466,11 +595,11 @@
       itemId: 'coffee',
       label: 'Kávovar',
       icon: '☕',
-      x: 585,
-      y: 195,
-      walkX: 585,
-      walkY: 244,
-      radius: 40
+      x: 700,
+      y: 185,
+      walkX: 700,
+      walkY: 248,
+      radius: 42
     },
     grill: {
       id: 'grill',
@@ -478,11 +607,11 @@
       itemId: 'snack',
       label: 'Gril & Pečivo',
       icon: '🌭',
-      x: 705,
-      y: 195,
-      walkX: 705,
-      walkY: 244,
-      radius: 40
+      x: 875,
+      y: 185,
+      walkX: 875,
+      walkY: 248,
+      radius: 42
     },
     fridge: {
       id: 'fridge',
@@ -490,34 +619,34 @@
       itemId: 'drink',
       label: 'Limonády',
       icon: '🧃',
-      x: 825,
-      y: 195,
-      walkX: 825,
-      walkY: 244,
-      radius: 40
+      x: 1050,
+      y: 185,
+      walkX: 1050,
+      walkY: 248,
+      radius: 42
     },
     trash: {
       id: 'trash',
       type: 'trash',
       label: 'Koš',
       icon: '🗑️',
-      x: 940,
-      y: 195,
-      walkX: 940,
-      walkY: 244,
-      radius: 34
+      x: 1215,
+      y: 185,
+      walkX: 1215,
+      walkY: 248,
+      radius: 36
     },
     register: {
       id: 'register',
       type: 'register',
       label: 'Pokladna',
       icon: '📠',
-      x: 625,
-      y: 280,
-      walkX: 625,
-      walkY: 246,
-      customerX: 625,
-      customerY: 332,
+      x: 745,
+      y: 320,
+      walkX: 745,
+      walkY: 278,
+      customerX: 745,
+      customerY: 382,
       radius: 44
     },
     storage: {
@@ -526,22 +655,22 @@
       itemId: 'crate',
       label: 'Sklad zboží',
       icon: '📦',
-      x: 1165,
-      y: 215,
-      walkX: 1155,
-      walkY: 262,
-      radius: 42
+      x: 1420,
+      y: 220,
+      walkX: 1410,
+      walkY: 272,
+      radius: 44
     },
     broom: {
       id: 'broom',
       type: 'broom',
       label: 'Úklid',
       icon: '🧹',
-      x: 1165,
-      y: 318,
-      walkX: 1155,
-      walkY: 350,
-      radius: 34
+      x: 1420,
+      y: 375,
+      walkX: 1410,
+      walkY: 418,
+      radius: 36
     }
   };
 
@@ -551,47 +680,47 @@
       itemId: 'chips',
       label: 'Stojan: Křupky',
       icon: '🥨',
-      x: 680,
-      y: 412,
-      walkX: 680,
-      walkY: 374,
-      custX: 680,
-      custY: 452,
-      radius: 42
+      x: 790,
+      y: 500,
+      walkX: 790,
+      walkY: 452,
+      custX: 790,
+      custY: 548,
+      radius: 44
     },
     rack_sweets: {
       id: 'rack_sweets',
       itemId: 'candy',
       label: 'Stojan: Sladkosti',
       icon: '🍫',
-      x: 835,
-      y: 412,
-      walkX: 835,
-      walkY: 374,
-      custX: 835,
-      custY: 452,
-      radius: 42
+      x: 990,
+      y: 500,
+      walkX: 990,
+      walkY: 452,
+      custX: 990,
+      custY: 548,
+      radius: 44
     },
     rack_auto: {
       id: 'rack_auto',
       itemId: 'carcare',
       label: 'Stojan: Autodrogerie',
       icon: '🧴',
-      x: 990,
-      y: 412,
-      walkX: 990,
-      walkY: 374,
-      custX: 990,
-      custY: 452,
-      radius: 42
+      x: 1190,
+      y: 500,
+      walkX: 1190,
+      walkY: 452,
+      custX: 1190,
+      custY: 548,
+      radius: 44
     }
   };
 
   const SHOP_SPOTS = [
-    { id: 0, x: 730, y: 332, serveX: 730, serveY: 246 },
-    { id: 1, x: 815, y: 332, serveX: 815, serveY: 246 },
-    { id: 2, x: 900, y: 332, serveX: 900, serveY: 246 },
-    { id: 3, x: 985, y: 332, serveX: 985, serveY: 246 }
+    { id: 0, x: 880, y: 382, serveX: 880, serveY: 278 },
+    { id: 1, x: 985, y: 382, serveX: 985, serveY: 278 },
+    { id: 2, x: 1090, y: 382, serveX: 1090, serveY: 278 },
+    { id: 3, x: 1195, y: 382, serveX: 1195, serveY: 278 }
   ];
 
   window.GAME_DATA = {

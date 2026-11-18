@@ -16,8 +16,8 @@
     constructor(canvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
-      this.width = 1260;
-      this.height = 650;
+      this.width = 1540;
+      this.height = 780;
     }
 
     render(state) {
@@ -67,6 +67,11 @@
       });
 
       this._drawParticles(ctx, state.particles);
+      if (state.placementMode) {
+        this._drawPlacementOverlay(ctx, t, state);
+      } else if (state.prepMode) {
+        this._drawPrepUpgradeBadges(ctx, t, state);
+      }
       this._drawHoverHint(ctx, state);
       if (state.paused) {
         this._drawPauseOverlay(ctx);
@@ -110,23 +115,23 @@
         ctx.fillStyle = theme.hillFar;
         ctx.beginPath();
         ctx.moveTo(0, 185);
-        ctx.lineTo(140, 82);
-        ctx.lineTo(290, 170);
-        ctx.lineTo(440, 72);
-        ctx.lineTo(610, 178);
-        ctx.lineTo(800, 86);
-        ctx.lineTo(1020, 180);
-        ctx.lineTo(1260, 95);
-        ctx.lineTo(1260, 210);
+        ctx.lineTo(170, 82);
+        ctx.lineTo(350, 170);
+        ctx.lineTo(540, 72);
+        ctx.lineTo(760, 178);
+        ctx.lineTo(980, 86);
+        ctx.lineTo(1240, 180);
+        ctx.lineTo(1540, 95);
+        ctx.lineTo(1540, 210);
         ctx.lineTo(0, 210);
         ctx.closePath();
         ctx.fill();
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         [
-          [140, 82, 34],
-          [440, 72, 38],
-          [800, 86, 32]
+          [170, 82, 34],
+          [540, 72, 38],
+          [980, 86, 32]
         ].forEach(([mx, my, mw]) => {
           ctx.beginPath();
           ctx.moveTo(mx, my);
@@ -144,10 +149,10 @@
       ctx.fillStyle = theme.hillFar;
       ctx.beginPath();
       ctx.moveTo(0, 175);
-      ctx.quadraticCurveTo(250, 118, 510, 165);
-      ctx.quadraticCurveTo(790, 122, 1050, 162);
-      ctx.quadraticCurveTo(1160, 140, 1260, 160);
-      ctx.lineTo(1260, 220);
+      ctx.quadraticCurveTo(300, 118, 620, 165);
+      ctx.quadraticCurveTo(960, 122, 1280, 162);
+      ctx.quadraticCurveTo(1420, 140, 1540, 160);
+      ctx.lineTo(1540, 220);
       ctx.lineTo(0, 220);
       ctx.closePath();
       ctx.fill();
@@ -192,15 +197,15 @@
       ctx.fillStyle = theme.hillNear;
       ctx.beginPath();
       ctx.moveTo(0, 192);
-      ctx.quadraticCurveTo(330, 152, 670, 185);
-      ctx.quadraticCurveTo(960, 158, 1260, 188);
-      ctx.lineTo(1260, 240);
+      ctx.quadraticCurveTo(400, 152, 820, 185);
+      ctx.quadraticCurveTo(1180, 158, 1540, 188);
+      ctx.lineTo(1540, 240);
       ctx.lineTo(0, 240);
       ctx.closePath();
       ctx.fill();
 
       // Cozy rounded trees along horizon
-      const treePositions = [32, 180, 315, 460, 535, 1235];
+      const treePositions = [36, 220, 390, 560, 610, 1505];
       treePositions.forEach((tx, idx) => {
         const ty = 175 + (idx % 2) * 8;
         ctx.fillStyle = '#73533d';
@@ -223,33 +228,33 @@
 
       // Driveway road along the bottom
       ctx.fillStyle = '#6c6a67';
-      ctx.fillRect(0, 490, this.width, 160);
+      ctx.fillRect(0, 595, this.width, 185);
 
       // Asphalt forecourt area for cars & pumps
       ctx.fillStyle = '#7a7773';
-      roundRect(ctx, 16, 206, 490, 310, 24);
+      roundRect(ctx, 18, 205, 580, 376, 24);
       ctx.fill();
 
       // Dashed road divider line
       ctx.save();
       ctx.strokeStyle = '#efe2be';
       ctx.lineWidth = 4;
-      ctx.setLineDash([28, 22]);
+      ctx.setLineDash([32, 24]);
       ctx.beginPath();
-      ctx.moveTo(0, 572);
-      ctx.lineTo(this.width, 572);
+      ctx.moveTo(0, 688);
+      ctx.lineTo(this.width, 688);
       ctx.stroke();
       ctx.restore();
 
       // Sidewalk / curb between forecourt/shop and road
       ctx.fillStyle = '#ded4be';
-      ctx.fillRect(0, 474, this.width, 20);
+      ctx.fillRect(0, 578, this.width, 22);
       ctx.fillStyle = '#c5b89e';
-      ctx.fillRect(0, 490, this.width, 5);
+      ctx.fillRect(0, 596, this.width, 5);
 
       // Pump island raised concrete pad
       ctx.fillStyle = '#d7cdb6';
-      roundRect(ctx, 44, 250, 434, 58, 16);
+      roundRect(ctx, 54, 272, 496, 62, 16);
       ctx.fill();
       ctx.strokeStyle = '#b4a88e';
       ctx.lineWidth = 3;
@@ -257,39 +262,39 @@
 
       // Canopy shadow on ground
       ctx.fillStyle = 'rgba(65, 48, 34, 0.12)';
-      roundRect(ctx, 36, 210, 452, 36, 12);
+      roundRect(ctx, 44, 210, 520, 40, 12);
       ctx.fill();
 
       // Canopy pillars
       ctx.fillStyle = '#f3ead7';
-      ctx.fillRect(60, 168, 14, 98);
-      ctx.fillRect(458, 168, 14, 98);
+      ctx.fillRect(72, 162, 16, 120);
+      ctx.fillRect(520, 162, 16, 120);
 
       // Cozy Pump Canopy Roof
       ctx.fillStyle = '#d86d53';
-      roundRect(ctx, 30, 118, 466, 54, 14);
+      roundRect(ctx, 36, 114, 536, 54, 14);
       ctx.fill();
       ctx.fillStyle = '#f7ebd5';
-      roundRect(ctx, 30, 152, 466, 16, 6);
+      roundRect(ctx, 36, 148, 536, 16, 6);
       ctx.fill();
 
       // Decor upgrades: flower boxes and fairy lights
       if (decorLvl >= 1) {
-        this._drawFlowerBox(ctx, 50, 270, t);
-        this._drawFlowerBox(ctx, 442, 270, t);
+        this._drawFlowerBox(ctx, 60, 294, t);
+        this._drawFlowerBox(ctx, 526, 294, t);
       }
       if (decorLvl >= 2) {
-        this._drawFairyLights(ctx, 42, 168, 484, 168, t);
+        this._drawFairyLights(ctx, 48, 164, 560, 164, t);
       }
       if (decorLvl >= 3) {
-        this._drawFlowerBox(ctx, 542, 466, t);
-        this._drawFlowerBox(ctx, 1052, 466, t);
+        this._drawFlowerBox(ctx, 648, 576, t);
+        this._drawFlowerBox(ctx, 1285, 576, t);
       }
 
-      // Right Side: Main Cozy Shop & Bistro (x: 520..1076)
+      // Main Cozy Shop & Bistro (x: 620..1310, y: 138..582)
       ctx.save();
       ctx.fillStyle = '#f4e6cf';
-      roundRect(ctx, 520, 142, 556, 336, 18);
+      roundRect(ctx, 620, 138, 690, 444, 18);
       ctx.fill();
       ctx.strokeStyle = '#c49d74';
       ctx.lineWidth = 4;
@@ -297,68 +302,68 @@
 
       // Warm wooden plank floor
       ctx.fillStyle = '#dcb98e';
-      roundRect(ctx, 532, 224, 532, 246, 12);
+      roundRect(ctx, 634, 224, 662, 348, 12);
       ctx.fill();
       ctx.strokeStyle = 'rgba(130, 88, 50, 0.2)';
       ctx.lineWidth = 1.5;
-      for (let py = 248; py < 466; py += 24) {
+      for (let py = 250; py < 568; py += 26) {
         ctx.beginPath();
-        ctx.moveTo(536, py);
-        ctx.lineTo(1060, py);
+        ctx.moveTo(638, py);
+        ctx.lineTo(1292, py);
         ctx.stroke();
       }
 
       // Back wall inside shop
       ctx.fillStyle = '#fdf4e3';
-      roundRect(ctx, 532, 162, 532, 68, 8);
+      roundRect(ctx, 634, 158, 662, 72, 8);
       ctx.fill();
 
       // Cozy terracotta shop awning/roof
       ctx.fillStyle = '#c8644c';
-      roundRect(ctx, 514, 108, 568, 48, 14);
+      roundRect(ctx, 614, 102, 702, 50, 14);
       ctx.fill();
-      for (let sx = 524; sx < 1068; sx += 36) {
-        ctx.fillStyle = Math.floor(sx / 36) % 2 === 0 ? '#f7ebd5' : '#d87a61';
+      for (let sx = 626; sx < 1300; sx += 38) {
+        ctx.fillStyle = Math.floor(sx / 38) % 2 === 0 ? '#f7ebd5' : '#d87a61';
         ctx.beginPath();
-        ctx.arc(sx + 16, 156, 16, 0, Math.PI);
+        ctx.arc(sx + 17, 152, 17, 0, Math.PI);
         ctx.fill();
       }
 
       if (decorLvl >= 2) {
-        this._drawFairyLights(ctx, 536, 162, 1060, 162, t + 1.3);
+        this._drawFairyLights(ctx, 638, 158, 1292, 158, t + 1.3);
       }
 
-      // Service Counter facing DOWN toward the shop floor (open aisles on left x=560 & right x=1044)
+      // Service Counter facing DOWN toward the shop floor (open aisles on left x=665 & right x=1272)
       ctx.fillStyle = '#9f6b47';
-      roundRect(ctx, 594, 272, 428, 30, 8);
+      roundRect(ctx, 705, 312, 530, 32, 8);
       ctx.fill();
       ctx.fillStyle = '#f1dec0';
-      roundRect(ctx, 590, 266, 436, 12, 6);
+      roundRect(ctx, 700, 306, 540, 12, 6);
       ctx.fill();
 
       // Subtle floor mat at register & waiting counter spots
       ctx.fillStyle = 'rgba(224, 122, 95, 0.18)';
       ctx.beginPath();
-      ctx.ellipse(625, 348, 24, 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(745, 398, 26, 9, 0, 0, Math.PI * 2);
       ctx.fill();
 
       window.GAME_DATA.SHOP_SPOTS.forEach((spot) => {
         ctx.fillStyle = 'rgba(159, 107, 71, 0.14)';
         ctx.beginPath();
-        ctx.ellipse(spot.x, spot.y + 16, 22, 8, 0, 0, Math.PI * 2);
+        ctx.ellipse(spot.x, spot.y + 16, 24, 8, 0, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Welcome doormat & open doorway gap in bottom shop wall (x: 566..640)
+      // Welcome doormat & open doorway gap in bottom shop wall (x: 678..754)
       ctx.fillStyle = '#dcb98e';
-      ctx.fillRect(566, 466, 74, 16);
+      ctx.fillRect(678, 570, 76, 18);
       ctx.fillStyle = '#a4654b';
-      roundRect(ctx, 566, 462, 74, 18, 6);
+      roundRect(ctx, 678, 566, 76, 20, 6);
       ctx.fill();
 
-      // Adjacent Side Storage Room (📦 SKLAD, x: 1080..1246, y: 124..385)
+      // Adjacent Side Storage Room (x: 1312..1518, y: 148..475)
       ctx.fillStyle = '#e7dcc8';
-      roundRect(ctx, 1078, 152, 168, 236, 14);
+      roundRect(ctx, 1312, 148, 206, 328, 14);
       ctx.fill();
       ctx.strokeStyle = '#9e8468';
       ctx.lineWidth = 4;
@@ -366,34 +371,34 @@
 
       // Storage floor
       ctx.fillStyle = '#cbb89d';
-      roundRect(ctx, 1084, 198, 154, 182, 10);
+      roundRect(ctx, 1318, 200, 194, 266, 10);
       ctx.fill();
 
       // Storage back wall
       ctx.fillStyle = '#f2eadc';
-      roundRect(ctx, 1084, 162, 154, 42, 6);
+      roundRect(ctx, 1318, 160, 194, 44, 6);
       ctx.fill();
 
       // Storage roof
       ctx.fillStyle = '#7d6b5d';
-      roundRect(ctx, 1074, 124, 174, 38, 12);
+      roundRect(ctx, 1308, 120, 214, 38, 12);
       ctx.fill();
 
-      // Dividing wall segments with open doorway archway (y: 235..335)
+      // Dividing wall segments with open doorway archway (y: 255..375)
       ctx.fillStyle = '#c49d74';
-      ctx.fillRect(1073, 158, 8, 77);
-      ctx.fillRect(1073, 335, 8, 52);
+      ctx.fillRect(1307, 156, 8, 99);
+      ctx.fillRect(1307, 375, 8, 102);
 
       // Doorway threshold floor
       ctx.fillStyle = '#d3be9f';
-      ctx.fillRect(1068, 235, 18, 100);
+      ctx.fillRect(1302, 255, 18, 120);
       ctx.strokeStyle = '#8b6849';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(1077, 235);
-      ctx.lineTo(1077, 241);
-      ctx.moveTo(1077, 329);
-      ctx.lineTo(1077, 335);
+      ctx.moveTo(1311, 255);
+      ctx.lineTo(1311, 262);
+      ctx.moveTo(1311, 368);
+      ctx.lineTo(1311, 375);
       ctx.stroke();
 
       ctx.restore();
@@ -445,12 +450,20 @@
 
     _drawStations(ctx, t, state) {
       const stations = window.GAME_DATA.STATIONS;
-      const pumpsLvl = state.save.upgrades.pumps || 1;
+      const upgrades = state.save.upgrades || {};
+      const pumpsUnlocked = upgrades.pump_unlock || 1;
 
       Object.values(stations).forEach((st) => {
-        const isLockedPump = st.id === 'pump_2' && pumpsLvl < 2;
+        if (st.id === 'pump_1' && pumpsUnlocked < 2) return;
+        if (st.id === 'pump_2' && pumpsUnlocked < 3) return;
+        if (st.id === 'bucket' && (upgrades.wash_unlock || 1) < 2) return;
+        if (st.id === 'grill' && (upgrades.grill_unlock || 1) < 2) return;
+        if (st.id === 'fridge' && (upgrades.fridge_unlock || 1) < 2) return;
+        const isLockedPump = false;
         const isHovered =
-          state.hoveredTarget && state.hoveredTarget.kind === 'station' && state.hoveredTarget.id === st.id;
+          state.hoveredTarget &&
+          (state.hoveredTarget.kind === 'station' || state.hoveredTarget.kind === 'prep_target') &&
+          state.hoveredTarget.id === st.id;
 
         ctx.save();
         if (isHovered && !isLockedPump) {
@@ -490,8 +503,23 @@
         rack_auto: '#4ea8de'
       };
       state.racks.forEach((rack) => {
+        const rot = rack.rot || 0;
+        const isVert = rot % 2 === 1;
         const isHovered =
-          state.hoveredTarget && state.hoveredTarget.kind === 'rack' && state.hoveredTarget.id === rack.id;
+          state.hoveredTarget &&
+          (state.hoveredTarget.kind === 'rack' || state.hoveredTarget.kind === 'prep_target') &&
+          state.hoveredTarget.id === rack.id;
+
+        // Subtle customer-front mat showing which side customers approach
+        ctx.save();
+        ctx.fillStyle = 'rgba(107, 163, 104, 0.2)';
+        ctx.beginPath();
+        if (rot === 0) ctx.ellipse(rack.x, rack.y + 42, 24, 7, 0, 0, Math.PI * 2);
+        else if (rot === 2) ctx.ellipse(rack.x, rack.y - 36, 24, 7, 0, 0, Math.PI * 2);
+        else if (rot === 1) ctx.ellipse(rack.x - 36, rack.y, 7, 24, 0, 0, Math.PI * 2);
+        else ctx.ellipse(rack.x + 36, rack.y, 7, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         ctx.save();
         if (isHovered) {
@@ -499,37 +527,87 @@
           ctx.shadowBlur = 18;
         }
 
-        // Cozy wooden shelf display stand
-        ctx.fillStyle = 'rgba(65, 45, 30, 0.16)';
-        roundRect(ctx, rack.x - 42, rack.y - 10, 84, 34, 10);
-        ctx.fill();
-
-        ctx.fillStyle = '#9a6843';
-        roundRect(ctx, rack.x - 40, rack.y - 26, 80, 44, 10);
-        ctx.fill();
-        ctx.strokeStyle = '#6c462b';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Two shelf boards
-        ctx.fillStyle = '#e7cfa9';
-        roundRect(ctx, rack.x - 35, rack.y - 21, 70, 15, 4);
-        ctx.fill();
-        roundRect(ctx, rack.x - 35, rack.y - 1, 70, 15, 4);
-        ctx.fill();
-
-        // Draw painted mini-packages representing stock (no emojis)
         const slots = Math.min(rack.maxStock, 8);
         const itemColor = rackColors[rack.id] || '#e07a5f';
-        for (let i = 0; i < slots; i++) {
-          const row = Math.floor(i / 4);
-          const col = i % 4;
-          const ix = rack.x - 24 + col * 16;
-          const iy = rack.y - 13 + row * 19;
-          ctx.globalAlpha = i < rack.stock ? 1 : 0.16;
-          ctx.fillStyle = itemColor;
-          roundRect(ctx, ix - 5, iy - 5, 10, 11, 2);
+
+        if (!isVert) {
+          // Horizontal rack (0° facing South, 180° facing North)
+          ctx.fillStyle = 'rgba(65, 45, 30, 0.16)';
+          roundRect(ctx, rack.x - 42, rack.y - 10, 84, 34, 10);
           ctx.fill();
+
+          ctx.fillStyle = '#9a6843';
+          roundRect(ctx, rack.x - 40, rack.y - 26, 80, 44, 10);
+          ctx.fill();
+          ctx.strokeStyle = '#6c462b';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Two horizontal shelf boards
+          ctx.fillStyle = '#e7cfa9';
+          roundRect(ctx, rack.x - 35, rack.y - 21, 70, 15, 4);
+          ctx.fill();
+          roundRect(ctx, rack.x - 35, rack.y - 1, 70, 15, 4);
+          ctx.fill();
+
+          // Front customer lip accent
+          ctx.fillStyle = '#ffe094';
+          if (rot === 0) {
+            roundRect(ctx, rack.x - 32, rack.y + 15, 64, 4, 2);
+          } else {
+            roundRect(ctx, rack.x - 32, rack.y - 27, 64, 4, 2);
+          }
+          ctx.fill();
+
+          for (let i = 0; i < slots; i++) {
+            const row = Math.floor(i / 4);
+            const col = i % 4;
+            const ix = rack.x - 24 + col * 16;
+            const iy = rack.y - 13 + row * 19;
+            ctx.globalAlpha = i < rack.stock ? 1 : 0.16;
+            ctx.fillStyle = itemColor;
+            roundRect(ctx, ix - 5, iy - 5, 10, 11, 2);
+            ctx.fill();
+          }
+        } else {
+          // Vertical rack (90° facing West, 270° facing East)
+          ctx.fillStyle = 'rgba(65, 45, 30, 0.16)';
+          roundRect(ctx, rack.x - 26, rack.y - 28, 52, 70, 10);
+          ctx.fill();
+
+          ctx.fillStyle = '#9a6843';
+          roundRect(ctx, rack.x - 24, rack.y - 38, 48, 76, 10);
+          ctx.fill();
+          ctx.strokeStyle = '#6c462b';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Two vertical shelf columns
+          ctx.fillStyle = '#e7cfa9';
+          roundRect(ctx, rack.x - 19, rack.y - 33, 16, 66, 4);
+          ctx.fill();
+          roundRect(ctx, rack.x + 3, rack.y - 33, 16, 66, 4);
+          ctx.fill();
+
+          // Front customer lip accent
+          ctx.fillStyle = '#ffe094';
+          if (rot === 1) {
+            roundRect(ctx, rack.x - 25, rack.y - 30, 4, 60, 2);
+          } else {
+            roundRect(ctx, rack.x + 21, rack.y - 30, 4, 60, 2);
+          }
+          ctx.fill();
+
+          for (let i = 0; i < slots; i++) {
+            const row = Math.floor(i / 2);
+            const col = i % 2;
+            const ix = rack.x - 11 + col * 22;
+            const iy = rack.y - 24 + row * 16;
+            ctx.globalAlpha = i < rack.stock ? 1 : 0.16;
+            ctx.fillStyle = itemColor;
+            roundRect(ctx, ix - 5, iy - 5, 10, 11, 2);
+            ctx.fill();
+          }
         }
         ctx.globalAlpha = 1;
 
@@ -545,7 +623,7 @@
         ctx.font = '800 11px "Nunito", sans-serif';
         const bw = ctx.measureText(badgeText).width + 14;
         const bx = rack.x;
-        const by = rack.y - 38 + pulse;
+        const by = rack.y - (isVert ? 52 : 38) + pulse;
         ctx.fillStyle = isEmpty ? '#e05a47' : isLow ? '#f2b749' : '#6ba368';
         roundRect(ctx, bx - bw / 2, by - 10, bw, 20, 10);
         ctx.fill();
@@ -558,7 +636,7 @@
         ctx.fillText(badgeText, bx, by);
         ctx.restore();
 
-        this._drawStationTag(ctx, rack.x, rack.y + 30, rack.label, isHovered);
+        this._drawStationTag(ctx, rack.x, rack.y + (isVert ? 48 : 30), rack.label, isHovered);
       });
     }
 
@@ -1305,6 +1383,213 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(state.hoveredTarget.hint, hx, hy - 1);
       ctx.restore();
+    }
+
+    _drawPlacementOverlay(ctx, t, state) {
+      const pm = state.placementMode;
+      if (!pm) return;
+
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.lineWidth = 2.5;
+      if (pm.kind === 'rack') {
+        ctx.fillStyle = 'rgba(107, 163, 104, 0.1)';
+        ctx.strokeStyle = '#6ba368';
+        roundRect(ctx, 685, 400, 580, 155, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        const zoneTxt = '📦 Prostor pro umístění regálů (Klikni pro položení · R = Otočit)';
+        ctx.font = '800 11px "Nunito", "Segoe UI", sans-serif';
+        const zw = ctx.measureText(zoneTxt).width + 18;
+        ctx.fillStyle = 'rgba(255, 250, 240, 0.95)';
+        roundRect(ctx, 975 - zw / 2, 402, zw, 22, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#6ba368';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#2d6229';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(zoneTxt, 975, 413);
+      } else {
+        ctx.fillStyle = 'rgba(217, 130, 43, 0.12)';
+        ctx.strokeStyle = '#d9822b';
+        roundRect(ctx, 650, 150, 515, 75, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        const zoneTxt = '☕ Zadní pult pro stroje bistra (Klikni pro položení)';
+        ctx.font = '800 11px "Nunito", "Segoe UI", sans-serif';
+        const zw = ctx.measureText(zoneTxt).width + 18;
+        ctx.fillStyle = 'rgba(255, 250, 240, 0.95)';
+        roundRect(ctx, 908 - zw / 2, 148, zw, 22, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#d9822b';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#7b4814';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(zoneTxt, 908, 159);
+      }
+
+      // Highlighted placement ghost outline around active object
+      const isVert = pm.kind === 'rack' && (pm.rot || 0) % 2 === 1;
+      const bw = pm.kind === 'rack' ? (isVert ? 62 : 94) : 78;
+      const bh = pm.kind === 'rack' ? (isVert ? 90 : 58) : 78;
+      const strokeCol = pm.valid ? '#4f9d69' : '#e05a47';
+      const fillCol = pm.valid ? 'rgba(79, 157, 105, 0.18)' : 'rgba(224, 90, 71, 0.22)';
+      const pulse = 1 + Math.sin(t * 7) * 0.03;
+
+      ctx.save();
+      ctx.translate(pm.x, pm.y);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = fillCol;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      if (pm.kind === 'rack') {
+        const rot = pm.rot || 0;
+        const arrows = [
+          [pm.x, pm.y + 48, '⬇️ Vchod'],
+          [pm.x - 52, pm.y, '⬅️ Vchod'],
+          [pm.x, pm.y - 42, '⬆️ Vchod'],
+          [pm.x + 52, pm.y, '➡️ Vchod']
+        ];
+        const [ax, ay, aTxt] = arrows[rot];
+        ctx.font = '800 11px "Nunito", "Segoe UI", sans-serif';
+        const aw = ctx.measureText(aTxt).width + 12;
+        ctx.fillStyle = 'rgba(255, 250, 240, 0.96)';
+        roundRect(ctx, ax - aw / 2, ay - 10, aw, 20, 9);
+        ctx.fill();
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#3c2415';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(aTxt, ax, ay);
+      }
+
+      const statusText = pm.valid ? '✅ Klikni pro umístění' : '⚠️ Sem nelze umístit';
+      ctx.font = '800 12px "Nunito", "Segoe UI", sans-serif';
+      const sw = ctx.measureText(statusText).width + 16;
+      const sx = Math.min(Math.max(pm.x, 700), 1245);
+      const sy = pm.y - bh / 2 - 22;
+      ctx.fillStyle = strokeCol;
+      roundRect(ctx, sx - sw / 2, sy - 11, sw, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(statusText, sx, sy);
+
+      ctx.restore();
+    }
+
+    _drawPrepUpgradeBadges(ctx, t, state) {
+      const upgrades = state.save.upgrades || {};
+      const staff = state.save.staff || {};
+      const staffEnabled = state.save.staffEnabled || {};
+      const stations = window.GAME_DATA.STATIONS;
+      const hoverId = state.hoveredTarget ? state.hoveredTarget.id : null;
+      const badges = [];
+
+      const pushPairUpg = (id, x, y, upgIds, icon) => {
+        let bought = 0;
+        let maxBought = 0;
+        upgIds.forEach((upgId) => {
+          const upgDef = window.GAME_DATA.UPGRADES.find((u) => u.id === upgId);
+          const maxLvl = upgDef ? upgDef.maxLevel : 4;
+          const lvl = upgrades[upgId] || 1;
+          bought += Math.max(0, lvl - 1);
+          maxBought += Math.max(1, maxLvl - 1);
+        });
+        const isMax = bought >= maxBought;
+        const text = isMax ? `${icon} MAX` : `${icon} ${bought}/${maxBought}`;
+        badges.push({
+          x,
+          y,
+          text,
+          isMax,
+          hovered: hoverId === id || (upgIds.includes('pumps') && (hoverId === 'pump_0' || hoverId === 'pump_1' || hoverId === 'pump_2'))
+        });
+      };
+
+      pushPairUpg('pump_0', stations.pump_0.x, stations.pump_0.y - 52, ['pumps', 'pumps_price'], '🛠️');
+      pushPairUpg('coffee', stations.coffee.x, stations.coffee.y - 52, ['coffee', 'coffee_price'], '🛠️');
+      if ((upgrades.grill_unlock || 1) >= 2) {
+        pushPairUpg('grill', stations.grill.x, stations.grill.y - 50, ['grill', 'grill_price'], '🛠️');
+      }
+      if ((upgrades.wash_unlock || 1) >= 2) {
+        pushPairUpg('bucket', stations.bucket.x, stations.bucket.y - 34, ['wash', 'wash_price'], '🛠️');
+      }
+      if ((upgrades.fridge_unlock || 1) >= 2) {
+        pushPairUpg('fridge', stations.fridge.x, stations.fridge.y - 54, ['drink_speed', 'drink_price'], '🛠️');
+      }
+      pushPairUpg('register', stations.register.x, stations.register.y - 38, ['decor', 'decor_tips'], '🌸');
+
+      if (state.racks && state.racks.length > 0) {
+        const centerRack = state.racks[Math.floor((state.racks.length - 1) / 2)] || state.racks[0];
+        const racksDef = window.GAME_DATA.UPGRADES.find((u) => u.id === 'racks');
+        const racksPriceDef = window.GAME_DATA.UPGRADES.find((u) => u.id === 'racks_price');
+        const maxBought = ((racksDef ? racksDef.maxLevel : 4) - 1) + ((racksPriceDef ? racksPriceDef.maxLevel : 4) - 1);
+        const curBought = Math.max(0, (upgrades.racks || 1) - 1) + Math.max(0, (upgrades.racks_price || 1) - 1);
+        const rackHovered = state.racks.some((r) => r.id === hoverId) || hoverId === 'storage';
+        badges.push({
+          x: centerRack.x,
+          y: centerRack.y - ((centerRack.rot || 0) % 2 === 1 ? 76 : 64),
+          text: curBought >= maxBought ? '🛠️ MAX' : `🛠️ ${curBought}/${maxBought}`,
+          isMax: curBought >= maxBought,
+          hovered: rackHovered
+        });
+      }
+
+      (state.workers || []).forEach((w) => {
+        if (!w.active) return;
+        if (w.isPlayer) {
+          pushPairUpg('player', w.x, w.y - 46, ['shoes', 'carry'], '👟');
+        } else {
+          const stDef = window.GAME_DATA.STAFF.find((s) => s.id === w.id);
+          const maxLvl = stDef ? stDef.maxLevel : 3;
+          const curLvl = staff[w.id] || 1;
+          const resting = staffEnabled[w.id] === false;
+          badges.push({
+            x: w.x,
+            y: w.y - 46,
+            text: `${curLvl >= maxLvl ? '✨ MAX' : `⬆️ Úr. ${curLvl}/${maxLvl}`}${resting ? ' 💤' : ''}`,
+            isMax: curLvl >= maxLvl,
+            hovered: hoverId === w.id
+          });
+        }
+      });
+
+      badges.forEach((b, idx) => {
+        const bob = Math.sin(t * 2.8 + idx * 0.7) * 1.5;
+        const by = b.y + bob;
+        ctx.save();
+        ctx.font = '800 11px "Nunito", "Segoe UI", sans-serif';
+        const bw = ctx.measureText(b.text).width + 14;
+        ctx.fillStyle = b.hovered ? '#ffe094' : b.isMax ? '#e3f4df' : 'rgba(255, 250, 240, 0.96)';
+        roundRect(ctx, b.x - bw / 2, by - 10, bw, 20, 10);
+        ctx.fill();
+        ctx.strokeStyle = b.hovered ? '#d96b52' : b.isMax ? '#6ba368' : '#d4962b';
+        ctx.lineWidth = b.hovered ? 2 : 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#3c2415';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.text, b.x, by + 0.5);
+        ctx.restore();
+      });
     }
 
     _drawPauseOverlay(ctx) {

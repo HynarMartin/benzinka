@@ -31,17 +31,32 @@
   const SKIN_COLORS = ['#fbdcc4', '#f4c7a5', '#e5b28a'];
 
   const PATH_WAYPOINTS = {
-    CORNER_SW: { x: 495, y: 488 },
-    DOOR_OUT: { x: 603, y: 488 },
-    DOOR_IN: { x: 603, y: 455 },
-    AISLE_WEST: { x: 603, y: 368 },
-    COUNTER_LEFT_SOUTH: { x: 560, y: 332 },
-    COUNTER_LEFT_NORTH: { x: 560, y: 246 },
-    COUNTER_GAP_SOUTH: { x: 1044, y: 345 },
-    COUNTER_GAP_NORTH: { x: 1044, y: 246 },
-    STORAGE_DOOR_WEST: { x: 1052, y: 285 },
-    STORAGE_DOOR_EAST: { x: 1102, y: 285 }
+    CORNER_SW: { x: 585, y: 592 },
+    DOOR_OUT: { x: 715, y: 592 },
+    DOOR_IN: { x: 715, y: 554 },
+    AISLE_WEST: { x: 715, y: 432 },
+    COUNTER_LEFT_SOUTH: { x: 665, y: 382 },
+    COUNTER_LEFT_NORTH: { x: 665, y: 278 },
+    COUNTER_GAP_SOUTH: { x: 1272, y: 395 },
+    COUNTER_GAP_NORTH: { x: 1272, y: 278 },
+    STORAGE_DOOR_WEST: { x: 1280, y: 315 },
+    STORAGE_DOOR_EAST: { x: 1345, y: 315 }
   };
+
+  function createDefaultLayout() {
+    return {
+      racks: {
+        rack_snacks: { x: 790, y: 500, rot: 0 },
+        rack_sweets: { x: 990, y: 500, rot: 0 },
+        rack_auto: { x: 1190, y: 500, rot: 0 }
+      },
+      stations: {
+        coffee: { x: 700, y: 185 },
+        grill: { x: 875, y: 185 },
+        fridge: { x: 1050, y: 185 }
+      }
+    };
+  }
 
   function createDefaultSave() {
     return {
@@ -49,13 +64,28 @@
       unlockedLevel: 1,
       stars: {},
       upgrades: {
+        pump_unlock: 1,
+        wash_unlock: 1,
+        grill_unlock: 1,
+        fridge_unlock: 1,
+        rack_sweets_unlock: 1,
+        rack_auto_unlock: 1,
         pumps: 1,
+        pumps_price: 1,
         coffee: 1,
+        coffee_price: 1,
         grill: 1,
+        grill_price: 1,
         wash: 1,
+        wash_price: 1,
+        drink_speed: 1,
+        drink_price: 1,
         racks: 1,
+        racks_price: 1,
         decor: 1,
-        shoes: 1
+        decor_tips: 1,
+        shoes: 1,
+        carry: 1
       },
       staff: {
         tonik: 0,
@@ -74,13 +104,87 @@
         totalAngryCustomers: 0,
         shiftsPlayed: 0,
         gameCompleted: false
-      }
+      },
+      rackStock: null,
+      layout: createDefaultLayout()
+    };
+  }
+
+  function createAdminSave() {
+    return {
+      coins: 99999,
+      unlockedLevel: 8,
+      stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 },
+      upgrades: {
+        pump_unlock: 3,
+        wash_unlock: 2,
+        grill_unlock: 2,
+        fridge_unlock: 2,
+        rack_sweets_unlock: 2,
+        rack_auto_unlock: 2,
+        pumps: 4,
+        pumps_price: 4,
+        coffee: 4,
+        coffee_price: 4,
+        grill: 4,
+        grill_price: 4,
+        wash: 4,
+        wash_price: 4,
+        drink_speed: 4,
+        drink_price: 4,
+        racks: 4,
+        racks_price: 4,
+        decor: 4,
+        decor_tips: 4,
+        shoes: 4,
+        carry: 3
+      },
+      staff: {
+        tonik: 3,
+        anicka: 3,
+        kuba: 3
+      },
+      staffEnabled: {
+        tonik: true,
+        anicka: true,
+        kuba: true
+      },
+      stats: {
+        totalPlayTime: 720,
+        totalEarnedCoins: 6500,
+        totalServedCustomers: 115,
+        totalAngryCustomers: 0,
+        shiftsPlayed: 8,
+        gameCompleted: true
+      },
+      rackStock: null,
+      layout: createDefaultLayout()
     };
   }
 
   function normalizeSave(raw) {
     const def = createDefaultSave();
     if (!raw || typeof raw !== 'object') return def;
+    const rawLayout = raw.layout && typeof raw.layout === 'object' ? raw.layout : {};
+    const rawRacks = rawLayout.racks && typeof rawLayout.racks === 'object' ? rawLayout.racks : {};
+    const rawStations = rawLayout.stations && typeof rawLayout.stations === 'object' ? rawLayout.stations : {};
+    const normLayout = createDefaultLayout();
+    ['rack_snacks', 'rack_sweets', 'rack_auto'].forEach((id) => {
+      const r = rawRacks[id];
+      if (r && typeof r.x === 'number' && typeof r.y === 'number') {
+        normLayout.racks[id] = {
+          x: r.x,
+          y: r.y,
+          rot: typeof r.rot === 'number' ? ((Math.round(r.rot) % 4) + 4) % 4 : 0
+        };
+      }
+    });
+    ['coffee', 'grill', 'fridge'].forEach((id) => {
+      const s = rawStations[id];
+      if (s && typeof s.x === 'number') {
+        normLayout.stations[id] = { x: s.x, y: 185 };
+      }
+    });
     return {
       coins: typeof raw.coins === 'number' ? raw.coins : def.coins,
       unlockedLevel: typeof raw.unlockedLevel === 'number' ? raw.unlockedLevel : def.unlockedLevel,
@@ -88,7 +192,9 @@
       upgrades: Object.assign({}, def.upgrades, raw.upgrades || {}),
       staff: Object.assign({}, def.staff, raw.staff || {}),
       staffEnabled: Object.assign({}, def.staffEnabled, raw.staffEnabled || {}),
-      stats: Object.assign({}, def.stats, raw.stats || {})
+      stats: Object.assign({}, def.stats, raw.stats || {}),
+      rackStock: raw.rackStock && typeof raw.rackStock === 'object' ? Object.assign({}, raw.rackStock) : null,
+      layout: normLayout
     };
   }
 
@@ -205,12 +311,35 @@
     }
 
     _loadLocalAccounts() {
+      let accounts = {};
       try {
         const raw = localStorage.getItem(ACCOUNTS_KEY);
-        return raw ? JSON.parse(raw) : {};
+        accounts = raw ? JSON.parse(raw) : {};
       } catch (_err) {
-        return {};
+        accounts = {};
       }
+      if (!accounts.admin) {
+        accounts.admin = {
+          username: 'admin',
+          password: 'admin',
+          save: createAdminSave()
+        };
+      } else {
+        const adminUpgrades = createAdminSave().upgrades;
+        if (!accounts.admin.save || typeof accounts.admin.save !== 'object') {
+          accounts.admin.save = createAdminSave();
+        } else {
+          accounts.admin.save.upgrades = Object.assign({}, adminUpgrades, accounts.admin.save.upgrades || {}, {
+            pump_unlock: 3,
+            wash_unlock: 2,
+            grill_unlock: 2,
+            fridge_unlock: 2,
+            rack_sweets_unlock: 2,
+            rack_auto_unlock: 2
+          });
+        }
+      }
+      return accounts;
     }
 
     _saveLocalAccounts(accounts) {
@@ -529,30 +658,66 @@
           if (this.screen === 'game') {
             this.exitLevelToMap();
           }
-          this.save = createDefaultSave();
-          this.selectedLevelId = 1;
+          const isAdmin = this.currentUser && this.currentUser.username.toLowerCase() === 'admin';
+          this.save = isAdmin ? createAdminSave() : createDefaultSave();
+          this.selectedLevelId = isAdmin ? Math.min(this.save.unlockedLevel, this.data.LEVELS.length) : 1;
           this.persistSave();
           this.renderMap();
         }
       });
 
-      // Prep Modal Controls
+      // Prep Mode & Buy Modal Controls
       document.getElementById('close-prep-btn').addEventListener('click', () => {
         this.audio.playClick();
         this.closePrepModal();
       });
 
+      document.getElementById('open-buy-modal-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this._finishActivePlacement();
+        this.openBuyModal();
+      });
+
+      document.getElementById('prep-start-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this._finishActivePlacement();
+        this.closePrepModal();
+        this.closeObjectUpgradeModal();
+        this.startLevel(this.selectedLevelId);
+      });
+
+      document.getElementById('prep-map-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this._finishActivePlacement();
+        this.closePrepModal();
+        this.closeObjectUpgradeModal();
+        this.exitLevelToMap();
+      });
+
+      document.getElementById('prep-settings-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this.openSettingsModal();
+      });
+
+      document.getElementById('close-obj-upg-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this.closeObjectUpgradeModal();
+      });
+
       document.getElementById('prep-bonus-btn').addEventListener('click', () => {
         this.audio.playUpgrade();
-        this.save.coins += 200;
+        this.save.coins += 25;
         this.persistSave();
         this.renderPrepModal();
+        this._syncPrepState();
         this.renderMap();
       });
 
       document.getElementById('start-level-btn').addEventListener('click', () => {
         this.audio.playClick();
+        this._finishActivePlacement();
         this.closePrepModal();
+        this.closeObjectUpgradeModal();
         this.startLevel(this.selectedLevelId);
       });
 
@@ -641,7 +806,12 @@
       this.canvas.addEventListener('click', (e) => this._onCanvasClick(e));
       this.canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (this.levelState && this.settings.rightClickCancel) {
+        if (!this.levelState) return;
+        if (this.levelState.prepMode && this.levelState.placementMode) {
+          this.rotatePlacementMode(1);
+          return;
+        }
+        if (this.settings.rightClickCancel) {
           this.levelState.player.taskQueue = [];
         }
       });
@@ -651,6 +821,24 @@
         const activeTag = document.activeElement ? document.activeElement.tagName : '';
         if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
         if (!document.getElementById('settings-modal').classList.contains('hidden')) return;
+
+        if (this.levelState.prepMode) {
+          if (this.levelState.placementMode) {
+            if (e.code === 'KeyR') {
+              e.preventDefault();
+              this.rotatePlacementMode(1);
+            } else if (e.code === 'Escape') {
+              e.preventDefault();
+              this.cancelPlacementMode();
+            }
+            return;
+          }
+          if (e.code === 'Escape') {
+            this.closeObjectUpgradeModal();
+            this.closePrepModal();
+          }
+          return;
+        }
 
         if (e.code === 'Space' || e.code === 'KeyP') {
           e.preventDefault();
@@ -684,6 +872,10 @@
       document.getElementById('map-coins').textContent = `${this.save.coins} Kč`;
       document.getElementById('map-stars').textContent = `${totalStars} / ${maxStars} ⭐`;
       document.getElementById('prep-coins').textContent = `${this.save.coins} Kč`;
+      const prepBarCoins = document.getElementById('prep-bar-coins');
+      if (prepBarCoins) prepBarCoins.textContent = `${this.save.coins} Kč`;
+      const objUpgCoins = document.getElementById('obj-upg-coins');
+      if (objUpgCoins) objUpgCoins.textContent = `${this.save.coins} Kč`;
 
       const finalLvl = this.data.LEVELS[this.data.LEVELS.length - 1];
       const isGameCompleted =
@@ -696,6 +888,7 @@
     }
 
     renderMap() {
+      this._applySavedLayout();
       this.updateGlobalHUD();
       const svg = document.getElementById('map-road-svg');
       const nodesLayer = document.getElementById('map-nodes-layer');
@@ -800,7 +993,353 @@
     }
 
     openPrepModal(levelId) {
-      this.selectedLevelId = levelId;
+      this.enterPrepMode(levelId || this.selectedLevelId);
+    }
+
+    _ensureLayout() {
+      const def = createDefaultLayout();
+      if (!this.save.layout || typeof this.save.layout !== 'object') {
+        this.save.layout = def;
+        return this.save.layout;
+      }
+      if (!this.save.layout.racks || typeof this.save.layout.racks !== 'object') {
+        this.save.layout.racks = def.racks;
+      }
+      if (!this.save.layout.stations || typeof this.save.layout.stations !== 'object') {
+        this.save.layout.stations = def.stations;
+      }
+      ['rack_snacks', 'rack_sweets', 'rack_auto'].forEach((id) => {
+        const r = this.save.layout.racks[id];
+        if (!r || typeof r.x !== 'number' || typeof r.y !== 'number') {
+          this.save.layout.racks[id] = Object.assign({}, def.racks[id]);
+        } else {
+          r.rot = typeof r.rot === 'number' ? ((Math.round(r.rot) % 4) + 4) % 4 : 0;
+        }
+      });
+      ['coffee', 'grill', 'fridge'].forEach((id) => {
+        const s = this.save.layout.stations[id];
+        if (!s || typeof s.x !== 'number') {
+          this.save.layout.stations[id] = Object.assign({}, def.stations[id]);
+        } else {
+          s.y = 185;
+        }
+      });
+      return this.save.layout;
+    }
+
+    _getRotationLabel(rot) {
+      const r = ((Math.round(rot || 0) % 4) + 4) % 4;
+      if (r === 1) return '90° (Čelem vlevo)';
+      if (r === 2) return '180° (Čelem nahoru)';
+      if (r === 3) return '270° (Čelem vpravo)';
+      return '0° (Čelem dolů)';
+    }
+
+    _computeRackGeometry(id, x, y, rot) {
+      const r = ((Math.round(rot || 0) % 4) + 4) % 4;
+      let custX = x;
+      let custY = y + 48;
+      let walkX = x;
+      let walkY = y - 48;
+      if (r === 1) {
+        custX = x - 48;
+        custY = y;
+        walkX = x + 48;
+        walkY = y;
+      } else if (r === 2) {
+        custX = x;
+        custY = y - 48;
+        walkX = x;
+        walkY = y + 48;
+      } else if (r === 3) {
+        custX = x + 48;
+        custY = y;
+        walkX = x - 48;
+        walkY = y;
+      }
+      return { x, y, rot: r, walkX, walkY, custX, custY };
+    }
+
+    _applySavedLayout() {
+      const layout = this._ensureLayout();
+      ['coffee', 'grill', 'fridge'].forEach((id) => {
+        const st = this.data.STATIONS[id];
+        const pos = layout.stations[id];
+        if (st && pos) {
+          st.x = pos.x;
+          st.y = 185;
+          st.walkX = pos.x;
+          st.walkY = 248;
+        }
+      });
+      ['rack_snacks', 'rack_sweets', 'rack_auto'].forEach((id) => {
+        const rackDef = this.data.RACKS[id];
+        const pos = layout.racks[id];
+        if (rackDef && pos) {
+          const geom = this._computeRackGeometry(id, pos.x, pos.y, pos.rot || 0);
+          Object.assign(rackDef, geom);
+          if (this.levelState && this.levelState.racks) {
+            const liveRack = this.levelState.racks.find((r) => r.id === id);
+            if (liveRack) {
+              Object.assign(liveRack, geom);
+            }
+          }
+        }
+      });
+    }
+
+    _applyPlacementPreview(pm) {
+      if (!pm) return;
+      if (pm.kind === 'station') {
+        const st = this.data.STATIONS[pm.id];
+        if (st) {
+          st.x = pm.x;
+          st.y = 185;
+          st.walkX = pm.x;
+          st.walkY = 248;
+        }
+      } else if (pm.kind === 'rack') {
+        const geom = this._computeRackGeometry(pm.id, pm.x, pm.y, pm.rot || 0);
+        if (this.data.RACKS[pm.id]) {
+          Object.assign(this.data.RACKS[pm.id], geom);
+        }
+        if (this.levelState && this.levelState.racks) {
+          const liveRack = this.levelState.racks.find((r) => r.id === pm.id);
+          if (liveRack) {
+            Object.assign(liveRack, geom);
+          }
+        }
+      }
+    }
+
+    _isPlacementValid(kind, id, x, y, rot) {
+      if (typeof x !== 'number' || typeof y !== 'number') return false;
+      if (kind === 'station') {
+        if (x < 680 || x > 1135 || y !== 185) return false;
+        const others = ['coffee', 'grill', 'fridge'];
+        for (let i = 0; i < others.length; i++) {
+          const otherId = others[i];
+          if (otherId === id || !this._isStationUnlocked(otherId)) continue;
+          const other = this.data.STATIONS[otherId];
+          if (other && Math.abs(x - other.x) < 95) return false;
+        }
+        return true;
+      }
+      if (kind === 'rack') {
+        if (x < 725 || x > 1225 || y < 440 || y > 520) return false;
+        const normRot = ((Math.round(rot || 0) % 4) + 4) % 4;
+        const hw1 = normRot % 2 === 1 ? 26 : 42;
+        const hh1 = normRot % 2 === 1 ? 42 : 26;
+        const others = ['rack_snacks', 'rack_sweets', 'rack_auto'];
+        for (let i = 0; i < others.length; i++) {
+          const otherId = others[i];
+          if (otherId === id || !this._isRackUnlocked(otherId)) continue;
+          const other =
+            (this.levelState && this.levelState.racks && this.levelState.racks.find((r) => r.id === otherId)) ||
+            this.data.RACKS[otherId];
+          if (!other) continue;
+          const otherRot = other.rot || 0;
+          const hw2 = otherRot % 2 === 1 ? 26 : 42;
+          const hh2 = otherRot % 2 === 1 ? 42 : 26;
+          if (Math.abs(x - other.x) < hw1 + hw2 + 22 && Math.abs(y - other.y) < hh1 + hh2 + 22) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    }
+
+    _findFreeDefaultPlacement(kind, id) {
+      const def = createDefaultLayout();
+      if (kind === 'station') {
+        const prefX = (def.stations[id] && def.stations[id].x) || 700;
+        const candidates = [prefX, 700, 875, 1050, 785, 965, 1130];
+        for (let i = 0; i < candidates.length; i++) {
+          if (this._isPlacementValid('station', id, candidates[i], 185, 0)) {
+            return { x: candidates[i], y: 185 };
+          }
+        }
+        return { x: prefX, y: 185 };
+      }
+      const pref = def.racks[id] || { x: 790, y: 500, rot: 0 };
+      const candidates = [
+        [pref.x, pref.y],
+        [790, 500],
+        [990, 500],
+        [1190, 500],
+        [890, 500],
+        [1090, 500],
+        [790, 448],
+        [990, 448],
+        [1190, 448]
+      ];
+      for (let i = 0; i < candidates.length; i++) {
+        const [cx, cy] = candidates[i];
+        if (this._isPlacementValid('rack', id, cx, cy, 0)) {
+          return { x: cx, y: cy, rot: 0 };
+        }
+      }
+      return { x: pref.x, y: pref.y, rot: 0 };
+    }
+
+    rotateRackInPlace(rackId, delta) {
+      const layout = this._ensureLayout();
+      const pos = layout.racks[rackId];
+      if (!pos) return false;
+      const nextRot = ((pos.rot || 0) + (delta || 1) + 4) % 4;
+      if (!this._isPlacementValid('rack', rackId, pos.x, pos.y, nextRot)) {
+        this.audio.playSad();
+        const warnEl = document.getElementById('obj-place-warning');
+        if (warnEl) {
+          warnEl.textContent = 'Na tomto místě není dost prostoru pro otočení — použij „Změnit pozici a otočit na plátně“.';
+          warnEl.classList.remove('hidden');
+        }
+        return false;
+      }
+      pos.rot = nextRot;
+      this.audio.playClick();
+      this._applySavedLayout();
+      this.persistSave();
+      if (this._activeObjectTarget && this._activeObjectTarget.placementId === rackId) {
+        this.openObjectUpgradeModal(this._activeObjectTarget);
+      }
+      return true;
+    }
+
+    _restorePrepTipBar() {
+      const tipBar = document.getElementById('game-tip-bar');
+      if (!tipBar) return;
+      tipBar.innerHTML =
+        '🛠️ <strong>Příprava benzínky:</strong> Klikni přímo na stojan, regál, kávovar, gril, pokladnu, svou postavičku nebo zaměstnance pro vylepšení. Nové stojany a zaměstnance koupíš přes <strong>🛒 Nakupovat</strong>, pak stiskni <strong>▶️ Start hry</strong>!';
+    }
+
+    _updatePlacementTipBar() {
+      const tipBar = document.getElementById('game-tip-bar');
+      const pm = this.levelState && this.levelState.placementMode;
+      if (!tipBar || !pm) return;
+      const label =
+        pm.kind === 'rack'
+          ? (this.data.RACKS[pm.id] && this.data.RACKS[pm.id].label) || pm.id
+          : (this.data.STATIONS[pm.id] && this.data.STATIONS[pm.id].label) || pm.id;
+
+      if (pm.kind === 'rack') {
+        tipBar.innerHTML = `🏗️ <strong>Stavění (${label}):</strong> Posuň myší po prodejně a klikni pro položení · Směr: <strong>${this._getRotationLabel(
+          pm.rot
+        )}</strong> <button id="place-rotate-left-btn" type="button" class="tip-action-btn">↺ Otočit -90°</button> <button id="place-rotate-right-btn" type="button" class="tip-action-btn">↻ Otočit +90° (R)</button> <button id="place-cancel-btn" type="button" class="tip-action-btn cancel">✕ Zrušit (Esc)</button>`;
+        const leftBtn = document.getElementById('place-rotate-left-btn');
+        const rightBtn = document.getElementById('place-rotate-right-btn');
+        if (leftBtn) leftBtn.addEventListener('click', () => this.rotatePlacementMode(-1));
+        if (rightBtn) rightBtn.addEventListener('click', () => this.rotatePlacementMode(1));
+      } else {
+        tipBar.innerHTML = `🏗️ <strong>Umístění na zadním pultu (${label}):</strong> Posuň myší podél zadního pultu a klikni pro položení <button id="place-cancel-btn" type="button" class="tip-action-btn cancel">✕ Zrušit (Esc)</button>`;
+      }
+      const cancelBtn = document.getElementById('place-cancel-btn');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => this.cancelPlacementMode());
+    }
+
+    startPlacementMode(kind, id, isNewPurchase) {
+      if (!this.levelState || !this.levelState.prepMode) return;
+      this.closePrepModal();
+      this.closeObjectUpgradeModal();
+      const layout = this._ensureLayout();
+      this._applySavedLayout();
+
+      let pos;
+      if (kind === 'rack') {
+        pos = layout.racks[id] || { x: 790, y: 500, rot: 0 };
+      } else {
+        pos = layout.stations[id] || { x: 700, y: 185 };
+      }
+
+      const startRot = kind === 'rack' ? pos.rot || 0 : 0;
+      const startY = kind === 'rack' ? pos.y : 185;
+      const valid = this._isPlacementValid(kind, id, pos.x, startY, startRot);
+
+      this.levelState.hoveredTarget = null;
+      this.levelState.placementMode = {
+        kind,
+        id,
+        x: pos.x,
+        y: startY,
+        rot: startRot,
+        origX: pos.x,
+        origY: startY,
+        origRot: startRot,
+        inBounds: true,
+        valid,
+        isNewPurchase: Boolean(isNewPurchase)
+      };
+      this.canvas.style.cursor = valid ? 'grabbing' : 'not-allowed';
+      this._updatePlacementTipBar();
+    }
+
+    rotatePlacementMode(delta) {
+      const pm = this.levelState && this.levelState.placementMode;
+      if (!pm || pm.kind !== 'rack') return;
+      pm.rot = ((pm.rot + (delta || 1)) % 4 + 4) % 4;
+      pm.valid = Boolean(pm.inBounds !== false) && this._isPlacementValid('rack', pm.id, pm.x, pm.y, pm.rot);
+      this._applyPlacementPreview(pm);
+      this.canvas.style.cursor = pm.valid ? 'grabbing' : 'not-allowed';
+      this._updatePlacementTipBar();
+      this.audio.playClick();
+    }
+
+    confirmPlacementMode(silentForce) {
+      const pm = this.levelState && this.levelState.placementMode;
+      if (!pm) return false;
+      if (!pm.valid) {
+        if (silentForce) {
+          this.cancelPlacementMode();
+          return false;
+        }
+        this.audio.playSad();
+        this._spawnParticle(pm.x, pm.y - 36, 'Sem nelze umístit!', '#d95d4a', 15, 2.0);
+        return false;
+      }
+
+      const layout = this._ensureLayout();
+      if (pm.kind === 'rack') {
+        layout.racks[pm.id] = { x: pm.x, y: pm.y, rot: pm.rot };
+      } else if (pm.kind === 'station') {
+        layout.stations[pm.id] = { x: pm.x, y: 185 };
+      }
+      this.levelState.placementMode = null;
+      this._applySavedLayout();
+      this._restorePrepTipBar();
+      this.canvas.style.cursor = 'default';
+      this.persistSave();
+      if (!silentForce) {
+        this.audio.playUpgrade();
+        this._spawnParticle(pm.x, pm.y - 38, 'Postaveno! ✨', '#4f9d69', 15, 2.0);
+      }
+      return true;
+    }
+
+    cancelPlacementMode() {
+      const pm = this.levelState && this.levelState.placementMode;
+      if (!pm) return;
+      const layout = this._ensureLayout();
+      if (pm.kind === 'rack') {
+        layout.racks[pm.id] = { x: pm.origX, y: pm.origY, rot: pm.origRot };
+      } else if (pm.kind === 'station') {
+        layout.stations[pm.id] = { x: pm.origX, y: 185 };
+      }
+      this.levelState.placementMode = null;
+      this._applySavedLayout();
+      this._restorePrepTipBar();
+      this.canvas.style.cursor = 'default';
+      this.audio.playClick();
+    }
+
+    _finishActivePlacement() {
+      if (this.levelState && this.levelState.placementMode) {
+        this.confirmPlacementMode(true);
+      }
+    }
+
+    openBuyModal() {
+      this._finishActivePlacement();
       this.renderPrepModal();
       document.getElementById('prep-modal').classList.remove('hidden');
     }
@@ -809,53 +1348,258 @@
       document.getElementById('prep-modal').classList.add('hidden');
     }
 
+    closeObjectUpgradeModal() {
+      this._activeObjectTarget = null;
+      const modal = document.getElementById('object-upgrade-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    openObjectUpgradeModal(target) {
+      if (!target) return;
+      this._activeObjectTarget = target;
+      const modal = document.getElementById('object-upgrade-modal');
+      const iconEl = document.getElementById('obj-upg-icon');
+      const titleEl = document.getElementById('obj-upg-title');
+      const pipsEl = document.getElementById('obj-upg-pips');
+      const descEl = document.getElementById('obj-upg-desc');
+      const coinsEl = document.getElementById('obj-upg-coins');
+      const actionsEl = document.getElementById('obj-upg-actions');
+
+      coinsEl.textContent = `${this.save.coins} Kč`;
+      actionsEl.innerHTML = '';
+
+      if (target.targetType === 'staff' && target.staffId) {
+        const st = this.data.STAFF.find((s) => s.id === target.staffId);
+        if (!st) return;
+        const curLvl = this.save.staff[st.id] || 0;
+        const isHired = curLvl > 0;
+        const isMax = curLvl >= st.maxLevel;
+        const nextCost = !isHired ? st.hireCost : isMax ? null : st.upgradeCosts[curLvl - 1];
+        const canAfford = nextCost !== null && this.save.coins >= nextCost;
+        const isEnabled = this.save.staffEnabled[st.id] !== false;
+
+        iconEl.textContent = st.icon;
+        titleEl.textContent = st.name;
+        descEl.textContent = st.description;
+
+        let pips = '';
+        for (let i = 1; i <= st.maxLevel; i++) {
+          pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
+        }
+        pipsEl.innerHTML = `${pips} <span class="lvl-text">${
+          isHired ? `Úr. ${curLvl}/${st.maxLevel}` : 'Nenajatý'
+        }</span>`;
+
+        const row = document.createElement('div');
+        row.className = 'staff-actions';
+
+        const buyBtn = document.createElement('button');
+        buyBtn.type = 'button';
+        buyBtn.className = 'btn-buy';
+        buyBtn.disabled = isMax || !canAfford;
+        buyBtn.textContent = !isHired
+          ? `Najmout (${nextCost} Kč)`
+          : isMax
+          ? '✨ Zkušený mistr'
+          : `Vylepšit – zrychlit (${nextCost} Kč)`;
+        if (!isMax) {
+          buyBtn.addEventListener('click', () => {
+            this.hireOrUpgradeStaff(st.id);
+          });
+        }
+        row.appendChild(buyBtn);
+
+        if (isHired) {
+          const toggleBtn = document.createElement('button');
+          toggleBtn.type = 'button';
+          toggleBtn.className = `btn-toggle ${isEnabled ? 'on' : 'off'}`;
+          toggleBtn.textContent = isEnabled ? '✅ Ve směně' : '💤 Odpočívá';
+          toggleBtn.addEventListener('click', () => {
+            this.audio.playClick();
+            this.save.staffEnabled[st.id] = !isEnabled;
+            this.persistSave();
+            this._syncPrepState();
+            this.renderPrepModal();
+            this.openObjectUpgradeModal(target);
+          });
+          row.appendChild(toggleBtn);
+        }
+        actionsEl.appendChild(row);
+      } else {
+        const upgIds = Array.isArray(target.upgradeIds)
+          ? target.upgradeIds
+          : target.upgradeId
+          ? [target.upgradeId]
+          : [];
+        const firstUpg = this.data.UPGRADES.find((u) => u.id === upgIds[0]);
+        if (!firstUpg) return;
+
+        let totalBought = 0;
+        let totalMax = 0;
+        upgIds.forEach((uid) => {
+          const u = this.data.UPGRADES.find((x) => x.id === uid);
+          if (!u) return;
+          totalBought += Math.max(0, (this.save.upgrades[u.id] || 1) - 1);
+          totalMax += Math.max(1, u.maxLevel - 1);
+        });
+
+        iconEl.textContent = target.icon || firstUpg.icon;
+        titleEl.textContent = target.title || firstUpg.name;
+        descEl.textContent = target.desc || 'Vyber si, které vylepšení chceš koupit samostatně:';
+        pipsEl.innerHTML = `<span class="lvl-text">Zakoupeno vylepšení: ${totalBought}/${totalMax}</span>`;
+
+        if (target.placementKind === 'rack' && target.placementId) {
+          const layout = this._ensureLayout();
+          const pos = layout.racks[target.placementId] || { x: 790, y: 500, rot: 0 };
+          const curRot = pos.rot || 0;
+          const rackDef = this.data.RACKS[target.placementId];
+          const placeCard = document.createElement('div');
+          placeCard.className = 'prep-card placement-card';
+          placeCard.innerHTML = `
+            <div class="prep-card-head">
+              <span class="prep-icon">🏗️</span>
+              <div>
+                <h4>Umístění: ${rackDef ? rackDef.label : target.placementId}</h4>
+                <div class="lvl-pips"><span class="lvl-text">Natočení: ${this._getRotationLabel(curRot)}</span></div>
+              </div>
+            </div>
+            <p class="prep-desc">Přesuň regál kamkoliv po prodejně nebo změň směr, odkud k němu zákazníci přistupují:</p>
+            <p id="obj-place-warning" class="auth-message hidden"></p>
+            <div class="placement-btn-row">
+              <button id="obj-rotate-btn" type="button" class="btn-soft">🔄 Otočit o 90°</button>
+              <button id="obj-place-btn" type="button" class="btn-primary">📍 Změnit pozici a otočit na plátně</button>
+            </div>
+          `;
+          const rotBtn = placeCard.querySelector('#obj-rotate-btn');
+          const moveBtn = placeCard.querySelector('#obj-place-btn');
+          if (rotBtn) {
+            rotBtn.addEventListener('click', () => this.rotateRackInPlace(target.placementId, 1));
+          }
+          if (moveBtn) {
+            moveBtn.addEventListener('click', () => {
+              this.audio.playClick();
+              this.closeObjectUpgradeModal();
+              this.startPlacementMode('rack', target.placementId, false);
+            });
+          }
+          actionsEl.appendChild(placeCard);
+        } else if (target.placementKind === 'station' && target.placementId) {
+          const layout = this._ensureLayout();
+          const pos = layout.stations[target.placementId] || { x: 700, y: 185 };
+          const stDef = this.data.STATIONS[target.placementId];
+          const placeCard = document.createElement('div');
+          placeCard.className = 'prep-card placement-card';
+          placeCard.innerHTML = `
+            <div class="prep-card-head">
+              <span class="prep-icon">🏗️</span>
+              <div>
+                <h4>Umístění: ${stDef ? stDef.label : target.placementId}</h4>
+                <div class="lvl-pips"><span class="lvl-text">Zadní pult · Pozice X = ${Math.round(pos.x)}</span></div>
+              </div>
+            </div>
+            <p class="prep-desc">Vyber si libovolné volné místo na zadním pultu bistra:</p>
+            <div class="placement-btn-row">
+              <button id="obj-place-btn" type="button" class="btn-primary">📍 Změnit pozici na zadním pultu</button>
+            </div>
+          `;
+          const moveBtn = placeCard.querySelector('#obj-place-btn');
+          if (moveBtn) {
+            moveBtn.addEventListener('click', () => {
+              this.audio.playClick();
+              this.closeObjectUpgradeModal();
+              this.startPlacementMode('station', target.placementId, false);
+            });
+          }
+          actionsEl.appendChild(placeCard);
+        }
+
+        upgIds.forEach((uid) => {
+          const upg = this.data.UPGRADES.find((u) => u.id === uid);
+          if (!upg) return;
+          const curLvl = this.save.upgrades[upg.id] || 1;
+          const isMax = curLvl >= upg.maxLevel;
+          const nextCost = isMax ? null : upg.costs[curLvl - 1];
+          const canAfford = nextCost !== null && this.save.coins >= nextCost;
+
+          let pips = '';
+          for (let i = 1; i <= upg.maxLevel; i++) {
+            pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
+          }
+
+          const card = document.createElement('div');
+          card.className = 'prep-card';
+          card.innerHTML = `
+            <div class="prep-card-head">
+              <span class="prep-icon">${upg.icon}</span>
+              <div>
+                <h4>${upg.name}</h4>
+                <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${upg.maxLevel}</span></div>
+              </div>
+            </div>
+            <p class="prep-desc">${upg.description}</p>
+            <button type="button" class="btn-buy" data-upgrade="${upg.id}" ${isMax || !canAfford ? 'disabled' : ''}>
+              ${isMax ? '✨ Na maximu' : `Vylepšit (${nextCost} Kč)`}
+            </button>
+          `;
+          const buyBtn = card.querySelector('.btn-buy');
+          if (buyBtn && !isMax) {
+            buyBtn.addEventListener('click', () => {
+              this.buyUpgrade(upg.id);
+            });
+          }
+          actionsEl.appendChild(card);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    _isStationUnlocked(stationId) {
+      const upgs = (this.save && this.save.upgrades) || {};
+      if (stationId === 'pump_0') return true;
+      if (stationId === 'pump_1') return (upgs.pump_unlock || 1) >= 2;
+      if (stationId === 'pump_2') return (upgs.pump_unlock || 1) >= 3;
+      if (stationId === 'bucket') return (upgs.wash_unlock || 1) >= 2;
+      if (stationId === 'coffee') return true;
+      if (stationId === 'grill') return (upgs.grill_unlock || 1) >= 2;
+      if (stationId === 'fridge') return (upgs.fridge_unlock || 1) >= 2;
+      return true;
+    }
+
+    _isRackUnlocked(rackId) {
+      const upgs = (this.save && this.save.upgrades) || {};
+      if (rackId === 'rack_snacks') return true;
+      if (rackId === 'rack_sweets') return (upgs.rack_sweets_unlock || 1) >= 2;
+      if (rackId === 'rack_auto') return (upgs.rack_auto_unlock || 1) >= 2;
+      return true;
+    }
+
+    _isItemUnlocked(itemId) {
+      if (
+        itemId === 'fuel' ||
+        itemId === 'coffee' ||
+        itemId === 'chips' ||
+        itemId === 'crate' ||
+        itemId === 'broom'
+      ) {
+        return true;
+      }
+      if (itemId === 'wash') return this._isStationUnlocked('bucket');
+      if (itemId === 'snack') return this._isStationUnlocked('grill');
+      if (itemId === 'drink') return this._isStationUnlocked('fridge');
+      if (itemId === 'candy') return this._isRackUnlocked('rack_sweets');
+      if (itemId === 'carcare') return this._isRackUnlocked('rack_auto');
+      return true;
+    }
+
     renderPrepModal() {
       const level = this.data.LEVELS.find((l) => l.id === this.selectedLevelId) || this.data.LEVELS[0];
-      document.getElementById('prep-level-title').textContent = `${level.id}. ${level.name}`;
-      document.getElementById('prep-level-subtitle').textContent = level.subtitle;
+      document.getElementById('prep-level-title').textContent = `🛒 Nakupovat – ${level.id}. ${level.name}`;
+      document.getElementById('prep-level-subtitle').textContent =
+        'Dokup si další tankovací stojany, prodejní regály, vybavení bistra nebo najmi zaměstnance. Vylepšení kupuješ kliknutím přímo na věci a postavičky v benzínce!';
       document.getElementById('prep-level-meta').textContent =
         `Zákazníků ve směně: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
       document.getElementById('prep-coins').textContent = `${this.save.coins} Kč`;
-
-      const upgradesGrid = document.getElementById('upgrades-list');
-      upgradesGrid.innerHTML = '';
-
-      this.data.UPGRADES.forEach((upg) => {
-        const curLvl = this.save.upgrades[upg.id] || 1;
-        const isMax = curLvl >= upg.maxLevel;
-        const nextCost = isMax ? null : upg.costs[curLvl - 1];
-        const canAfford = nextCost !== null && this.save.coins >= nextCost;
-
-        let pips = '';
-        for (let i = 1; i <= upg.maxLevel; i++) {
-          pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
-        }
-
-        const card = document.createElement('div');
-        card.className = 'prep-card';
-        card.innerHTML = `
-          <div class="prep-card-head">
-            <span class="prep-icon">${upg.icon}</span>
-            <div>
-              <h4>${upg.name}</h4>
-              <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${upg.maxLevel}</span></div>
-            </div>
-          </div>
-          <p class="prep-desc">${upg.description}</p>
-          <button type="button" class="btn-buy" data-upgrade="${upg.id}" ${
-            isMax || !canAfford ? 'disabled' : ''
-          }>
-            ${isMax ? '✨ Na maximu' : `Vylepšit (${nextCost} Kč)`}
-          </button>
-        `;
-
-        const btn = card.querySelector('.btn-buy');
-        if (!isMax) {
-          btn.addEventListener('click', () => this.buyUpgrade(upg.id));
-        }
-
-        upgradesGrid.appendChild(card);
-      });
 
       const staffGrid = document.getElementById('staff-list');
       staffGrid.innerHTML = '';
@@ -863,9 +1607,7 @@
       this.data.STAFF.forEach((st) => {
         const curLvl = this.save.staff[st.id] || 0;
         const isHired = curLvl > 0;
-        const isMax = curLvl >= st.maxLevel;
-        const nextCost = !isHired ? st.hireCost : isMax ? null : st.upgradeCosts[curLvl - 1];
-        const canAfford = nextCost !== null && this.save.coins >= nextCost;
+        const canAffordHire = !isHired && this.save.coins >= st.hireCost;
         const isEnabled = this.save.staffEnabled[st.id] !== false;
 
         let pips = '';
@@ -881,33 +1623,29 @@
             <div>
               <h4>${st.name}</h4>
               <div class="lvl-pips">${pips} <span class="lvl-text">${
-                isHired ? `Úr. ${curLvl}/${st.maxLevel}` : 'Nenajatý'
+                isHired ? `Úr. ${curLvl}/${st.maxLevel}` : 'Zatím nenajatý'
               }</span></div>
             </div>
           </div>
           <p class="prep-desc">${st.description}</p>
-          <div class="staff-actions">
-            <button type="button" class="btn-buy" data-staff="${st.id}" ${isMax || !canAfford ? 'disabled' : ''}>
-              ${
-                !isHired
-                  ? `Najmout (${nextCost} Kč)`
-                  : isMax
-                  ? '✨ Zkušený mistr'
-                  : `Zrychlit (${nextCost} Kč)`
-              }
-            </button>
-            ${
-              isHired
-                ? `<button type="button" class="btn-toggle ${isEnabled ? 'on' : 'off'}">${
+          ${
+            !isHired
+              ? `<div class="staff-actions">
+                  <button type="button" class="btn-buy" data-staff="${st.id}" ${!canAffordHire ? 'disabled' : ''}>
+                    Najmout (${st.hireCost} Kč)
+                  </button>
+                </div>`
+              : `<div class="staff-actions">
+                  <p class="obj-upg-note">✅ Najatý v benzínce — klikni na něj v benzínce pro vylepšení</p>
+                  <button type="button" class="btn-toggle ${isEnabled ? 'on' : 'off'}">${
                     isEnabled ? '✅ Ve směně' : '💤 Odpočívá'
-                  }</button>`
-                : ''
-            }
-          </div>
+                  }</button>
+                </div>`
+          }
         `;
 
         const buyBtn = card.querySelector('.btn-buy');
-        if (!isMax) {
+        if (buyBtn && !isHired) {
           buyBtn.addEventListener('click', () => this.hireOrUpgradeStaff(st.id));
         }
         const toggleBtn = card.querySelector('.btn-toggle');
@@ -916,15 +1654,193 @@
             this.audio.playClick();
             this.save.staffEnabled[st.id] = !isEnabled;
             this.persistSave();
+            this._syncPrepState();
             this.renderPrepModal();
           });
         }
 
         staffGrid.appendChild(card);
       });
+
+      const upgradesGrid = document.getElementById('upgrades-list');
+      upgradesGrid.innerHTML = '';
+
+      const pumpUnlockUpg = this.data.UPGRADES.find((u) => u.id === 'pump_unlock');
+      if (pumpUnlockUpg) {
+        const curLvl = this.save.upgrades.pump_unlock || 1;
+        const maxLvl = pumpUnlockUpg.maxLevel;
+        const pumpIsMax = curLvl >= maxLvl;
+        const buyPumpCost = pumpIsMax ? null : pumpUnlockUpg.costs[curLvl - 1];
+        const canBuyPump = !pumpIsMax && this.save.coins >= buyPumpCost;
+
+        const pumpCard = document.createElement('div');
+        pumpCard.className = `prep-card ${pumpIsMax ? 'hired-card' : ''}`;
+        pumpCard.innerHTML = `
+          <div class="prep-card-head">
+            <span class="prep-icon">⛽</span>
+            <div>
+              <h4>${pumpUnlockUpg.name}</h4>
+              <div class="lvl-pips"><span class="lvl-text">${
+                pumpIsMax ? '✅ Všechny 3 stojany postaveny' : `Postaveno: ${curLvl}/3 stojanů`
+              }</span></div>
+            </div>
+          </div>
+          <p class="prep-desc">${pumpUnlockUpg.description}</p>
+          ${
+            !pumpIsMax
+              ? `<button type="button" class="btn-buy" data-upgrade="pump_unlock" ${!canBuyPump ? 'disabled' : ''}>
+                  Koupit ${curLvl + 1}. stojan (${buyPumpCost} Kč)
+                </button>`
+              : `<p class="obj-upg-note">✅ Všechny 3 stojany jsou v benzínce! Rychlost a cenu paliva vylepšíš kliknutím na stojan.</p>`
+          }
+        `;
+        const buyPumpBtn = pumpCard.querySelector('.btn-buy');
+        if (buyPumpBtn && !pumpIsMax) {
+          buyPumpBtn.addEventListener('click', () => this.buyUpgrade('pump_unlock'));
+        }
+        upgradesGrid.appendChild(pumpCard);
+      }
+
+      ['wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'].forEach((unlockId) => {
+        const upg = this.data.UPGRADES.find((u) => u.id === unlockId);
+        if (!upg) return;
+        const unlocked = (this.save.upgrades[upg.id] || 1) >= 2;
+        const buyCost = upg.costs[0];
+        const canBuy = !unlocked && this.save.coins >= buyCost;
+
+        const card = document.createElement('div');
+        card.className = `prep-card ${unlocked ? 'hired-card' : ''}`;
+        card.innerHTML = `
+          <div class="prep-card-head">
+            <span class="prep-icon">${upg.icon}</span>
+            <div>
+              <h4>${upg.name}</h4>
+              <div class="lvl-pips"><span class="lvl-text">${
+                unlocked ? '✅ Postaveno v benzínce' : 'Zatím nekoupeno'
+              }</span></div>
+            </div>
+          </div>
+          <p class="prep-desc">${upg.description}</p>
+          ${
+            !unlocked
+              ? `<button type="button" class="btn-buy" data-upgrade="${upg.id}" ${!canBuy ? 'disabled' : ''}>
+                  Koupit (${buyCost} Kč)
+                </button>`
+              : `<p class="obj-upg-note">✅ Postaveno v benzínce! Vylepšení koupíš kliknutím přímo na objekt.</p>`
+          }
+        `;
+        const buyBtn = card.querySelector('.btn-buy');
+        if (buyBtn && !unlocked) {
+          const startPlacement = Boolean(this.levelState && this.levelState.prepMode);
+          buyBtn.addEventListener('click', () => this.buyUpgrade(upg.id, { startPlacement }));
+        }
+        upgradesGrid.appendChild(card);
+      });
+
+      const decorUpg = this.data.UPGRADES.find((u) => u.id === 'decor');
+      if (decorUpg) {
+        const curLvl = this.save.upgrades.decor || 1;
+        const isMax = curLvl >= decorUpg.maxLevel;
+        const nextCost = isMax ? null : decorUpg.costs[curLvl - 1];
+        const canAfford = nextCost !== null && this.save.coins >= nextCost;
+        let pips = '';
+        for (let i = 1; i <= decorUpg.maxLevel; i++) {
+          pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
+        }
+        const decorCard = document.createElement('div');
+        decorCard.className = 'prep-card';
+        decorCard.innerHTML = `
+          <div class="prep-card-head">
+            <span class="prep-icon">${decorUpg.icon}</span>
+            <div>
+              <h4>${decorUpg.name}</h4>
+              <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${decorUpg.maxLevel}</span></div>
+            </div>
+          </div>
+          <p class="prep-desc">${decorUpg.description}</p>
+          <button type="button" class="btn-buy" data-upgrade="decor" ${isMax || !canAfford ? 'disabled' : ''}>
+            ${isMax ? '✨ Na maximu' : `Koupit / vylepšit (${nextCost} Kč)`}
+          </button>
+        `;
+        const decorBtn = decorCard.querySelector('.btn-buy');
+        if (decorBtn && !isMax) {
+          decorBtn.addEventListener('click', () => this.buyUpgrade('decor'));
+        }
+        upgradesGrid.appendChild(decorCard);
+      }
+
+      const infoCard = document.createElement('div');
+      infoCard.className = 'prep-card';
+      infoCard.innerHTML = `
+        <div class="prep-card-head">
+          <span class="prep-icon">👆</span>
+          <div>
+            <h4>Samostatné upgrady v benzínce</h4>
+          </div>
+        </div>
+        <p class="prep-desc">
+          Kliknutím přímo na kávovar (☕), gril (🌭), mytí (🧽), limonády (🧃), regály (🛒), stojany (⛽), pokladnu (📠), svou postavičku nebo zaměstnance si zvlášť vybereš rychlost, kapacitu či zvýšení ceny!
+        </p>
+      `;
+      upgradesGrid.appendChild(infoCard);
     }
 
-    buyUpgrade(upgradeId) {
+    _syncPrepState() {
+      this._applySavedLayout();
+      this.updateGlobalHUD();
+      if (this.levelState) {
+        const shoesLvl = this.save.upgrades.shoes || 1;
+        const carryLvl = this.save.upgrades.carry || 1;
+        const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
+        const maxCarry = 1 + carryLvl;
+        const racksLvl = this.save.upgrades.racks || 1;
+        const maxRackStock = 2 + racksLvl * 2;
+        const prevById = {};
+        (this.levelState.racks || []).forEach((r) => {
+          prevById[r.id] = r;
+        });
+        const savedRacks = this.save.rackStock && typeof this.save.rackStock === 'object' ? this.save.rackStock : null;
+
+        this.levelState.racks = Object.values(this.data.RACKS)
+          .filter((r) => this._isRackUnlocked(r.id))
+          .map((r) => {
+            const prev = prevById[r.id];
+            const hasSaved = Boolean(savedRacks && typeof savedRacks[r.id] === 'number');
+            let stock;
+            if (!hasSaved) {
+              stock = maxRackStock;
+            } else if (prev) {
+              stock = Math.max(0, Math.min(maxRackStock, prev.stock));
+            } else {
+              stock = Math.max(0, Math.min(maxRackStock, savedRacks[r.id]));
+            }
+            return Object.assign({}, r, {
+              stock,
+              maxStock: maxRackStock
+            });
+          });
+
+        this.levelState.workers.forEach((w) => {
+          if (w.isPlayer) {
+            w.speed = playerSpeed;
+            w.maxCarry = maxCarry;
+          } else {
+            const staffLvl = this.save.staff[w.id] || 0;
+            const enabled = this.save.staffEnabled[w.id] !== false;
+            w.level = staffLvl;
+            w.speed = staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185;
+            w.active = this.levelState.prepMode ? staffLvl > 0 : staffLvl > 0 && enabled;
+          }
+        });
+      }
+
+      const objModal = document.getElementById('object-upgrade-modal');
+      if (objModal && !objModal.classList.contains('hidden') && this._activeObjectTarget) {
+        this.openObjectUpgradeModal(this._activeObjectTarget);
+      }
+    }
+
+    buyUpgrade(upgradeId, options) {
       const upg = this.data.UPGRADES.find((u) => u.id === upgradeId);
       if (!upg) return;
       const curLvl = this.save.upgrades[upgradeId] || 1;
@@ -932,12 +1848,38 @@
       const cost = upg.costs[curLvl - 1];
       if (this.save.coins < cost) return;
 
+      const PLACEABLE_UNLOCK_MAP = {
+        rack_sweets_unlock: { kind: 'rack', id: 'rack_sweets' },
+        rack_auto_unlock: { kind: 'rack', id: 'rack_auto' },
+        fridge_unlock: { kind: 'station', id: 'fridge' },
+        grill_unlock: { kind: 'station', id: 'grill' }
+      };
+
       this.save.coins -= cost;
       this.save.upgrades[upgradeId] = curLvl + 1;
+
+      const placedTarget = PLACEABLE_UNLOCK_MAP[upgradeId];
+      if (placedTarget) {
+        const layout = this._ensureLayout();
+        const freeSpot = this._findFreeDefaultPlacement(placedTarget.kind, placedTarget.id);
+        if (placedTarget.kind === 'rack') {
+          layout.racks[placedTarget.id] = freeSpot;
+        } else {
+          layout.stations[placedTarget.id] = freeSpot;
+        }
+        this._applySavedLayout();
+      }
+
       this.audio.playUpgrade();
       this.persistSave();
+      this._syncPrepState();
       this.renderPrepModal();
       this.renderMap();
+
+      if (placedTarget && options && options.startPlacement && this.levelState && this.levelState.prepMode) {
+        this.closePrepModal();
+        this.startPlacementMode(placedTarget.kind, placedTarget.id, true);
+      }
     }
 
     hireOrUpgradeStaff(staffId) {
@@ -953,39 +1895,48 @@
       this.save.staffEnabled[staffId] = true;
       this.audio.playUpgrade();
       this.persistSave();
+      this._syncPrepState();
       this.renderPrepModal();
       this.renderMap();
     }
 
-    startLevel(levelId) {
-      const level = this.data.LEVELS.find((l) => l.id === levelId) || this.data.LEVELS[0];
-      this.selectedLevelId = level.id;
-      this.screen = 'game';
-      this.paused = false;
+    _syncRackStockToSave() {
+      if (!this.levelState || !this.levelState.racks) return;
+      if (!this.save.rackStock || typeof this.save.rackStock !== 'object') {
+        this.save.rackStock = {};
+      }
+      this.levelState.racks.forEach((r) => {
+        this.save.rackStock[r.id] = r.stock;
+      });
+    }
 
-      document.getElementById('map-screen').classList.add('hidden');
-      document.getElementById('game-screen').classList.remove('hidden');
-      document.getElementById('pause-btn').textContent = '⏸️ Pauza';
-
+    _createLevelEntities(prepMode) {
+      this._applySavedLayout();
       const shoesLvl = this.save.upgrades.shoes || 1;
+      const carryLvl = this.save.upgrades.carry || 1;
       const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
-      const maxCarry = shoesLvl >= 2 ? 3 : 2;
+      const maxCarry = 1 + carryLvl;
 
       const racksLvl = this.save.upgrades.racks || 1;
       const maxRackStock = 2 + racksLvl * 2;
-      const racks = Object.values(this.data.RACKS).map((r) =>
-        Object.assign({}, r, {
-          stock: maxRackStock,
-          maxStock: maxRackStock
-        })
-      );
+      const savedRacks = this.save.rackStock && typeof this.save.rackStock === 'object' ? this.save.rackStock : null;
+      const racks = Object.values(this.data.RACKS)
+        .filter((r) => this._isRackUnlocked(r.id))
+        .map((r) => {
+          const hasSaved = savedRacks && typeof savedRacks[r.id] === 'number';
+          const initialStock = hasSaved ? Math.max(0, Math.min(maxRackStock, savedRacks[r.id])) : maxRackStock;
+          return Object.assign({}, r, {
+            stock: initialStock,
+            maxStock: maxRackStock
+          });
+        });
 
       const player = {
         id: 'player',
         isPlayer: true,
         label: 'Ty (Obsluha)',
-        x: 550,
-        y: 248,
+        x: 665,
+        y: 412,
         speed: playerSpeed,
         color: '#e07a5f',
         hatColor: '#b5554c',
@@ -1003,9 +1954,9 @@
 
       const workers = [player];
       const staffStartPositions = {
-        tonik: { x: 320, y: 315 },
-        anicka: { x: 750, y: 244 },
-        kuba: { x: 640, y: 246 }
+        tonik: { x: 210, y: 395 },
+        anicka: { x: 1138, y: 262 },
+        kuba: { x: 1272, y: 412 }
       };
 
       this.data.STAFF.forEach((st, idx) => {
@@ -1031,14 +1982,111 @@
           actionTimer: 0,
           actionDuration: 0,
           moving: false,
-          active: staffLvl > 0 && enabled,
+          active: prepMode ? staffLvl > 0 : staffLvl > 0 && enabled,
           seed: idx + 1.7
         });
       });
 
+      return { racks, workers, player };
+    }
+
+    _startLoop() {
+      if (this.rafId) cancelAnimationFrame(this.rafId);
+      this.lastFrameTime = performance.now();
+      const loop = (now) => {
+        const dt = Math.min(0.05, (now - this.lastFrameTime) / 1000);
+        this.lastFrameTime = now;
+        if (this.screen === 'game' && this.levelState) {
+          if (this.levelState.prepMode) {
+            this.levelState.time += dt;
+            this._updateParticles(dt);
+          } else if (!this.paused && !this.levelState.ended) {
+            this._updateLevel(dt);
+          }
+          this.renderer.render(this.levelState);
+          this.rafId = requestAnimationFrame(loop);
+        }
+      };
+      this.rafId = requestAnimationFrame(loop);
+    }
+
+    enterPrepMode(levelId) {
+      const level = this.data.LEVELS.find((l) => l.id === levelId) || this.data.LEVELS[0];
+      this.selectedLevelId = level.id;
+      this.screen = 'game';
+      this.paused = false;
+
+      this.closePrepModal();
+      this.closeObjectUpgradeModal();
+      document.getElementById('map-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      document.getElementById('prep-topbar').classList.remove('hidden');
+      document.getElementById('shift-topbar').classList.add('hidden');
+
+      document.getElementById('prep-bar-title').textContent = `${level.id}. ${level.name}`;
+      document.getElementById('prep-bar-sub').textContent =
+        `Zákazníků: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
+      document.getElementById('game-tip-bar').innerHTML =
+        '🛠️ <strong>Příprava benzínky:</strong> Klikni přímo na stojan, regál, kávovar, gril, pokladnu, svou postavičku nebo zaměstnance pro vylepšení. Nové stojany a zaměstnance koupíš přes <strong>🛒 Nakupovat</strong>, pak stiskni <strong>▶️ Start hry</strong>!';
+
+      const { racks, workers, player } = this._createLevelEntities(true);
+
       this.levelState = {
         level,
         save: this.save,
+        prepMode: true,
+        placementMode: null,
+        time: 0,
+        earnedCoins: 0,
+        servedCount: 0,
+        angryCount: 0,
+        spawnedCount: 0,
+        spawnTimer: 1.1,
+        aiTimer: 0.25,
+        nextEntityId: 1,
+        cars: [],
+        customers: [],
+        racks,
+        spills: [],
+        particles: [],
+        workers,
+        player,
+        hoveredTarget: null,
+        mouseX: 0,
+        mouseY: 0,
+        paused: false,
+        ended: false,
+        buildPath: this._buildPath.bind(this)
+      };
+
+      this.updateGlobalHUD();
+      this._startLoop();
+    }
+
+    startLevel(levelId) {
+      const level = this.data.LEVELS.find((l) => l.id === levelId) || this.data.LEVELS[0];
+      this.selectedLevelId = level.id;
+      this.screen = 'game';
+      this.paused = false;
+
+      this._finishActivePlacement();
+      this.closePrepModal();
+      this.closeObjectUpgradeModal();
+      document.getElementById('map-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      document.getElementById('prep-topbar').classList.add('hidden');
+      document.getElementById('shift-topbar').classList.remove('hidden');
+      document.getElementById('pause-btn').textContent = '⏸️ Pauza';
+      document.getElementById('game-tip-bar').innerHTML =
+        '💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!';
+
+      const { racks, workers, player } = this._createLevelEntities(false);
+
+      this.levelState = {
+        level,
+        save: this.save,
+        prepMode: false,
+        placementMode: null,
         time: 0,
         earnedCoins: 0,
         servedCount: 0,
@@ -1065,21 +2113,7 @@
       this._updateGameHUD();
       this.audio.init();
       this.audio.startAmbient();
-
-      if (this.rafId) cancelAnimationFrame(this.rafId);
-      this.lastFrameTime = performance.now();
-      const loop = (now) => {
-        const dt = Math.min(0.05, (now - this.lastFrameTime) / 1000);
-        this.lastFrameTime = now;
-        if (this.screen === 'game' && this.levelState) {
-          if (!this.paused && !this.levelState.ended) {
-            this._updateLevel(dt);
-          }
-          this.renderer.render(this.levelState);
-          this.rafId = requestAnimationFrame(loop);
-        }
-      };
-      this.rafId = requestAnimationFrame(loop);
+      this._startLoop();
     }
 
     togglePause() {
@@ -1096,6 +2130,9 @@
         this.rafId = null;
       }
       this.audio.stopAmbient();
+      this._finishActivePlacement();
+      this.closePrepModal();
+      this.closeObjectUpgradeModal();
       this.levelState = null;
       this.screen = 'map';
       document.getElementById('game-screen').classList.add('hidden');
@@ -1116,6 +2153,157 @@
     _hitTest(x, y) {
       const state = this.levelState;
       if (!state) return null;
+
+      if (state.prepMode) {
+        if (state.placementMode) return null;
+        // 1. Workers (player & hired employees)
+        for (let i = state.workers.length - 1; i >= 0; i--) {
+          const w = state.workers[i];
+          if (!w.active) continue;
+          if (Math.abs(x - w.x) <= 30 && y >= w.y - 58 && y <= w.y + 38) {
+            if (w.isPlayer) {
+              return {
+                kind: 'prep_target',
+                id: 'player',
+                targetType: 'upgrade',
+                upgradeIds: ['shoes', 'carry'],
+                icon: '👟',
+                title: 'Obsluha – Vylepšení postavy',
+                desc: 'Samostatně zlepši rychlost chůze nebo počet věcí, které uneseš:',
+                hint: '👟 Klikni pro vylepšení rychlosti a nosnosti obsluhy'
+              };
+            }
+            return {
+              kind: 'prep_target',
+              id: w.id,
+              targetType: 'staff',
+              staffId: w.id,
+              hint: `🧑‍🔧 Klikni pro vylepšení zaměstnance (${w.label})`
+            };
+          }
+        }
+
+        // 2. Display Stands (Racks)
+        for (const rack of state.racks) {
+          const isVert = (rack.rot || 0) % 2 === 1;
+          const hw = isVert ? 32 : rack.radius + 6;
+          const hhTop = isVert ? 54 : 74;
+          const hhBot = isVert ? 54 : rack.radius;
+          if (Math.abs(x - rack.x) <= hw && y >= rack.y - hhTop && y <= rack.y + hhBot) {
+            return {
+              kind: 'prep_target',
+              id: rack.id,
+              targetType: 'upgrade',
+              upgradeIds: ['racks', 'racks_price'],
+              placementKind: 'rack',
+              placementId: rack.id,
+              icon: '🛒',
+              title: 'Prodejní regály',
+              desc: 'Samostatně rozšiř kapacitu regálů, zvedni cenu zboží nebo regál přesuň a otoč:',
+              hint: `🛒 Klikni pro vylepšení a přesun (${rack.label})`
+            };
+          }
+        }
+
+        // 3. Stations
+        const stationUpgradeMap = {
+          pump_0: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '⛽',
+            title: 'Tankovací stojany',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu:',
+            hint: '⛽ Klikni pro vylepšení rychlosti a ceny paliva'
+          },
+          pump_1: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '⛽',
+            title: 'Tankovací stojany',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu:',
+            hint: '⛽ Klikni pro vylepšení rychlosti a ceny paliva'
+          },
+          pump_2: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '⛽',
+            title: 'Tankovací stojany',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu:',
+            hint: '⛽ Klikni pro vylepšení rychlosti a ceny paliva'
+          },
+          coffee: {
+            upgradeIds: ['coffee', 'coffee_price'],
+            placementKind: 'station',
+            icon: '☕',
+            title: 'Kávovar',
+            desc: 'Zrychli vaření kávy, navyš její cenu nebo posuň kávovar po pultu:',
+            hint: '☕ Klikni pro vylepšení a přesun kávovaru'
+          },
+          grill: {
+            upgradeIds: ['grill', 'grill_price'],
+            placementKind: 'station',
+            icon: '🌭',
+            title: 'Gril & Pečivo',
+            desc: 'Zrychli přípravu párků a pečiva, navyš cenu nebo posuň gril po pultu:',
+            hint: '🌭 Klikni pro vylepšení a přesun grilu a pečiva'
+          },
+          bucket: {
+            upgradeIds: ['wash', 'wash_price'],
+            icon: '🧽',
+            title: 'Mytí oken',
+            desc: 'Zrychli mytí čelních skel nebo navyš odměnu:',
+            hint: '🧽 Klikni pro vylepšení mytí oken'
+          },
+          fridge: {
+            upgradeIds: ['drink_speed', 'drink_price'],
+            placementKind: 'station',
+            icon: '🧃',
+            title: 'Chladnička s limonádou',
+            desc: 'Zrychli čepování limonád, navyš cenu nebo posuň chladničku po pultu:',
+            hint: '🧃 Klikni pro vylepšení a přesun limonád'
+          },
+          storage: {
+            upgradeIds: ['racks', 'racks_price'],
+            icon: '📦',
+            title: 'Prodejní regály',
+            desc: 'Samostatně rozšiř kapacitu regálů nebo zvedni cenu zboží:',
+            hint: '📦 Klikni pro vylepšení regálů'
+          },
+          register: {
+            upgradeIds: ['decor', 'decor_tips'],
+            icon: '🌸',
+            title: 'Pokladna & Výzdoba',
+            desc: 'Zvyš trpělivost zákazníků nebo spropitné za obsluhu:',
+            hint: '🌸 Klikni pro vylepšení trpělivosti a spropitného'
+          },
+          broom: {
+            upgradeIds: ['decor', 'decor_tips'],
+            icon: '🌸',
+            title: 'Pokladna & Výzdoba',
+            desc: 'Zvyš trpělivost zákazníků nebo spropitné za obsluhu:',
+            hint: '🌸 Klikni pro vylepšení trpělivosti a spropitného'
+          }
+        };
+        for (const st of Object.values(this.data.STATIONS)) {
+          if (!this._isStationUnlocked(st.id)) continue;
+          const mapped = stationUpgradeMap[st.id];
+          if (!mapped) continue;
+          const dist = Math.hypot(x - st.x, y - st.y);
+          if (dist <= st.radius || (Math.abs(x - st.x) <= 36 && y >= st.y - 64 && y <= st.y + st.radius)) {
+            return {
+              kind: 'prep_target',
+              id: st.id,
+              targetType: 'upgrade',
+              upgradeIds: mapped.upgradeIds,
+              placementKind: mapped.placementKind || null,
+              placementId: mapped.placementKind ? st.id : null,
+              icon: mapped.icon,
+              title: mapped.title,
+              desc: mapped.desc,
+              hint: mapped.hint
+            };
+          }
+        }
+
+        return null;
+      }
 
       // 1. Cars (waiting at pumps)
       for (let i = state.cars.length - 1; i >= 0; i--) {
@@ -1158,13 +2346,16 @@
         const spill = state.spills[i];
         const dist = Math.hypot(x - spill.x, y - spill.y);
         if (dist <= 32) {
-          return { kind: 'spill', id: spill.id, obj: spill, hint: '🧹 Uklidit louži (+12 Kč)' };
+          return { kind: 'spill', id: spill.id, obj: spill, hint: '🧹 Uklidit louži (+2 Kč)' };
         }
       }
 
       // 4. Restockable Display Stands (Racks)
       for (const rack of state.racks) {
-        if (Math.abs(x - rack.x) <= rack.radius + 6 && Math.abs(y - rack.y) <= rack.radius) {
+        const isVert = (rack.rot || 0) % 2 === 1;
+        const hw = isVert ? 32 : rack.radius + 6;
+        const hh = isVert ? 48 : rack.radius;
+        if (Math.abs(x - rack.x) <= hw && Math.abs(y - rack.y) <= hh) {
           const hint =
             rack.stock === 0
               ? `⚠️ ${rack.label} je prázdný! Klikni pro doplnění 📦`
@@ -1174,9 +2365,8 @@
       }
 
       // 5. Stations
-      const pumpsLvl = this.save.upgrades.pumps || 1;
       for (const st of Object.values(this.data.STATIONS)) {
-        if (st.id === 'pump_2' && pumpsLvl < 2) continue;
+        if (!this._isStationUnlocked(st.id)) continue;
         const dist = Math.hypot(x - st.x, y - st.y);
         if (dist <= st.radius) {
           return {
@@ -1192,51 +2382,66 @@
     }
 
     _getZone(x, y) {
-      if (x > 1076 && y <= 388) return 'storage';
-      if (x >= 520 && x <= 1076 && y <= 478) {
-        return y < 295 ? 'behind_counter' : 'shop_floor';
+      if (x > 1310 && y <= 478) return 'storage';
+      if (x >= 620 && x <= 1310 && y <= 582) {
+        return y < 328 ? 'behind_counter' : 'shop_floor';
       }
       return 'outside';
     }
 
     _clampWalkTarget(rawX, rawY) {
-      let x = Math.max(35, Math.min(1225, rawX));
-      let y = Math.max(240, Math.min(488, rawY));
+      let x = Math.max(35, Math.min(1505, rawX));
+      let y = Math.max(245, Math.min(592, rawY));
 
-      // Keep clear of exterior left shop wall (x: 506..528, y < 480)
-      if (x >= 506 && x < 532 && y < 480) {
-        x = x < 519 ? 495 : 540;
+      // Keep clear of exterior left shop wall (x: 604..634, y < 584)
+      if (x >= 604 && x < 634 && y < 584) {
+        x = x < 619 ? 585 : 644;
       }
 
-      // Keep clear of dividing wall between Main Shop and Storage Room (x: 1066..1092)
-      if (x >= 1064 && x <= 1094 && y <= 394) {
-        x = x < 1077 ? 1052 : 1102;
+      // Keep clear of dividing wall between Main Shop and Storage Room (x: 1296..1326)
+      if (x >= 1296 && x <= 1326 && y <= 482) {
+        x = x < 1310 ? 1280 : 1345;
       }
 
-      // Keep clear of Storage Room bottom exterior wall (y: 374..398, x >= 1076)
-      if (x >= 1076 && y > 370 && y < 404) {
-        y = y < 388 ? 364 : 412;
+      // Keep clear of Storage Room bottom exterior wall (y: 462..496, x >= 1310)
+      if (x >= 1310 && y > 462 && y < 496) {
+        y = y < 478 ? 454 : 506;
       }
 
       // Storage room bounds
-      if (x > 1076 && y <= 388) {
-        x = Math.max(1100, Math.min(1220, x));
-        y = Math.max(242, Math.min(365, y));
+      if (x > 1310 && y <= 478) {
+        x = Math.max(1340, Math.min(1492, x));
+        y = Math.max(255, Math.min(454, y));
       }
 
       // Main shop interior bounds
-      if (x >= 520 && x <= 1076 && y <= 478) {
-        y = Math.max(242, y);
-        // Service counter rectangle (x: 590..1026, y: 262..314); left x=560 & right x=1044 are open
-        if (x >= 584 && x <= 1030 && y >= 260 && y <= 318) {
-          y = y < 288 ? 246 : 332;
+      if (x >= 620 && x <= 1310 && y <= 582) {
+        y = Math.max(245, y);
+        // Service counter rectangle (x: 698..1240, y: 298..356); left x=665 & right x=1272 are open
+        if (x >= 698 && x <= 1240 && y >= 298 && y <= 356) {
+          y = y < 328 ? 278 : 382;
         }
-        // Display stands (y: 382..436)
-        if (y >= 382 && y <= 436) {
-          if ((x >= 635 && x <= 725) || (x >= 790 && x <= 880) || (x >= 945 && x <= 1035)) {
-            y = y < 409 ? 374 : 452;
+        // Display stands (dynamic positions & 4-dir rotations)
+        const activeRacks =
+          this.levelState && this.levelState.racks
+            ? this.levelState.racks
+            : Object.values(this.data.RACKS).filter((r) => this._isRackUnlocked(r.id));
+        activeRacks.forEach((r) => {
+          const isVert = (r.rot || 0) % 2 === 1;
+          const hw = isVert ? 30 : 48;
+          const hh = isVert ? 48 : 30;
+          if (x >= r.x - hw && x <= r.x + hw && y >= r.y - hh && y <= r.y + hh) {
+            const dxLeft = Math.abs(x - (r.x - hw));
+            const dxRight = Math.abs(r.x + hw - x);
+            const dyTop = Math.abs(y - (r.y - hh));
+            const dyBot = Math.abs(r.y + hh - y);
+            const minD = Math.min(dxLeft, dxRight, dyTop, dyBot);
+            if (minD === dyTop) y = r.y - hh - 4;
+            else if (minD === dyBot) y = r.y + hh + 4;
+            else if (minD === dxLeft) x = r.x - hw - 4;
+            else x = r.x + hw + 4;
           }
-        }
+        });
       }
 
       return { x, y };
@@ -1255,40 +2460,95 @@
       };
 
       const routeOutside = (sx, sy, ex, ey) => {
-        if ((sx < 520 && sy < 480 && ex >= 515) || (ex < 520 && ey < 480 && sx >= 515)) {
+        if ((sx < 620 && sy < 582 && ex >= 615) || (ex < 620 && ey < 582 && sx >= 615)) {
           pushPt(PATH_WAYPOINTS.CORNER_SW.x, PATH_WAYPOINTS.CORNER_SW.y);
         }
-        if ((sx > 1076 && sy < 480 && ex < 1076) || (ex > 1076 && ey < 480 && sx < 1076)) {
-          pushPt(1086, 488);
+        if ((sx > 1310 && sy < 582 && ex < 1310) || (ex > 1310 && ey < 582 && sx < 1310)) {
+          pushPt(1322, 592);
         }
         pushPt(ex, ey);
       };
 
       const routeShopFloor = (sx, sy, ex, ey) => {
-        const crossesRackBand =
-          (sy <= 382 && ey >= 434) ||
-          (sy >= 434 && ey <= 382) ||
-          (Math.min(sy, ey) < 434 && Math.max(sy, ey) > 384 && Math.abs(sx - ex) > 25);
-        if (crossesRackBand) {
-          const aisles = [603, 758, 912, 1044];
-          let bestAisle = aisles[0];
-          let bestCost = Infinity;
-          aisles.forEach((ax) => {
-            const cost = Math.abs(sx - ax) + Math.abs(ex - ax);
-            if (cost < bestCost) {
-              bestCost = cost;
-              bestAisle = ax;
+        const activeRacks =
+          this.levelState && this.levelState.racks
+            ? this.levelState.racks
+            : Object.values(this.data.RACKS).filter((r) => this._isRackUnlocked(r.id));
+        const boxes = activeRacks.map((r) => {
+          const isVert = (r.rot || 0) % 2 === 1;
+          const hw = isVert ? 26 : 42;
+          const hh = isVert ? 42 : 26;
+          return { x1: r.x - hw - 10, y1: r.y - hh - 10, x2: r.x + hw + 10, y2: r.y + hh + 10 };
+        });
+        const segHitsBox = (x1, y1, x2, y2) => {
+          for (let i = 0; i < boxes.length; i++) {
+            const b = boxes[i];
+            const steps = 16;
+            for (let s = 1; s < steps; s++) {
+              const p = s / steps;
+              const px = x1 + (x2 - x1) * p;
+              const py = y1 + (y2 - y1) * p;
+              if (px > b.x1 && px < b.x2 && py > b.y1 && py < b.y2) return true;
             }
-          });
-          if (sy > 384 && ey <= 384) {
-            pushPt(bestAisle, Math.max(448, sy));
-            pushPt(bestAisle, 368);
-          } else if (sy <= 384 && ey > 384) {
-            pushPt(bestAisle, 368);
-            pushPt(bestAisle, Math.max(448, ey));
-          } else {
-            pushPt(bestAisle, 368);
           }
+          return false;
+        };
+        const isPathClear = (wps) => {
+          let px = sx;
+          let py = sy;
+          for (let i = 0; i < wps.length; i++) {
+            const wp = wps[i];
+            if (segHitsBox(px, py, wp.x, wp.y)) return false;
+            px = wp.x;
+            py = wp.y;
+          }
+          return !segHitsBox(px, py, ex, ey);
+        };
+
+        if (!segHitsBox(sx, sy, ex, ey)) {
+          pushPt(ex, ey);
+          return;
+        }
+
+        const minRackTop = boxes.length > 0 ? Math.min(...boxes.map((b) => b.y1)) : 432;
+        const maxRackBot = boxes.length > 0 ? Math.max(...boxes.map((b) => b.y2)) : 548;
+        const topY = Math.max(380, Math.min(432, minRackTop - 8));
+        const botY = Math.min(568, Math.max(548, maxRackBot + 8));
+        const candidateXs = [665, 715, 790, 845, 890, 945, 990, 1045, 1090, 1155, 1272];
+
+        let bestWaypoints = null;
+        let bestCost = Infinity;
+        const evalCandidate = (wps) => {
+          if (!isPathClear(wps)) return;
+          let cost = 0;
+          let px = sx;
+          let py = sy;
+          wps.forEach((wp) => {
+            cost += Math.hypot(wp.x - px, wp.y - py);
+            px = wp.x;
+            py = wp.y;
+          });
+          cost += Math.hypot(ex - px, ey - py);
+          if (cost < bestCost) {
+            bestCost = cost;
+            bestWaypoints = wps;
+          }
+        };
+
+        evalCandidate([{ x: sx, y: topY }, { x: ex, y: topY }]);
+        evalCandidate([{ x: sx, y: botY }, { x: ex, y: botY }]);
+        candidateXs.forEach((ax) => {
+          evalCandidate([{ x: ax, y: sy }, { x: ax, y: ey }]);
+          evalCandidate([{ x: ax, y: topY }]);
+          evalCandidate([{ x: ax, y: botY }]);
+          evalCandidate([{ x: sx, y: topY }, { x: ax, y: topY }, { x: ax, y: ey }]);
+          evalCandidate([{ x: sx, y: botY }, { x: ax, y: botY }, { x: ax, y: ey }]);
+          evalCandidate([{ x: ax, y: sy }, { x: ax, y: topY }, { x: ex, y: topY }]);
+          evalCandidate([{ x: ax, y: sy }, { x: ax, y: botY }, { x: ex, y: botY }]);
+        });
+
+        if (bestWaypoints) {
+          bestWaypoints.forEach((wp) => pushPt(wp.x, wp.y));
         }
         pushPt(ex, ey);
       };
@@ -1316,8 +2576,8 @@
       };
 
       const pickCounterGap = (sx, ex) => {
-        const leftCost = Math.abs(sx - 560) + Math.abs(ex - 560);
-        const rightCost = Math.abs(sx - 1044) + Math.abs(ex - 1044);
+        const leftCost = Math.abs(sx - 665) + Math.abs(ex - 665);
+        const rightCost = Math.abs(sx - 1272) + Math.abs(ex - 1272);
         return leftCost <= rightCost
           ? { south: PATH_WAYPOINTS.COUNTER_LEFT_SOUTH, north: PATH_WAYPOINTS.COUNTER_LEFT_NORTH }
           : { south: PATH_WAYPOINTS.COUNTER_GAP_SOUTH, north: PATH_WAYPOINTS.COUNTER_GAP_NORTH };
@@ -1405,6 +2665,24 @@
       const pt = this._getCanvasPoint(e);
       this.levelState.mouseX = pt.x;
       this.levelState.mouseY = pt.y;
+      if (this.levelState.prepMode && this.levelState.placementMode) {
+        const pm = this.levelState.placementMode;
+        if (pm.kind === 'station') {
+          pm.y = 185;
+          pm.x = Math.round(Math.max(680, Math.min(1135, pt.x)));
+          pm.inBounds = pt.x >= 600 && pt.x <= 1315 && pt.y >= 110 && pt.y <= 350;
+          pm.valid = pm.inBounds && this._isPlacementValid('station', pm.id, pm.x, pm.y, 0);
+        } else if (pm.kind === 'rack') {
+          pm.x = Math.round(Math.max(725, Math.min(1225, pt.x)));
+          pm.y = Math.round(Math.max(440, Math.min(520, pt.y)));
+          pm.inBounds = pt.x >= 620 && pt.x <= 1310 && pt.y >= 340 && pt.y <= 585;
+          pm.valid = pm.inBounds && this._isPlacementValid('rack', pm.id, pm.x, pm.y, pm.rot);
+        }
+        this._applyPlacementPreview(pm);
+        this.levelState.hoveredTarget = null;
+        this.canvas.style.cursor = pm.valid ? 'grabbing' : 'not-allowed';
+        return;
+      }
       this.levelState.hoveredTarget = this._hitTest(pt.x, pt.y);
       this.canvas.style.cursor = this.levelState.hoveredTarget ? 'pointer' : 'default';
     }
@@ -1413,6 +2691,18 @@
       if (!this.levelState || this.paused || this.levelState.ended) return;
       this.audio.init();
       const pt = this._getCanvasPoint(e);
+      if (this.levelState.prepMode) {
+        if (this.levelState.placementMode) {
+          this.confirmPlacementMode(false);
+          return;
+        }
+        const hit = this._hitTest(pt.x, pt.y);
+        if (hit && hit.kind === 'prep_target') {
+          this.audio.playClick();
+          this.openObjectUpgradeModal(hit);
+        }
+        return;
+      }
       const hit = this._hitTest(pt.x, pt.y);
       const player = this.levelState.player;
 
@@ -1434,12 +2724,7 @@
       } else if (hit.kind === 'customer') {
         this._queueCustomerClick(player, hit.obj);
       } else if (hit.kind === 'spill') {
-        player.taskQueue.push({
-          type: 'cleanSpill',
-          spillId: hit.obj.id,
-          x: hit.obj.x,
-          y: hit.obj.y - 8
-        });
+        this._queueSpillClick(player, hit.obj);
       }
     }
 
@@ -1448,6 +2733,11 @@
       const checkTask = (task) => {
         if (!task) return;
         if (task.type === 'prep' && task.itemId) inv.push(task.itemId);
+        if (task.type === 'takeBroom') inv.push('broom');
+        if (task.type === 'returnBroom') {
+          const idx = inv.indexOf('broom');
+          if (idx !== -1) inv.splice(idx, 1);
+        }
         if ((task.type === 'serveCar' || task.type === 'serveCustomer') && task.itemId) {
           const idx = inv.indexOf(task.itemId);
           if (idx !== -1) inv.splice(idx, 1);
@@ -1461,6 +2751,60 @@
       checkTask(player.currentTask);
       player.taskQueue.forEach(checkTask);
       return inv;
+    }
+
+    _queueSpillClick(player, spill) {
+      const broom = this.data.STATIONS.broom;
+      const endsWithReturnBroom =
+        player.taskQueue.length > 0 &&
+        player.taskQueue[player.taskQueue.length - 1].type === 'returnBroom';
+      if (endsWithReturnBroom) {
+        const returnTask = player.taskQueue.pop();
+        player.taskQueue.push({
+          type: 'cleanSpill',
+          spillId: spill.id,
+          x: spill.x,
+          y: spill.y - 8
+        });
+        player.taskQueue.push(returnTask);
+        return;
+      }
+
+      const plannedInv = this._getPlannedInventory(player);
+      if (plannedInv.includes('broom')) {
+        player.taskQueue.push({
+          type: 'cleanSpill',
+          spillId: spill.id,
+          x: spill.x,
+          y: spill.y - 8
+        });
+        player.taskQueue.push({
+          type: 'returnBroom',
+          x: broom.walkX,
+          y: broom.walkY
+        });
+      } else if (!this.settings.smartAssist) {
+        this._spawnParticle(player.x, player.y - 45, 'Vezmi nejprve 🧹 koště v úklidu!', '#d95d4a');
+      } else if (plannedInv.length < player.maxCarry) {
+        player.taskQueue.push({
+          type: 'takeBroom',
+          x: broom.walkX,
+          y: broom.walkY
+        });
+        player.taskQueue.push({
+          type: 'cleanSpill',
+          spillId: spill.id,
+          x: spill.x,
+          y: spill.y - 8
+        });
+        player.taskQueue.push({
+          type: 'returnBroom',
+          x: broom.walkX,
+          y: broom.walkY
+        });
+      } else {
+        this._spawnParticle(player.x, player.y - 45, 'Plný tác!', '#d95d4a');
+      }
     }
 
     _queueRackClick(player, rack) {
@@ -1538,16 +2882,15 @@
           y: st.walkY
         });
       } else if (st.type === 'broom') {
-        if (this.levelState.spills.length > 0) {
-          const sp = this.levelState.spills[0];
-          player.taskQueue.push({
-            type: 'cleanSpill',
-            spillId: sp.id,
-            x: sp.x,
-            y: sp.y - 8
-          });
+        const plannedInv = this._getPlannedInventory(player);
+        if (plannedInv.includes('broom')) {
+          player.taskQueue.push({ type: 'returnBroom', x: st.walkX, y: st.walkY });
+        } else if (this.levelState.spills.length > 0 && this.settings.smartAssist) {
+          this._queueSpillClick(player, this.levelState.spills[0]);
+        } else if (plannedInv.length < player.maxCarry) {
+          player.taskQueue.push({ type: 'takeBroom', x: st.walkX, y: st.walkY });
         } else {
-          player.taskQueue.push({ type: 'walk', x: st.walkX, y: st.walkY });
+          this._spawnParticle(player.x, player.y - 45, 'Plný tác!', '#d95d4a');
         }
       }
     }
@@ -1685,7 +3028,8 @@
       if (itemId === 'fuel') upgLevel = this.save.upgrades.pumps || 1;
       else if (itemId === 'coffee') upgLevel = this.save.upgrades.coffee || 1;
       else if (itemId === 'snack') upgLevel = this.save.upgrades.grill || 1;
-      else if (itemId === 'wash' || itemId === 'drink') upgLevel = this.save.upgrades.wash || 1;
+      else if (itemId === 'wash') upgLevel = this.save.upgrades.wash || 1;
+      else if (itemId === 'drink') upgLevel = this.save.upgrades.drink_speed || 1;
       else if (itemId === 'crate') upgLevel = this.save.upgrades.racks || 1;
 
       const upgFactor = 1 + (upgLevel - 1) * 0.3;
@@ -1696,12 +3040,12 @@
     _getItemPrice(itemId) {
       const item = this.data.ITEMS[itemId];
       let bonus = 0;
-      if (itemId === 'coffee') bonus = ((this.save.upgrades.coffee || 1) - 1) * 3;
-      else if (itemId === 'snack') bonus = ((this.save.upgrades.grill || 1) - 1) * 3;
-      else if (itemId === 'wash') bonus = ((this.save.upgrades.wash || 1) - 1) * 3;
-      else if (itemId === 'drink') bonus = ((this.save.upgrades.wash || 1) - 1) * 2;
-      else if (itemId === 'fuel') bonus = ((this.save.upgrades.pumps || 1) - 1) * 2;
-      else if (item.isRackItem) bonus = ((this.save.upgrades.racks || 1) - 1) * 3;
+      if (itemId === 'coffee') bonus = ((this.save.upgrades.coffee_price || 1) - 1) * 1;
+      else if (itemId === 'snack') bonus = ((this.save.upgrades.grill_price || 1) - 1) * 1;
+      else if (itemId === 'wash') bonus = ((this.save.upgrades.wash_price || 1) - 1) * 1;
+      else if (itemId === 'drink') bonus = ((this.save.upgrades.drink_price || 1) - 1) * 1;
+      else if (itemId === 'fuel') bonus = ((this.save.upgrades.pumps_price || 1) - 1) * 1;
+      else if (item.isRackItem) bonus = ((this.save.upgrades.racks_price || 1) - 1) * 1;
       return item.basePrice + bonus;
     }
 
@@ -1734,15 +3078,7 @@
 
       this._updateCars(dt);
       this._updateCustomers(dt);
-
-      for (let i = state.particles.length - 1; i >= 0; i--) {
-        const p = state.particles[i];
-        p.life -= dt;
-        p.x += (p.vx || 0) * dt;
-        p.y += (p.vy || -24) * dt;
-        if (p.life <= 0) state.particles.splice(i, 1);
-      }
-
+      this._updateParticles(dt);
       this._updateGameHUD();
 
       if (
@@ -1759,8 +3095,7 @@
     _trySpawnVisitor() {
       const state = this.levelState;
       const lvl = state.level;
-      const pumpsLvl = this.save.upgrades.pumps || 1;
-      const maxPumps = pumpsLvl >= 2 ? 3 : 2;
+      const maxPumps = Math.min(3, Math.max(1, this.save.upgrades.pump_unlock || 1));
 
       const freePumps = [];
       for (let i = 0; i < maxPumps; i++) {
@@ -1792,7 +3127,7 @@
         const pump = this.data.STATIONS[`pump_${pumpIndex}`];
         const palette = CAR_PALETTES[Math.floor(Math.random() * CAR_PALETTES.length)];
 
-        const carAllowed = lvl.orders.filter((o) => o === 'fuel' || o === 'wash');
+        const carAllowed = lvl.orders.filter((o) => (o === 'fuel' || o === 'wash') && this._isItemUnlocked(o));
         const orders = [{ itemId: 'fuel', done: false }];
         if (carAllowed.length > 1 && Math.random() < lvl.multiChance) {
           orders.push({ itemId: 'wash', done: false });
@@ -1802,7 +3137,7 @@
           id: state.nextEntityId++,
           pumpIndex,
           x: -90,
-          y: 532,
+          y: 648,
           targetX: pump.carX,
           targetY: pump.carY,
           state: 'arriving',
@@ -1816,7 +3151,12 @@
       } else {
         const spotIndex = freeSpots[Math.floor(Math.random() * freeSpots.length)];
         const bistroAllowed = lvl.orders.filter(
-          (o) => this.data.ITEMS[o] && !this.data.ITEMS[o].isRackItem && o !== 'fuel' && o !== 'wash'
+          (o) =>
+            this.data.ITEMS[o] &&
+            !this.data.ITEMS[o].isRackItem &&
+            o !== 'fuel' &&
+            o !== 'wash' &&
+            this._isItemUnlocked(o)
         );
         const pool = bistroAllowed.length > 0 ? bistroAllowed : ['coffee'];
 
@@ -1832,7 +3172,7 @@
         }
 
         const rackAllowed = lvl.orders.filter(
-          (o) => this.data.ITEMS[o] && this.data.ITEMS[o].isRackItem
+          (o) => this.data.ITEMS[o] && this.data.ITEMS[o].isRackItem && this._isItemUnlocked(o)
         );
         const wantRackItem =
           rackAllowed.length > 0 && Math.random() < 0.75
@@ -1845,10 +3185,10 @@
           carId: null,
           carOrders: [],
           spotIndex,
-          x: 603,
-          y: 540,
-          targetX: 603,
-          targetY: 458,
+          x: 715,
+          y: 650,
+          targetX: 715,
+          targetY: 558,
           waypoints: [],
           state: 'arriving',
           moving: true,
@@ -1875,8 +3215,8 @@
         state.spills.push({
           id: state.nextEntityId++,
           type: inShop ? 'coffee' : 'oil',
-          x: inShop ? 570 + Math.random() * 440 : 80 + Math.random() * 380,
-          y: inShop ? 345 + Math.random() * 25 : 325 + Math.random() * 35
+          x: inShop ? 700 + Math.random() * 540 : 90 + Math.random() * 430,
+          y: inShop ? 412 + Math.random() * 28 : 360 + Math.random() * 45
         });
       }
 
@@ -1895,7 +3235,10 @@
         cust.rackWaitTimer = 6.0;
         cust.announcedEmptyRack = false;
         const offset = cust.spotIndex >= 0 ? (cust.spotIndex - 1.5) * 12 : ((cust.id % 3) - 1) * 14;
-        this._setCustomerTarget(cust, rack.custX + offset, rack.custY);
+        const isVert = (rack.rot || 0) % 2 === 1;
+        const tx = isVert ? rack.custX : rack.custX + offset;
+        const ty = isVert ? rack.custY + offset : rack.custY;
+        this._setCustomerTarget(cust, tx, ty);
         return;
       }
 
@@ -1971,6 +3314,14 @@
           const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
           const stillNeeds = car && car.orders.some((o) => o.itemId === task.itemId && !o.done);
           if (!stillNeeds || !w.held.includes(task.itemId)) {
+            w.currentTask = null;
+            w.waypoints = [];
+            w.moving = false;
+            return;
+          }
+        } else if (task.type === 'cleanSpill') {
+          const sp = this.levelState.spills.find((s) => s.id === task.spillId);
+          if (!sp) {
             w.currentTask = null;
             w.waypoints = [];
             w.moving = false;
@@ -2090,9 +3441,24 @@
         }
         w.actionDuration = w.isPlayer ? 0.65 : Math.max(0.35, 0.65 / this._getStaffSpeedMultiplier(w));
         w.actionTimer = w.actionDuration;
+      } else if (task.type === 'takeBroom') {
+        if (!w.held.includes('broom') && w.held.length < w.maxCarry) {
+          w.held.push('broom');
+          this.audio.playClick();
+          this._spawnParticle(w.x, w.y - 36, '🧹', '#4e3629');
+        }
+        w.currentTask = null;
+      } else if (task.type === 'returnBroom') {
+        const broomIdx = w.held.indexOf('broom');
+        if (broomIdx !== -1) {
+          w.held.splice(broomIdx, 1);
+          this.audio.playClick();
+          this._spawnParticle(w.x, w.y - 36, '🧹 Vráceno', '#6ba368');
+        }
+        w.currentTask = null;
       } else if (task.type === 'cleanSpill') {
         const sp = this.levelState.spills.find((s) => s.id === task.spillId);
-        if (!sp) {
+        if (!sp || !w.held.includes('broom')) {
           w.currentTask = null;
           return;
         }
@@ -2132,6 +3498,7 @@
         if (rack && crateIdx !== -1) {
           w.held.splice(crateIdx, 1);
           rack.stock = rack.maxStock;
+          this._syncRackStockToSave();
           this.audio.playUpgrade();
           this._spawnParticle(rack.x, rack.y - 42, `Doplněno! ${rack.icon} ${rack.stock}/${rack.maxStock}`, '#4f9d69');
         }
@@ -2161,10 +3528,10 @@
             const car = this.levelState.cars.find((c) => c.id === cust.carId);
             cust.state = 'returning_to_car';
             cust.paid = true;
-            this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 532);
+            this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 648);
           } else {
             cust.state = 'leaving';
-            this._setCustomerTarget(cust, 603, 550);
+            this._setCustomerTarget(cust, 715, 650);
             this.levelState.servedCount += 1;
           }
 
@@ -2187,9 +3554,9 @@
         if (idx !== -1) {
           const sp = this.levelState.spills[idx];
           this.levelState.spills.splice(idx, 1);
-          this.levelState.earnedCoins += 6;
+          this.levelState.earnedCoins += 2;
           this.audio.playWash();
-          this._spawnParticle(sp.x, sp.y - 20, '+6 Kč ✨', '#4f9d69');
+          this._spawnParticle(sp.x, sp.y - 20, '+2 Kč ✨', '#4f9d69');
         }
       }
     }
@@ -2199,8 +3566,8 @@
       orders.forEach((o) => {
         base += this._getItemPrice(o.itemId);
       });
-      const decorLvl = this.save.upgrades.decor || 1;
-      const tipBonus = 1 + (decorLvl - 1) * 0.15;
+      const tipsLvl = this.save.upgrades.decor_tips || 1;
+      const tipBonus = 1 + (tipsLvl - 1) * 0.15;
       const tip = Math.round(base * 0.15 * Math.max(0, patienceRatio) * tipBonus);
       return base + tip;
     }
@@ -2214,7 +3581,7 @@
         this._spawnParticle(car.x, car.y - 45, 'Jde zaplatit dovnitř 🚶', '#4e3629');
 
         const rackAllowed = lvl.orders.filter(
-          (o) => this.data.ITEMS[o] && this.data.ITEMS[o].isRackItem
+          (o) => this.data.ITEMS[o] && this.data.ITEMS[o].isRackItem && this._isItemUnlocked(o)
         );
         const wantRackItem =
           rackAllowed.length > 0 && Math.random() < 0.6
@@ -2235,7 +3602,12 @@
         let spotIndex = -1;
         let orders = [];
         const bistroAllowed = lvl.orders.filter(
-          (o) => this.data.ITEMS[o] && !this.data.ITEMS[o].isRackItem && o !== 'fuel' && o !== 'wash'
+          (o) =>
+            this.data.ITEMS[o] &&
+            !this.data.ITEMS[o].isRackItem &&
+            o !== 'fuel' &&
+            o !== 'wash' &&
+            this._isItemUnlocked(o)
         );
         if (freeSpots.length > 0 && bistroAllowed.length > 0 && Math.random() < 0.55) {
           spotIndex = freeSpots[Math.floor(Math.random() * freeSpots.length)];
@@ -2317,19 +3689,19 @@
           car.patience -= dt;
           if (car.patience <= 0) {
             car.state = 'leaving';
-            car.targetX = 1360;
+            car.targetX = 1640;
             this.levelState.angryCount += 1;
             this.audio.playSad();
             this._spawnParticle(car.x, car.y - 45, 'Odjíždí bez obsluhy 😔', '#d95d4a');
           }
         } else if (car.state === 'leaving') {
-          if (car.y < 532) {
-            car.y = Math.min(532, car.y + 195 * dt);
+          if (car.y < 648) {
+            car.y = Math.min(648, car.y + 195 * dt);
             car.x += 120 * dt;
           } else {
             car.x += 275 * dt;
           }
-          if (car.x > 1340) {
+          if (car.x > 1620) {
             cars.splice(i, 1);
           }
         }
@@ -2386,6 +3758,7 @@
                 cust.grabTimer -= dt;
                 if (cust.grabTimer <= 0) {
                   rack.stock -= 1;
+                  this._syncRackStockToSave();
                   cust.basket.push(cust.wantRackItem);
                   const itemDef = this.data.ITEMS[cust.wantRackItem];
                   this._spawnParticle(cust.x, cust.y - 42, `🛒 Vzal si ${itemDef.icon}`, '#4f9d69');
@@ -2410,7 +3783,7 @@
               custs.splice(i, 1);
               if (car) {
                 car.state = 'leaving';
-                car.targetX = 1360;
+                car.targetX = 1640;
                 if (cust.paid) {
                   this.levelState.servedCount += 1;
                   this._spawnParticle(car.x, car.y - 45, 'Odjíždí spokojeně ♥', '#3b874b');
@@ -2438,11 +3811,11 @@
               const car = this.levelState.cars.find((c) => c.id === cust.carId);
               cust.state = 'returning_to_car';
               cust.paid = false;
-              this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 532);
+              this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 648);
               this._spawnParticle(cust.x, cust.y - 45, 'Odchází bez zaplacení 😔', '#d95d4a');
             } else {
               cust.state = 'leaving';
-              this._setCustomerTarget(cust, 603, 550);
+              this._setCustomerTarget(cust, 715, 650);
               this.levelState.angryCount += 1;
               this._spawnParticle(cust.x, cust.y - 45, 'Odešel 😔', '#d95d4a');
             }
@@ -2497,11 +3870,12 @@
             return;
           }
 
+          const canWash = this._isStationUnlocked('bucket');
           const targetCar = state.cars.find(
             (c) =>
               c.state === 'waiting' &&
               !this._isTaskClaimed('carId', c.id, w) &&
-              c.orders.some((o) => !o.done && (o.itemId === 'fuel' || o.itemId === 'wash'))
+              c.orders.some((o) => !o.done && (o.itemId === 'fuel' || (o.itemId === 'wash' && canWash)))
           );
           if (!targetCar) return;
           const pump = this.data.STATIONS[`pump_${targetCar.pumpIndex}`];
@@ -2516,7 +3890,7 @@
             });
             return;
           }
-          const washOrder = targetCar.orders.find((o) => !o.done && o.itemId === 'wash');
+          const washOrder = canWash ? targetCar.orders.find((o) => !o.done && o.itemId === 'wash') : null;
           if (washOrder) {
             const bucket = this.data.STATIONS.bucket;
             w.taskQueue.push({
@@ -2574,12 +3948,20 @@
               c.state === 'waiting' &&
               c.spotIndex >= 0 &&
               !this._isTaskClaimed('custId', c.id, w) &&
-              c.orders.some((o) => !o.done && (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink'))
+              c.orders.some(
+                (o) =>
+                  !o.done &&
+                  (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
+                  this._isItemUnlocked(o.itemId)
+              )
           );
           if (shopCust) {
             const spot = this.data.SHOP_SPOTS[shopCust.spotIndex];
             const nextOrd = shopCust.orders.find(
-              (o) => !o.done && (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink')
+              (o) =>
+                !o.done &&
+                (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
+                this._isItemUnlocked(o.itemId)
             );
             if (spot && nextOrd) {
               const st = this.data.STATIONS[this.data.ITEMS[nextOrd.itemId].stationId];
@@ -2640,6 +4022,25 @@
             return;
           }
 
+          if (w.held.includes('broom')) {
+            const broom = this.data.STATIONS.broom;
+            const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+            if (unclaimedSpill) {
+              w.taskQueue.push({
+                type: 'cleanSpill',
+                spillId: unclaimedSpill.id,
+                x: unclaimedSpill.x,
+                y: unclaimedSpill.y - 8
+              });
+            }
+            w.taskQueue.push({
+              type: 'returnBroom',
+              x: broom.walkX,
+              y: broom.walkY
+            });
+            return;
+          }
+
           if (w.held.length > 0) {
             w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
             return;
@@ -2647,19 +4048,43 @@
 
           const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
           if (unclaimedSpill) {
+            const broom = this.data.STATIONS.broom;
+            w.taskQueue.push({
+              type: 'takeBroom',
+              x: broom.walkX,
+              y: broom.walkY
+            });
             w.taskQueue.push({
               type: 'cleanSpill',
               spillId: unclaimedSpill.id,
               x: unclaimedSpill.x,
               y: unclaimedSpill.y - 8
             });
+            w.taskQueue.push({
+              type: 'returnBroom',
+              x: broom.walkX,
+              y: broom.walkY
+            });
           }
         }
       });
     }
 
-    _spawnParticle(x, y, text, color, size) {
+    _updateParticles(dt) {
+      if (!this.levelState || !this.levelState.particles) return;
+      const particles = this.levelState.particles;
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.x += (p.vx || 0) * dt;
+        p.y += (p.vy || -24) * dt;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    _spawnParticle(x, y, text, color, size, duration) {
       if (!this.levelState) return;
+      const life = duration || 1.3;
       this.levelState.particles.push({
         x,
         y,
@@ -2668,8 +4093,8 @@
         size: size || 15,
         vx: (Math.random() - 0.5) * 14,
         vy: -28,
-        life: 1.3,
-        maxLife: 1.3
+        life,
+        maxLife: life
       });
     }
 
@@ -2855,6 +4280,7 @@
         this.save.stats.gameCompleted = true;
       }
 
+      this._syncRackStockToSave();
       this.persistSave();
       this.updateGlobalHUD();
       this.audio.stopAmbient();

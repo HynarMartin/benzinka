@@ -39,7 +39,7 @@
         <div class="topbar-actions">
           <button id="victory-badge-btn" type="button" class="btn-victory hidden">🏆 Výhra &amp; Statistiky</button>
           <button id="open-shop-map-btn" type="button" class="btn-primary">
-            🛠️ Vylepšit &amp; Zaměstnanci
+            🏪 Jít do benzínky (Nákup &amp; Vylepšení)
           </button>
           <button id="help-btn" type="button" class="btn-soft">❓ Jak hrát</button>
           <button id="settings-btn" type="button" class="btn-soft">⚙️ Nastavení a účet</button>
@@ -59,7 +59,32 @@
 
     <!-- HRACÍ OBRAZOVKA -->
     <section id="game-screen" class="screen hidden">
-      <header class="cozy-topbar game-hud">
+      <header id="prep-topbar" class="cozy-topbar game-hud hidden">
+        <div class="hud-left">
+          <strong id="prep-bar-title" class="hud-title">1. Slunečná paseka</strong>
+          <span id="prep-bar-sub" class="hud-sub">Příprava před směnou</span>
+        </div>
+
+        <div class="prep-topbar-center">
+          <div class="pill-stat">
+            <span>💰 Pokladna:</span>
+            <strong id="prep-bar-coins">0 Kč</strong>
+          </div>
+          <button id="open-buy-modal-btn" type="button" class="btn-buy-top">
+            🛒 Nakupovat
+          </button>
+          <button id="prep-start-btn" type="button" class="btn-start-top">
+            ▶️ Start hry
+          </button>
+        </div>
+
+        <div class="hud-actions">
+          <button id="prep-map-btn" type="button" class="btn-soft">🗺️ Zpět na mapu</button>
+          <button id="prep-settings-btn" type="button" class="btn-soft">⚙️ Nastavení</button>
+        </div>
+      </header>
+
+      <header id="shift-topbar" class="cozy-topbar game-hud">
         <div class="hud-left">
           <strong id="hud-level-name" class="hud-title">1. Slunečná paseka</strong>
           <span id="hud-customers-left" class="hud-sub">Zákazníků zbývá: 7 / 7</span>
@@ -92,9 +117,9 @@
       </header>
 
       <main class="station-stage">
-        <canvas id="station-canvas" width="1260" height="650"></canvas>
+        <canvas id="station-canvas" width="1540" height="780"></canvas>
       </main>
-      <footer class="game-tip-bar">
+      <footer id="game-tip-bar" class="game-tip-bar">
         💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!
       </footer>
     </section>
@@ -113,7 +138,7 @@
         <form id="auth-form" class="auth-form" onsubmit="return false;">
           <label class="auth-field">
             <span>👤 Jméno hráče</span>
-            <input id="auth-username" type="text" placeholder="Např. Mamka" autocomplete="username" required />
+            <input id="auth-username" type="text" placeholder="Jméno" autocomplete="username" required />
           </label>
           <label class="auth-field">
             <span>🔒 Heslo</span>
@@ -131,49 +156,73 @@
       </div>
     </div>
 
-    <!-- MODÁL PŘÍPRAVY PŘED LEVELEM (VYLEPŠENÍ & ZAMĚSTNANCI) -->
+    <!-- MODÁL NÁKUPU STOJANU A ZAMĚSTNANCŮ -->
     <div id="prep-modal" class="modal-backdrop hidden">
       <div class="modal-card prep-modal-card">
         <div class="modal-header">
           <div>
-            <h2 id="prep-level-title">1. Slunečná paseka</h2>
-            <p id="prep-level-subtitle" class="modal-sub">Klidný rozjezd na venkovské silnici</p>
+            <h2 id="prep-level-title">🛒 Nakupovat do benzínky</h2>
+            <p id="prep-level-subtitle" class="modal-sub">
+              Dokup si další tankovací stojany, prodejní regály, vybavení bistra nebo najmi zaměstnance. Vylepšení kupuješ kliknutím přímo na věci a postavičky v benzínce!
+            </p>
             <p id="prep-level-meta" class="modal-meta"></p>
           </div>
           <div class="modal-header-right">
             <div class="pill-stat">
               <span>💰 Pokladna:</span>
-              <strong id="prep-coins">160 Kč</strong>
+              <strong id="prep-coins">0 Kč</strong>
             </div>
-            <button id="prep-bonus-btn" type="button" class="btn-soft" title="Přidat 200 Kč pro pohodové hraní">
-              ✨ +200 Kč
+            <button id="prep-bonus-btn" type="button" class="btn-soft" title="Přidat 25 Kč pro pohodové hraní">
+              ✨ +25 Kč
             </button>
             <button id="close-prep-btn" type="button" class="btn-close" aria-label="Zavřít">✕</button>
           </div>
         </div>
 
         <div class="prep-tabs">
-          <button type="button" class="prep-tab-btn active" data-tab="upgrades">
-            🛠️ Vylepšení benzínky
-          </button>
-          <button type="button" class="prep-tab-btn" data-tab="staff">
+          <button type="button" class="prep-tab-btn active" data-tab="staff">
             🧑‍🔧 Zaměstnanci
           </button>
+          <button type="button" class="prep-tab-btn" data-tab="upgrades">
+            ⛽ Stojany, Regály &amp; Vybavení
+          </button>
         </div>
 
-        <div id="prep-panel-upgrades" class="prep-panel active">
-          <div id="upgrades-list" class="prep-grid"></div>
-        </div>
-
-        <div id="prep-panel-staff" class="prep-panel">
+        <div id="prep-panel-staff" class="prep-panel active">
           <div id="staff-list" class="prep-grid"></div>
+        </div>
+
+        <div id="prep-panel-upgrades" class="prep-panel">
+          <div id="upgrades-list" class="prep-grid"></div>
         </div>
 
         <div class="modal-footer">
           <button id="start-level-btn" type="button" class="btn-start">
-            🚗 Začít směnu v této zastávce!
+            ▶️ Start hry
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- MODÁL VYLEPŠENÍ KONKRÉTNÍ VĚCI / POSTAVIČKY PO KLIKNUTÍ V BENZÍNCE -->
+    <div id="object-upgrade-modal" class="modal-backdrop hidden">
+      <div class="modal-card object-upgrade-modal-card">
+        <div class="modal-header">
+          <div class="prep-card-head">
+            <span id="obj-upg-icon" class="prep-icon">🛠️</span>
+            <div>
+              <h2 id="obj-upg-title">Vylepšení</h2>
+              <div id="obj-upg-pips" class="lvl-pips"></div>
+            </div>
+          </div>
+          <button id="close-obj-upg-btn" type="button" class="btn-close" aria-label="Zavřít">✕</button>
+        </div>
+        <p id="obj-upg-desc" class="prep-desc obj-upg-desc"></p>
+        <div class="obj-upg-wallet">
+          <span>💰 Tvoje pokladna:</span>
+          <strong id="obj-upg-coins">0 Kč</strong>
+        </div>
+        <div id="obj-upg-actions" class="obj-upg-list"></div>
       </div>
     </div>
 

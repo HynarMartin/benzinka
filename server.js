@@ -18,14 +18,102 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+function createAdminSave() {
+  return {
+    coins: 99999,
+    unlockedLevel: 8,
+    stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 },
+    upgrades: {
+      pump_unlock: 3,
+      wash_unlock: 2,
+      grill_unlock: 2,
+      fridge_unlock: 2,
+      rack_sweets_unlock: 2,
+      rack_auto_unlock: 2,
+      pumps: 4,
+      pumps_price: 4,
+      coffee: 4,
+      coffee_price: 4,
+      grill: 4,
+      grill_price: 4,
+      wash: 4,
+      wash_price: 4,
+      drink_speed: 4,
+      drink_price: 4,
+      racks: 4,
+      racks_price: 4,
+      decor: 4,
+      decor_tips: 4,
+      shoes: 4,
+      carry: 3
+    },
+    staff: {
+      tonik: 3,
+      anicka: 3,
+      kuba: 3
+    },
+    staffEnabled: {
+      tonik: true,
+      anicka: true,
+      kuba: true
+    },
+    stats: {
+      totalPlayTime: 720,
+      totalEarnedCoins: 6500,
+      totalServedCustomers: 115,
+      totalAngryCustomers: 0,
+      shiftsPlayed: 8,
+      gameCompleted: true
+    },
+    rackStock: null,
+    layout: {
+      racks: {
+        rack_snacks: { x: 790, y: 500, rot: 0 },
+        rack_sweets: { x: 990, y: 500, rot: 0 },
+        rack_auto: { x: 1190, y: 500, rot: 0 }
+      },
+      stations: {
+        coffee: { x: 700, y: 185 },
+        grill: { x: 875, y: 185 },
+        fridge: { x: 1050, y: 185 }
+      }
+    }
+  };
+}
+
 function loadUsers() {
+  let users = {};
   try {
-    if (!fs.existsSync(USERS_FILE)) return {};
-    const raw = fs.readFileSync(USERS_FILE, 'utf8');
-    return raw ? JSON.parse(raw) : {};
+    if (fs.existsSync(USERS_FILE)) {
+      const raw = fs.readFileSync(USERS_FILE, 'utf8');
+      users = raw ? JSON.parse(raw) : {};
+    }
   } catch (_err) {
-    return {};
+    users = {};
   }
+  if (!users.admin) {
+    users.admin = {
+      username: 'admin',
+      passwordHash: hashPassword('admin', 'admin_static_salt'),
+      save: createAdminSave(),
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    };
+  } else {
+    const adminUpgrades = createAdminSave().upgrades;
+    if (!users.admin.save || typeof users.admin.save !== 'object') {
+      users.admin.save = createAdminSave();
+    } else {
+      users.admin.save.upgrades = Object.assign({}, adminUpgrades, users.admin.save.upgrades || {}, {
+        pump_unlock: 3,
+        wash_unlock: 2,
+        grill_unlock: 2,
+        fridge_unlock: 2,
+        rack_sweets_unlock: 2,
+        rack_auto_unlock: 2
+      });
+    }
+  }
+  return users;
 }
 
 function saveUsers(users) {
