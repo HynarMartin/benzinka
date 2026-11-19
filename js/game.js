@@ -994,7 +994,7 @@
         this.save.stageStars = {};
       }
       this.save.stageStars[curStage.id] = Object.assign({}, this.save.stars);
-      this.save.coins -= nextStage.unlockCost;
+      this.save.coins = 0;
       this.save.currentStage = nextStage.id;
       this.save.unlockedStage = Math.max(this.save.unlockedStage || 1, nextStage.id);
       this.save.unlockedLevel = 1;
@@ -1101,7 +1101,7 @@
 
         if (bannerEl) {
           bannerEl.innerHTML =
-            '<span>🗺️ <strong>Hlavní mapa (4 benzínky):</strong> Klikni na svou aktivní benzínku a otevři jejích 8 směn!</span>';
+            '<span>🗺️ <strong>Hlavní mapa (4 benzínky):</strong> Klikni na svou aktivní benzínku a otevři jejích 8 dní!</span>';
         }
 
         const stages = this.data.STAGES;
@@ -1140,10 +1140,10 @@
           card.id = `stage-node-${st.id}`;
           card.type = 'button';
           let stateCls = 'stage-locked';
-          let actionTxt = `🔒 ${st.unlockCost} Kč (Dokonči 8. směnu)`;
+          let actionTxt = `🔒 ${st.unlockCost} Kč (Dokonči 8. den)`;
           if (isCurrent) {
             stateCls = 'stage-active';
-            actionTxt = '📍 Otevřít 8 směn';
+            actionTxt = '📍 Otevřít 8 dní';
           } else if (isPrevCompleted) {
             stateCls = isAdmin ? 'stage-completed stage-admin-unlocked' : 'stage-completed';
             actionTxt = isAdmin ? '🛠️ Otevřít (Admin)' : '✅ Dokončeno';
@@ -1185,7 +1185,7 @@
               }
             });
           } else {
-            card.title = 'Dokonči předchozí benzínku (všech 8 směn).';
+            card.title = 'Dokonči předchozí benzínku (všech 8 dní).';
           }
 
           nodesLayer.appendChild(card);
@@ -1297,7 +1297,7 @@
             : '';
         bannerEl.innerHTML = `
           <button id="back-to-world-map-btn" type="button" class="btn-soft map-banner-btn">⬅️ Hlavní mapa (4 benzínky)</button>
-          <span>${curStage.icon} <strong>${curStage.id}. ${curStage.name}</strong> – Vyber směnu (1–8)</span>
+          <span>${curStage.icon} <strong>${curStage.id}. ${curStage.name}</strong> – Vyber den (1–8)</span>
           ${buyBtnHtml}
         `;
         const backBtn = document.getElementById('back-to-world-map-btn');
@@ -1387,7 +1387,7 @@
           if (badge) badge.addEventListener('click', handleOpen);
           if (label) label.addEventListener('click', handleOpen);
         } else {
-          btn.title = 'Dokonči předchozí zastávku alespoň na 1 hvězdu.';
+          btn.title = 'Dokonči předchozí den alespoň na 1 hvězdu.';
         }
 
         nodesLayer.appendChild(btn);
@@ -2018,7 +2018,7 @@
       const curStage = this.getCurrentStage();
       const level = this.data.LEVELS.find((l) => l.id === this.selectedLevelId) || this.data.LEVELS[0];
       document.getElementById('prep-level-title').textContent =
-        `🛒 Nakupovat – ${curStage.name} (${level.id}. ${level.name})`;
+        `🛒 Nakupovat – ${curStage.name} (${level.name})`;
       document.getElementById('prep-level-subtitle').textContent =
         'Dokup si další tankovací stojany, prodejní regály, vybavení bistra nebo najmi zaměstnance. Vylepšení kupuješ kliknutím přímo na věci a postavičky v benzínce!';
       document.getElementById('prep-level-meta').textContent =
@@ -2419,6 +2419,8 @@
           level: staffLvl,
           x: startPos.x,
           y: startPos.y,
+          homeX: startPos.x,
+          homeY: startPos.y,
           speed: staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185,
           color: st.color,
           hatColor: st.hatColor,
@@ -2473,7 +2475,7 @@
       document.getElementById('prep-topbar').classList.remove('hidden');
       document.getElementById('shift-topbar').classList.add('hidden');
 
-      document.getElementById('prep-bar-title').textContent = `${curStage.name} · ${level.id}. ${level.name}`;
+      document.getElementById('prep-bar-title').textContent = `${curStage.name} · ${level.name}`;
       document.getElementById('prep-bar-sub').textContent =
         `Zákazníků: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
       document.getElementById('game-tip-bar').innerHTML =
@@ -3205,9 +3207,17 @@
           const idx = inv.indexOf('broom');
           if (idx !== -1) inv.splice(idx, 1);
         }
-        if ((task.type === 'serveCar' || task.type === 'serveCustomer') && task.itemId) {
-          const idx = inv.indexOf(task.itemId);
-          if (idx !== -1) inv.splice(idx, 1);
+        if (task.type === 'serveCar' || task.type === 'serveCustomer') {
+          const ids =
+            Array.isArray(task.itemIds) && task.itemIds.length > 0
+              ? task.itemIds
+              : task.itemId
+              ? [task.itemId]
+              : [];
+          ids.forEach((id) => {
+            const idx = inv.indexOf(id);
+            if (idx !== -1) inv.splice(idx, 1);
+          });
         }
         if (task.type === 'restockRack') {
           const idx = inv.indexOf('crate');
@@ -3443,12 +3453,21 @@
       if (undone.length === 0) return;
 
       const plannedInv = this._getPlannedInventory(player);
-      const matching = undone.find((o) => plannedInv.includes(o.itemId));
-      if (matching) {
+      const availInv = [...plannedInv];
+      const matchingOrders = [];
+      undone.forEach((o) => {
+        const idx = availInv.indexOf(o.itemId);
+        if (idx !== -1) {
+          availInv.splice(idx, 1);
+          matchingOrders.push(o);
+        }
+      });
+      if (matchingOrders.length > 0) {
         player.taskQueue.push({
           type: 'serveCustomer',
           custId: cust.id,
-          itemId: matching.itemId,
+          itemId: matchingOrders[0].itemId,
+          itemIds: matchingOrders.map((o) => o.itemId),
           x: spot.serveX,
           y: spot.serveY
         });
@@ -3785,6 +3804,9 @@
             this.levelState.customers.some((c) => c.state === 'paying');
           if (!hasMorePaying) {
             w.currentTask = null;
+            if (!w.isPlayer && w.taskQueue.length === 0) {
+              this._runStaffAI();
+            }
           }
         }
         return;
@@ -3815,6 +3837,7 @@
             w.currentTask = null;
             w.waypoints = [];
             w.moving = false;
+            if (w.taskQueue.length === 0) this._runStaffAI();
             return;
           }
         } else if (task.type === 'serveCar') {
@@ -3824,6 +3847,7 @@
             w.currentTask = null;
             w.waypoints = [];
             w.moving = false;
+            if (w.taskQueue.length === 0) this._runStaffAI();
             return;
           }
         } else if (task.type === 'cleanSpill') {
@@ -3832,6 +3856,7 @@
             w.currentTask = null;
             w.waypoints = [];
             w.moving = false;
+            if (w.taskQueue.length === 0) this._runStaffAI();
             return;
           }
         }
@@ -3873,82 +3898,98 @@
       w.y = task.y;
       w.moving = false;
 
-      if (task.type === 'walk') {
+      if (task.type === 'walk' || task.type === 'returnHome') {
         w.currentTask = null;
       } else if (task.type === 'prep') {
         if (w.held.length >= w.maxCarry) {
           if (w.isPlayer) this._spawnParticle(w.x, w.y - 44, 'Plný tác!', '#d95d4a');
           w.currentTask = null;
-          return;
+        } else {
+          w.actionDuration = this._getPrepDuration(task.itemId, w);
+          w.actionTimer = w.actionDuration;
         }
-        w.actionDuration = this._getPrepDuration(task.itemId, w);
-        w.actionTimer = w.actionDuration;
       } else if (task.type === 'restockRack') {
         const rack = this.levelState.racks.find((r) => r.id === task.rackId);
         if (!rack || !w.held.includes('crate') || (!w.isPlayer && rack.stock >= rack.maxStock / 2)) {
           w.currentTask = null;
-          return;
+        } else {
+          w.actionDuration = w.isPlayer ? 0.85 : Math.max(0.45, 0.85 / this._getStaffSpeedMultiplier(w));
+          w.actionTimer = w.actionDuration;
         }
-        w.actionDuration = w.isPlayer ? 0.85 : Math.max(0.45, 0.85 / this._getStaffSpeedMultiplier(w));
-        w.actionTimer = w.actionDuration;
       } else if (task.type === 'fuelCar') {
         const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
         if (!car || !car.orders.some((o) => o.itemId === 'fuel' && !o.done)) {
           w.currentTask = null;
-          return;
+        } else {
+          const baseFuelDur = this._getPrepDuration('fuel', w);
+          w.actionDuration = car.isHeavy ? baseFuelDur * 1.45 : baseFuelDur;
+          w.actionTimer = w.actionDuration;
         }
-        const baseFuelDur = this._getPrepDuration('fuel', w);
-        w.actionDuration = car.isHeavy ? baseFuelDur * 1.45 : baseFuelDur;
-        w.actionTimer = w.actionDuration;
       } else if (task.type === 'serveCar') {
         const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
         const heldIdx = w.held.indexOf(task.itemId);
         if (!car || heldIdx === -1) {
           w.currentTask = null;
-          return;
+        } else {
+          const order = car.orders.find((o) => o.itemId === task.itemId && !o.done);
+          if (order) {
+            order.done = true;
+            w.held.splice(heldIdx, 1);
+            if (task.itemId === 'wash') this.audio.playWash();
+            else this.audio.playClick();
+            this._spawnParticle(car.x, car.y - 50, `${this.data.ITEMS[task.itemId].icon} ✓`, '#4f9d69');
+            this._checkCarDone(car);
+          }
+          w.currentTask = null;
         }
-        const order = car.orders.find((o) => o.itemId === task.itemId && !o.done);
-        if (order) {
-          order.done = true;
-          w.held.splice(heldIdx, 1);
-          if (task.itemId === 'wash') this.audio.playWash();
-          else this.audio.playClick();
-          this._spawnParticle(car.x, car.y - 50, `${this.data.ITEMS[task.itemId].icon} ✓`, '#4f9d69');
-          this._checkCarDone(car);
-        }
-        w.currentTask = null;
       } else if (task.type === 'serveCustomer') {
         const cust = this.levelState.customers.find((c) => c.id === task.custId);
-        const heldIdx = w.held.indexOf(task.itemId);
-        if (!cust || heldIdx === -1 || cust.state === 'leaving' || cust.state === 'paying') {
+        const hasAnyNeeded = Boolean(cust && cust.orders.some((o) => !o.done && w.held.includes(o.itemId)));
+        if (!cust || !hasAnyNeeded || cust.state === 'leaving' || cust.state === 'paying') {
           w.currentTask = null;
-          return;
+        } else {
+          if (cust.state !== 'waiting') {
+            // Customer is still browsing a shelf or walking up to the counter; wait gently at their counter spot
+            return;
+          }
+          const deliveredIcons = [];
+          cust.orders.forEach((ord) => {
+            if (ord.done) return;
+            const idx = w.held.indexOf(ord.itemId);
+            if (idx !== -1) {
+              ord.done = true;
+              w.held.splice(idx, 1);
+              const itemDef = this.data.ITEMS[ord.itemId];
+              if (itemDef && itemDef.icon) deliveredIcons.push(itemDef.icon);
+            }
+          });
+          if (deliveredIcons.length > 0) {
+            this.audio.playClick();
+            this._spawnParticle(cust.x, cust.y - 45, `${deliveredIcons.join(' ')} ✓`, '#4f9d69');
+            w.taskQueue = w.taskQueue.filter(
+              (t) =>
+                !(
+                  t.type === 'serveCustomer' &&
+                  t.custId === cust.id &&
+                  cust.orders.every((o) => o.done || !w.held.includes(o.itemId))
+                )
+            );
+            this._assignNextCustomerTarget(cust);
+          }
+          w.currentTask = null;
         }
-        if (cust.state !== 'waiting') {
-          // Customer is still browsing a shelf or walking up to the counter; wait gently at their counter spot
-          return;
-        }
-        const order = cust.orders.find((o) => o.itemId === task.itemId && !o.done);
-        if (order) {
-          order.done = true;
-          w.held.splice(heldIdx, 1);
-          this.audio.playClick();
-          this._spawnParticle(cust.x, cust.y - 45, `${this.data.ITEMS[task.itemId].icon} ✓`, '#4f9d69');
-          this._assignNextCustomerTarget(cust);
-        }
-        w.currentTask = null;
       } else if (task.type === 'register') {
         const paying = this.levelState.customers.filter((c) => c.state === 'paying');
         if (paying.length === 0) {
           w.currentTask = null;
-          return;
+        } else {
+          const arrivedPaying = paying.filter((c) => !c.waypoints || c.waypoints.length === 0);
+          if (arrivedPaying.length === 0) {
+            return;
+          }
+          w.actionDuration = w.isPlayer ? 0.65 : Math.max(0.35, 0.65 / this._getStaffSpeedMultiplier(w));
+          w.actionTimer = w.actionDuration;
         }
-        const arrivedPaying = paying.filter((c) => !c.waypoints || c.waypoints.length === 0);
-        if (arrivedPaying.length === 0) {
-          return;
-        }
-        w.actionDuration = w.isPlayer ? 0.65 : Math.max(0.35, 0.65 / this._getStaffSpeedMultiplier(w));
-        w.actionTimer = w.actionDuration;
       } else if (task.type === 'takeBroom') {
         if (!w.held.includes('broom') && w.held.length < w.maxCarry) {
           w.held.push('broom');
@@ -3968,10 +4009,10 @@
         const sp = this.levelState.spills.find((s) => s.id === task.spillId);
         if (!sp || !w.held.includes('broom')) {
           w.currentTask = null;
-          return;
+        } else {
+          w.actionDuration = w.isPlayer ? 1.1 : Math.max(0.55, 1.1 / this._getStaffSpeedMultiplier(w));
+          w.actionTimer = w.actionDuration;
         }
-        w.actionDuration = w.isPlayer ? 1.1 : Math.max(0.55, 1.1 / this._getStaffSpeedMultiplier(w));
-        w.actionTimer = w.actionDuration;
       } else if (task.type === 'trash') {
         if (w.held.length > 0) {
           if (!w.isPlayer) {
@@ -3986,6 +4027,10 @@
           this.audio.playClick();
         }
         w.currentTask = null;
+      }
+
+      if (!w.isPlayer && !w.currentTask && w.taskQueue.length === 0) {
+        this._runStaffAI();
       }
     }
 
@@ -4353,238 +4398,265 @@
       });
     }
 
-    _runStaffAI() {
-      const state = this.levelState;
-      const idleWorkers = state.workers.filter(
-        (w) => !w.isPlayer && w.active && !w.currentTask && w.taskQueue.length === 0 && w.actionTimer <= 0
-      );
-      if (idleWorkers.length === 0) return;
+    _assignStaffRoleTask(w, state) {
+      const trash = this.data.STATIONS.trash;
 
-      idleWorkers.forEach((w) => {
-        const trash = this.data.STATIONS.trash;
-
-        if (w.role === 'tonik') {
-          if (w.held.length > 0) {
-            const heldWashCar = state.cars.find(
-              (c) =>
-                c.state === 'waiting' &&
-                !this._isTaskClaimed('carId', c.id, w) &&
-                c.orders.some((o) => !o.done && w.held.includes(o.itemId))
-            );
-            if (heldWashCar) {
-              const pump = this.data.STATIONS[`pump_${heldWashCar.pumpIndex}`];
-              const heldOrd = heldWashCar.orders.find((o) => !o.done && w.held.includes(o.itemId));
-              if (pump && heldOrd) {
-                w.taskQueue.push({
-                  type: 'serveCar',
-                  carId: heldWashCar.id,
-                  itemId: heldOrd.itemId,
-                  x: pump.walkX,
-                  y: pump.walkY + 34
-                });
-                return;
-              }
-            }
-            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
-            return;
-          }
-
-          const canWash = this._isStationUnlocked('bucket');
-          const targetCar = state.cars.find(
+      if (w.role === 'tonik') {
+        if (w.held.length > 0) {
+          const heldWashCar = state.cars.find(
             (c) =>
               c.state === 'waiting' &&
               !this._isTaskClaimed('carId', c.id, w) &&
-              c.orders.some((o) => !o.done && (o.itemId === 'fuel' || (o.itemId === 'wash' && canWash)))
+              c.orders.some((o) => !o.done && w.held.includes(o.itemId))
           );
-          if (!targetCar) return;
-          const pump = this.data.STATIONS[`pump_${targetCar.pumpIndex}`];
-          const fuelOrder = targetCar.orders.find((o) => !o.done && o.itemId === 'fuel');
-          if (fuelOrder) {
-            w.taskQueue.push({
-              type: 'fuelCar',
-              carId: targetCar.id,
-              pumpIndex: targetCar.pumpIndex,
-              x: pump.walkX,
-              y: pump.walkY
-            });
-            return;
-          }
-          const washOrder = canWash ? targetCar.orders.find((o) => !o.done && o.itemId === 'wash') : null;
-          if (washOrder) {
-            const bucket = this.data.STATIONS.bucket;
-            w.taskQueue.push({
-              type: 'prep',
-              stationId: bucket.id,
-              itemId: 'wash',
-              x: bucket.walkX,
-              y: bucket.walkY
-            });
-            w.taskQueue.push({
-              type: 'serveCar',
-              carId: targetCar.id,
-              itemId: 'wash',
-              x: pump.walkX,
-              y: pump.walkY + 34
-            });
-          }
-        } else if (w.role === 'anicka') {
-          if (w.held.length > 0) {
-            const heldTarget =
-              state.customers.find(
-                (c) =>
-                  c.state === 'waiting' &&
-                  c.spotIndex >= 0 &&
-                  !this._isTaskClaimed('custId', c.id, w) &&
-                  c.orders.some((o) => !o.done && w.held.includes(o.itemId))
-              ) ||
-              state.customers.find(
-                (c) =>
-                  (c.state === 'arriving' || c.state === 'shopping') &&
-                  c.spotIndex >= 0 &&
-                  !this._isTaskClaimed('custId', c.id, w) &&
-                  c.orders.some((o) => !o.done && w.held.includes(o.itemId))
-              );
-            if (heldTarget) {
-              const spot = this.data.SHOP_SPOTS[heldTarget.spotIndex];
-              const heldMatch = heldTarget.orders.find((o) => !o.done && w.held.includes(o.itemId));
-              if (spot && heldMatch) {
-                w.taskQueue.push({
-                  type: 'serveCustomer',
-                  custId: heldTarget.id,
-                  itemId: heldMatch.itemId,
-                  x: spot.serveX,
-                  y: spot.serveY
-                });
-                return;
-              }
-            }
-            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
-            return;
-          }
-
-          const shopCust = state.customers.find(
-            (c) =>
-              c.state === 'waiting' &&
-              c.spotIndex >= 0 &&
-              !this._isTaskClaimed('custId', c.id, w) &&
-              c.orders.some(
-                (o) =>
-                  !o.done &&
-                  (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
-                  this._isItemUnlocked(o.itemId)
-              )
-          );
-          if (shopCust) {
-            const spot = this.data.SHOP_SPOTS[shopCust.spotIndex];
-            const nextOrd = shopCust.orders.find(
-              (o) =>
-                !o.done &&
-                (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
-                this._isItemUnlocked(o.itemId)
-            );
-            if (spot && nextOrd) {
-              const st = this.data.STATIONS[this.data.ITEMS[nextOrd.itemId].stationId];
+          if (heldWashCar) {
+            const pump = this.data.STATIONS[`pump_${heldWashCar.pumpIndex}`];
+            const heldOrd = heldWashCar.orders.find((o) => !o.done && w.held.includes(o.itemId));
+            if (pump && heldOrd) {
               w.taskQueue.push({
-                type: 'prep',
-                stationId: st.id,
-                itemId: nextOrd.itemId,
-                x: st.walkX,
-                y: st.walkY
+                type: 'serveCar',
+                carId: heldWashCar.id,
+                itemId: heldOrd.itemId,
+                x: pump.walkX,
+                y: pump.walkY + 34
               });
+              return;
+            }
+          }
+          w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
+          return;
+        }
+
+        const canWash = this._isStationUnlocked('bucket');
+        const targetCar = state.cars.find(
+          (c) =>
+            c.state === 'waiting' &&
+            !this._isTaskClaimed('carId', c.id, w) &&
+            c.orders.some((o) => !o.done && (o.itemId === 'fuel' || (o.itemId === 'wash' && canWash)))
+        );
+        if (!targetCar) return;
+        const pump = this.data.STATIONS[`pump_${targetCar.pumpIndex}`];
+        const fuelOrder = targetCar.orders.find((o) => !o.done && o.itemId === 'fuel');
+        if (fuelOrder) {
+          w.taskQueue.push({
+            type: 'fuelCar',
+            carId: targetCar.id,
+            pumpIndex: targetCar.pumpIndex,
+            x: pump.walkX,
+            y: pump.walkY
+          });
+          return;
+        }
+        const washOrder = canWash ? targetCar.orders.find((o) => !o.done && o.itemId === 'wash') : null;
+        if (washOrder) {
+          const bucket = this.data.STATIONS.bucket;
+          w.taskQueue.push({
+            type: 'prep',
+            stationId: bucket.id,
+            itemId: 'wash',
+            x: bucket.walkX,
+            y: bucket.walkY
+          });
+          w.taskQueue.push({
+            type: 'serveCar',
+            carId: targetCar.id,
+            itemId: 'wash',
+            x: pump.walkX,
+            y: pump.walkY + 34
+          });
+        }
+      } else if (w.role === 'anicka') {
+        if (w.held.length > 0) {
+          const heldTarget =
+            state.customers.find(
+              (c) =>
+                c.state === 'waiting' &&
+                c.spotIndex >= 0 &&
+                !this._isTaskClaimed('custId', c.id, w) &&
+                c.orders.some((o) => !o.done && w.held.includes(o.itemId))
+            ) ||
+            state.customers.find(
+              (c) =>
+                (c.state === 'arriving' || c.state === 'shopping') &&
+                c.spotIndex >= 0 &&
+                !this._isTaskClaimed('custId', c.id, w) &&
+                c.orders.some((o) => !o.done && w.held.includes(o.itemId))
+            );
+          if (heldTarget) {
+            const spot = this.data.SHOP_SPOTS[heldTarget.spotIndex];
+            const heldMatch = heldTarget.orders.find((o) => !o.done && w.held.includes(o.itemId));
+            if (spot && heldMatch) {
               w.taskQueue.push({
                 type: 'serveCustomer',
-                custId: shopCust.id,
-                itemId: nextOrd.itemId,
+                custId: heldTarget.id,
+                itemId: heldMatch.itemId,
                 x: spot.serveX,
                 y: spot.serveY
               });
               return;
             }
           }
-        } else if (w.role === 'kuba') {
-          const paying = state.customers.some((c) => c.state === 'paying');
-          if (paying) {
-            const reg = this.data.STATIONS.register;
-            w.taskQueue.push({ type: 'register', x: reg.walkX, y: reg.walkY });
-            return;
-          }
+          w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
+          return;
+        }
 
-          // Restock shop stands strictly below half stock (lowest first)
-          const lowRacks = state.racks
-            .filter((r) => r.stock < r.maxStock / 2 && !this._isTaskClaimed('rackId', r.id, w))
-            .sort((a, b) => a.stock - b.stock);
-          const lowRack = lowRacks[0];
-          if (lowRack) {
-            if (w.held.includes('crate')) {
-              w.taskQueue.push({
-                type: 'restockRack',
-                rackId: lowRack.id,
-                x: lowRack.walkX,
-                y: lowRack.walkY
-              });
-            } else {
-              const storage = this.data.STATIONS.storage;
-              w.taskQueue.push({
-                type: 'prep',
-                stationId: storage.id,
-                itemId: 'crate',
-                x: storage.walkX,
-                y: storage.walkY
-              });
-              w.taskQueue.push({
-                type: 'restockRack',
-                rackId: lowRack.id,
-                x: lowRack.walkX,
-                y: lowRack.walkY
-              });
-            }
-            return;
-          }
-
-          if (w.held.includes('broom')) {
-            const broom = this.data.STATIONS.broom;
-            const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
-            if (unclaimedSpill) {
-              w.taskQueue.push({
-                type: 'cleanSpill',
-                spillId: unclaimedSpill.id,
-                x: unclaimedSpill.x,
-                y: unclaimedSpill.y - 8
-              });
-            }
+        const shopCust = state.customers.find(
+          (c) =>
+            c.state === 'waiting' &&
+            c.spotIndex >= 0 &&
+            !this._isTaskClaimed('custId', c.id, w) &&
+            c.orders.some(
+              (o) =>
+                !o.done &&
+                (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
+                this._isItemUnlocked(o.itemId)
+            )
+        );
+        if (shopCust) {
+          const spot = this.data.SHOP_SPOTS[shopCust.spotIndex];
+          const nextOrd = shopCust.orders.find(
+            (o) =>
+              !o.done &&
+              (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
+              this._isItemUnlocked(o.itemId)
+          );
+          if (spot && nextOrd) {
+            const st = this.data.STATIONS[this.data.ITEMS[nextOrd.itemId].stationId];
             w.taskQueue.push({
-              type: 'returnBroom',
-              x: broom.walkX,
-              y: broom.walkY
+              type: 'prep',
+              stationId: st.id,
+              itemId: nextOrd.itemId,
+              x: st.walkX,
+              y: st.walkY
+            });
+            w.taskQueue.push({
+              type: 'serveCustomer',
+              custId: shopCust.id,
+              itemId: nextOrd.itemId,
+              x: spot.serveX,
+              y: spot.serveY
             });
             return;
           }
+        }
+      } else if (w.role === 'kuba') {
+        const paying = state.customers.some((c) => c.state === 'paying');
+        if (paying) {
+          const reg = this.data.STATIONS.register;
+          w.taskQueue.push({ type: 'register', x: reg.walkX, y: reg.walkY });
+          return;
+        }
 
-          if (w.held.length > 0) {
-            w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
-            return;
+        // Restock shop stands strictly below half stock (lowest first)
+        const lowRacks = state.racks
+          .filter((r) => r.stock < r.maxStock / 2 && !this._isTaskClaimed('rackId', r.id, w))
+          .sort((a, b) => a.stock - b.stock);
+        const lowRack = lowRacks[0];
+        if (lowRack) {
+          if (w.held.includes('crate')) {
+            w.taskQueue.push({
+              type: 'restockRack',
+              rackId: lowRack.id,
+              x: lowRack.walkX,
+              y: lowRack.walkY
+            });
+          } else {
+            const storage = this.data.STATIONS.storage;
+            w.taskQueue.push({
+              type: 'prep',
+              stationId: storage.id,
+              itemId: 'crate',
+              x: storage.walkX,
+              y: storage.walkY
+            });
+            w.taskQueue.push({
+              type: 'restockRack',
+              rackId: lowRack.id,
+              x: lowRack.walkX,
+              y: lowRack.walkY
+            });
           }
+          return;
+        }
 
+        if (w.held.includes('broom')) {
+          const broom = this.data.STATIONS.broom;
           const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
           if (unclaimedSpill) {
-            const broom = this.data.STATIONS.broom;
-            w.taskQueue.push({
-              type: 'takeBroom',
-              x: broom.walkX,
-              y: broom.walkY
-            });
             w.taskQueue.push({
               type: 'cleanSpill',
               spillId: unclaimedSpill.id,
               x: unclaimedSpill.x,
               y: unclaimedSpill.y - 8
             });
-            w.taskQueue.push({
-              type: 'returnBroom',
-              x: broom.walkX,
-              y: broom.walkY
-            });
           }
+          w.taskQueue.push({
+            type: 'returnBroom',
+            x: broom.walkX,
+            y: broom.walkY
+          });
+          return;
+        }
+
+        if (w.held.length > 0) {
+          w.taskQueue.push({ type: 'trash', x: trash.walkX, y: trash.walkY });
+          return;
+        }
+
+        const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+        if (unclaimedSpill) {
+          const broom = this.data.STATIONS.broom;
+          w.taskQueue.push({
+            type: 'takeBroom',
+            x: broom.walkX,
+            y: broom.walkY
+          });
+          w.taskQueue.push({
+            type: 'cleanSpill',
+            spillId: unclaimedSpill.id,
+            x: unclaimedSpill.x,
+            y: unclaimedSpill.y - 8
+          });
+          w.taskQueue.push({
+            type: 'returnBroom',
+            x: broom.walkX,
+            y: broom.walkY
+          });
+        }
+      }
+    }
+
+    _runStaffAI() {
+      const state = this.levelState;
+      const idleWorkers = state.workers.filter(
+        (w) =>
+          !w.isPlayer &&
+          w.active &&
+          w.taskQueue.length === 0 &&
+          w.actionTimer <= 0 &&
+          (!w.currentTask || w.currentTask.type === 'returnHome')
+      );
+      if (idleWorkers.length === 0) return;
+
+      idleWorkers.forEach((w) => {
+        this._assignStaffRoleTask(w, state);
+        if (w.taskQueue.length > 0 && w.currentTask && w.currentTask.type === 'returnHome') {
+          w.currentTask = null;
+          w.waypoints = [];
+          w.moving = false;
+        } else if (
+          !w.currentTask &&
+          w.taskQueue.length === 0 &&
+          w.held.length === 0 &&
+          typeof w.homeX === 'number' &&
+          typeof w.homeY === 'number' &&
+          Math.hypot(w.x - w.homeX, w.y - w.homeY) > 8
+        ) {
+          w.taskQueue.push({
+            type: 'returnHome',
+            x: w.homeX,
+            y: w.homeY
+          });
         }
       });
     }
@@ -4621,8 +4693,9 @@
       const state = this.levelState;
       if (!state) return;
       const lvl = state.level;
+      const curStage = this.getCurrentStage();
 
-      document.getElementById('hud-level-name').textContent = `${lvl.id}. ${lvl.name}`;
+      document.getElementById('hud-level-name').textContent = `${curStage.name} · ${lvl.name}`;
       document.getElementById('hud-earned-coins').textContent = `${state.earnedCoins} Kč`;
 
       const remaining = Math.max(0, lvl.customers - state.servedCount - state.angryCount);
@@ -4839,7 +4912,7 @@
       const starsStr = '⭐'.repeat(starsEarned) + '☆'.repeat(3 - starsEarned);
       document.getElementById('result-stars').textContent = starsStr;
       document.getElementById('result-title').textContent =
-        starsEarned >= 1 ? `Směna v zastávce "${lvl.name}" hotová!` : 'Směna skončila těsně pod cílem';
+        starsEarned >= 1 ? `${lvl.name} v benzínce "${curStage.name}" hotový!` : 'Směna skončila těsně pod cílem';
       document.getElementById('result-summary').textContent =
         `Obslouženo: ${state.servedCount} · Odešlo bez obsluhy: ${state.angryCount} · Výdělek přidán do pokladny: +${earned} Kč`;
 
@@ -4849,7 +4922,7 @@
 
       if (stageComplete) {
         if (this.save.coins >= nextStage.unlockCost) {
-          unlockNote.textContent = `🏢 Všech 8 směn hotovo! Můžeš koupit novou benzínku: ${nextStage.id}. ${nextStage.name} (${nextStage.unlockCost} Kč)!`;
+          unlockNote.textContent = `🏢 Všech 8 směn hotovo! Můžeš přejít na novou benzínku: ${nextStage.id}. ${nextStage.name} (cena přechodu: ${nextStage.unlockCost} Kč, na nové pumpě začínáš od 0 Kč)!`;
           nextBtn.textContent = `🏢 Koupit: ${nextStage.name} (${nextStage.unlockCost} Kč)`;
         } else {
           unlockNote.textContent = `🏁 Všech 8 směn v této benzínce je hotových! Na koupi další (${nextStage.name}) potřebuješ ${nextStage.unlockCost} Kč (v pokladně máš ${this.save.coins} Kč).`;
@@ -4859,19 +4932,19 @@
         nextBtn.classList.remove('hidden');
       } else if (unlockedNext) {
         const nextLvl = this.data.LEVELS.find((l) => l.id === lvl.id + 1);
-        unlockNote.textContent = `🎉 Odemčena nová zastávka na mapě: ${nextLvl.id}. ${nextLvl.name}!`;
+        unlockNote.textContent = `🎉 Odemčen další den: ${nextLvl.name}!`;
         unlockNote.classList.remove('hidden');
-        nextBtn.textContent = '➡️ Další zastávka';
+        nextBtn.textContent = '➡️ Další den';
         nextBtn.classList.remove('hidden');
       } else if (starsEarned === 0) {
         unlockNote.textContent =
           '💡 Tip: Před dalším pokusem si vylepši benzínku nebo najmi zaměstnance!';
         unlockNote.classList.remove('hidden');
-        nextBtn.textContent = '➡️ Další zastávka';
+        nextBtn.textContent = '➡️ Další den';
         nextBtn.classList.add('hidden');
       } else {
         unlockNote.classList.add('hidden');
-        nextBtn.textContent = '➡️ Další zastávka';
+        nextBtn.textContent = '➡️ Další den';
         if (lvl.id < this.data.LEVELS.length && this.save.unlockedLevel > lvl.id) {
           nextBtn.classList.remove('hidden');
         } else {

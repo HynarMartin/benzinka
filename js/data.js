@@ -426,7 +426,7 @@
       levels: [
         {
           id: 1,
-          name: 'Polní rozcestí',
+          name: '1. den',
           subtitle: 'Klidný rozjezd na okraji malého města',
           x: 120,
           y: 410,
@@ -442,7 +442,7 @@
         },
         {
           id: 2,
-          name: 'Jabloňový sad',
+          name: '2. den',
           subtitle: 'Řidiči si rádi umyjí sklo a vezmou něco malého',
           x: 255,
           y: 290,
@@ -458,7 +458,7 @@
         },
         {
           id: 3,
-          name: 'Lesní samota',
+          name: '3. den',
           subtitle: 'Výletníci míří do lesa na svačinu',
           x: 380,
           y: 400,
@@ -474,7 +474,7 @@
         },
         {
           id: 4,
-          name: 'Rybníček u mlýna',
+          name: '4. den',
           subtitle: 'Teplý den láká na studenou limonádu',
           x: 515,
           y: 250,
@@ -490,7 +490,7 @@
         },
         {
           id: 5,
-          name: 'Medová náves',
+          name: '5. den',
           subtitle: 'Stálí sousedé se stavují pro kávu i sladkosti',
           x: 650,
           y: 370,
@@ -506,7 +506,7 @@
         },
         {
           id: 6,
-          name: 'Starý vinohrad',
+          name: '6. den',
           subtitle: 'Podvečerní provoz kolem vinic',
           x: 775,
           y: 220,
@@ -522,7 +522,7 @@
         },
         {
           id: 7,
-          name: 'Podhorská zatáčka',
+          name: '7. den',
           subtitle: 'První větší kolona na výjezdu z městečka',
           x: 895,
           y: 340,
@@ -538,7 +538,7 @@
         },
         {
           id: 8,
-          name: 'Okresní pouť',
+          name: '8. den',
           subtitle: 'Závěrečná směna v malém městě — šance našetřit na větší!',
           x: 1010,
           y: 185,
@@ -562,7 +562,7 @@
       x: 440,
       y: 205,
       theme: 'orchard',
-      unlockCost: 470,
+      unlockCost: 300,
       truckChance: 0,
       busChance: 0,
       limits: {
@@ -577,7 +577,7 @@
       levels: [
         {
           id: 1,
-          name: 'Městský okruh',
+          name: '1. den',
           subtitle: 'Začínáš v novém větším městě — postupně znovu vybuduj pumpu',
           x: 120,
           y: 410,
@@ -593,7 +593,7 @@
         },
         {
           id: 2,
-          name: 'Ranní špička',
+          name: '2. den',
           subtitle: 'Do práce spěchají řidiči pro kávu a párky',
           x: 255,
           y: 290,
@@ -609,7 +609,7 @@
         },
         {
           id: 3,
-          name: 'Nákupní zóna',
+          name: '3. den',
           subtitle: 'Plný obchod a nová vůně z grilu',
           x: 380,
           y: 400,
@@ -625,7 +625,7 @@
         },
         {
           id: 4,
-          name: 'Nábřežní bulvár',
+          name: '4. den',
           subtitle: 'Stále více aut u všech tří stojanů',
           x: 515,
           y: 250,
@@ -641,7 +641,7 @@
         },
         {
           id: 5,
-          name: 'Odpolední kolona',
+          name: '5. den',
           subtitle: 'Káva, bistro i 3 regály jedou naplno',
           x: 650,
           y: 370,
@@ -657,7 +657,7 @@
         },
         {
           id: 6,
-          name: 'Průmyslová čtvrť',
+          name: '6. den',
           subtitle: 'Dodávky jezdí pro palivo a autokosmetiku',
           x: 775,
           y: 220,
@@ -673,7 +673,7 @@
         },
         {
           id: 7,
-          name: 'Večerní centrum',
+          name: '7. den',
           subtitle: 'Světýlka výzdoby lákají unavené řidiče',
           x: 895,
           y: 340,
@@ -689,7 +689,7 @@
         },
         {
           id: 8,
-          name: 'Víkendový tah městem',
+          name: '8. den',
           subtitle: 'Závěrečná městská směna před přesunem na hlavní tah',
           x: 1010,
           y: 185,
@@ -713,7 +713,7 @@
       x: 730,
       y: 365,
       theme: 'mountain',
-      unlockCost: 700,
+      unlockCost: 450,
       truckChance: 0.34,
       busChance: 0,
       limits: {
@@ -728,7 +728,7 @@
       levels: [
         {
           id: 1,
-          name: 'Výpadovka z města',
+          name: '1. den',
           subtitle: 'Na hlavní silnici přijíždějí první velké kamiony 🚛',
           x: 120,
           y: 410,
@@ -744,7 +744,7 @@
         },
         {
           id: 2,
-          name: 'Sady u hlavní silnice',
+          name: '2. den',
           subtitle: 'Kamiony mají velké nádrže a platí dvojnásobek za palivo',
           x: 255,
           y: 290,
@@ -760,7 +760,7 @@
         },
         {
           id: 3,
-          name: 'Kamionový průsmyk',
+          name: '3. den',
           subtitle: 'Řidiči kamionů si berou vydatnou svačinu do kabiny',
           x: 380,
           y: 400,
@@ -776,7 +776,7 @@
         },
         {
           id: 4,
-          name: 'Jezerní přehrada',
+          name: '4. den',
           subtitle: 'Zkušený tým zvládá i plné parkoviště tiráků',
           x: 515,
           y: 250,
@@ -792,7 +792,7 @@
         },
         {
           id: 5,
-          name: 'Křižovatka dopravců',
+          name: '5. den',
           subtitle: 'Vysoký provoz u stojanů i pokladny',
           x: 650,
           y: 370,
@@ -808,7 +808,7 @@
         },
         {
           id: 6,
-          name: 'Tah přes vinice',
+          name: '6. den',
           subtitle: 'Dálkové trasy vyžadují rychlé doplňování regálů',
           x: 775,
           y: 220,
@@ -824,7 +824,7 @@
         },
         {
           id: 7,
-          name: 'Horský tranzit',
+          name: '7. den',
           subtitle: 'Špičková souhra obsluhy a mistrů v týmu',
           x: 895,
           y: 340,
@@ -840,7 +840,7 @@
         },
         {
           id: 8,
-          name: 'Noční konvoj kamionů',
+          name: '8. den',
           subtitle: 'Velká zkouška před koupí dálničního megacentra',
           x: 1010,
           y: 185,
@@ -864,7 +864,7 @@
       x: 980,
       y: 195,
       theme: 'seaside',
-      unlockCost: 820,
+      unlockCost: 600,
       truckChance: 0.3,
       busChance: 0.22,
       limits: {
@@ -879,7 +879,7 @@
       levels: [
         {
           id: 1,
-          name: 'Nájezd na dálnici',
+          name: '1. den',
           subtitle: 'Nové dálniční centrum s kamiony 🚛 i zájezdovými autobusy 🚌',
           x: 120,
           y: 410,
@@ -895,7 +895,7 @@
         },
         {
           id: 2,
-          name: 'Odpočívadlo Jabloň',
+          name: '2. den',
           subtitle: 'Autobusy nakupují palivo i občerstvení pro celou posádku',
           x: 255,
           y: 290,
@@ -911,7 +911,7 @@
         },
         {
           id: 3,
-          name: 'Lesní dálniční most',
+          name: '3. den',
           subtitle: 'Všech 4 úrovní vylepšení odemyká maximální výkon',
           x: 380,
           y: 400,
@@ -927,7 +927,7 @@
         },
         {
           id: 4,
-          name: 'Zátoka karavanů',
+          name: '4. den',
           subtitle: 'Letní prázdninové proudy turistů a tiráků',
           x: 515,
           y: 250,
@@ -943,7 +943,7 @@
         },
         {
           id: 5,
-          name: 'Dálniční křižovatka',
+          name: '5. den',
           subtitle: 'Kompletně vybavené bistro i prodejna jedou na plné obrátky',
           x: 650,
           y: 370,
@@ -959,7 +959,7 @@
         },
         {
           id: 6,
-          name: 'Sluneční koridor',
+          name: '6. den',
           subtitle: 'Kolony autobusů, kamionů a rodinných vozů',
           x: 775,
           y: 220,
@@ -975,7 +975,7 @@
         },
         {
           id: 7,
-          name: 'Alpský tunel',
+          name: '7. den',
           subtitle: 'Poslední krok před korunovací nejlepší benzínky v zemi',
           x: 895,
           y: 340,
@@ -991,7 +991,7 @@
         },
         {
           id: 8,
-          name: 'Velké přímořské finále',
+          name: '8. den',
           subtitle: 'Vrchol celého dálničního impéria — obří dálniční centrum!',
           x: 1010,
           y: 185,

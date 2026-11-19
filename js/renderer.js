@@ -63,7 +63,7 @@
       state.cars.forEach((car) => this._drawCarBubble(ctx, car, t));
       state.customers.forEach((cust) => this._drawCustomerBubble(ctx, cust, t));
       state.workers.forEach((worker) => {
-        if (worker.active) this._drawWorkerOverlay(ctx, worker, t);
+        if (worker.active) this._drawWorkerOverlay(ctx, worker, t, state);
       });
 
       this._drawParticles(ctx, state.particles);
@@ -1862,10 +1862,6 @@
         ctx.stroke();
       });
 
-      ctx.font = '20px "Segoe UI Emoji", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('📦', st.x, st.y + 6);
       this._drawStationTag(ctx, st.x, st.y + 42, 'Sklad zboží', isHovered);
     }
 
@@ -2470,7 +2466,64 @@
       ctx.restore();
     }
 
-    _drawWorkerOverlay(ctx, w) {
+    _getWorkerTaskLabel(w) {
+      if (!w || w.isPlayer) return null;
+      const task = w.currentTask || (w.taskQueue && w.taskQueue.length > 0 ? w.taskQueue[0] : null);
+      if (!task) return null;
+      if (task.type === 'fuelCar') {
+        const num = (task.pumpIndex || 0) + 1;
+        return w.actionTimer > 0 ? `⛽ Tankuji (Stojan ${num})` : `⛽ Jdu natankovat (Stojan ${num})`;
+      }
+      if (task.type === 'prep') {
+        if (task.itemId === 'wash') {
+          return w.actionTimer > 0 ? '🧽 Nabírám vodu na okna' : '🧽 Jdu pro vodu na okna';
+        }
+        if (task.itemId === 'crate') {
+          return w.actionTimer > 0 ? '📦 Beru krabici ze skladu' : '📦 Jdu do skladu pro zboží';
+        }
+        const it = window.GAME_DATA.ITEMS[task.itemId];
+        const name = it ? it.name : task.itemId;
+        const ic = it ? it.icon : '🍽️';
+        return w.actionTimer > 0 ? `${ic} Připravuji: ${name}` : `${ic} Jdu připravit: ${name}`;
+      }
+      if (task.type === 'serveCar') {
+        return '🧽 Jdu umýt okna u auta';
+      }
+      if (task.type === 'serveCustomer') {
+        const it = window.GAME_DATA.ITEMS[task.itemId];
+        return `${it ? it.icon : '🍽️'} Nesu zákazníkovi: ${it ? it.name : 'objednávku'}`;
+      }
+      if (task.type === 'register') {
+        return w.actionTimer > 0 ? '📠 Markuji u pokladny' : '📠 Jdu obsloužit pokladnu';
+      }
+      if (task.type === 'restockRack') {
+        const r = window.GAME_DATA.RACKS[task.rackId];
+        const rName = r ? r.label.toLowerCase() : 'regál';
+        return w.actionTimer > 0 ? `📦 Doplňuji ${rName}` : `📦 Jdu doplnit ${rName}`;
+      }
+      if (task.type === 'takeBroom') {
+        return '🧹 Jdu uklízet';
+      }
+      if (task.type === 'cleanSpill') {
+        return w.actionTimer > 0 ? '🧹 Uklízím louži' : '🧹 Jdu uklízet';
+      }
+      if (task.type === 'returnBroom') {
+        return '🧹 Jdu vrátit koště';
+      }
+      if (task.type === 'trash') {
+        const names =
+          w.held && w.held.length > 0
+            ? w.held.map((id) => (window.GAME_DATA.ITEMS[id] ? window.GAME_DATA.ITEMS[id].name : id)).join(', ')
+            : 'věci';
+        return `🗑️ Jdu vyhodit ${names} do koše`;
+      }
+      if (task.type === 'returnHome') {
+        return '🚶 Vracím se na místo';
+      }
+      return null;
+    }
+
+    _drawWorkerOverlay(ctx, w, _t, state) {
       ctx.save();
       ctx.font = '800 11px "Nunito", sans-serif';
       const label = w.label;
@@ -2482,6 +2535,26 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, w.x, w.y + 33);
+
+      if ((!state || !state.prepMode) && !w.isPlayer) {
+        const taskLabel = this._getWorkerTaskLabel(w);
+        if (taskLabel) {
+          ctx.font = '700 10.5px "Nunito", "Segoe UI", sans-serif';
+          const tw = ctx.measureText(taskLabel).width + 14;
+          const tx = Math.min(Math.max(w.x, tw / 2 + 8), this.width - tw / 2 - 8);
+          const ty = w.y + 52;
+          ctx.fillStyle = 'rgba(45, 34, 27, 0.88)';
+          roundRect(ctx, tx - tw / 2, ty - 9.5, tw, 19, 8);
+          ctx.fill();
+          ctx.strokeStyle = '#d9b99b';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+          ctx.fillStyle = '#fff8eb';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(taskLabel, tx, ty + 0.5);
+        }
+      }
 
       if (w.actionTimer > 0 && w.actionDuration > 0) {
         const progress = Math.min(1, 1 - w.actionTimer / w.actionDuration);
