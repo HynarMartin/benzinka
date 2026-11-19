@@ -124,21 +124,21 @@
       </footer>
     </section>
 
-    <!-- MODÁL PŘIHLÁŠENÍ / REGISTRACE -->
+    <!-- MODÁL PŘIHLÁŠENÍ -->
     <div id="auth-modal" class="modal-backdrop hidden">
       <div class="modal-card auth-modal-card">
         <div class="auth-hero">
           <span class="brand-logo">⛽</span>
           <div>
             <h2>Vítej v Útulné Benzínce!</h2>
-            <p class="modal-sub">Přihlas se jménem a heslem nebo si založ nový profil. Tvůj postup se automaticky uloží.</p>
+            <p class="modal-sub">Přihlas se uživatelským jménem a heslem nebo si založ nový účet. Tvůj postup se automaticky uloží.</p>
           </div>
         </div>
 
         <form id="auth-form" class="auth-form" onsubmit="return false;">
           <label class="auth-field">
-            <span>👤 Jméno hráče</span>
-            <input id="auth-username" type="text" placeholder="Jméno" autocomplete="username" required />
+            <span>👤 Uživatelské jméno</span>
+            <input id="auth-username" type="text" placeholder="Zadej uživatelské jméno" autocomplete="username" required />
           </label>
           <label class="auth-field">
             <span>🔒 Heslo</span>
@@ -149,8 +149,46 @@
 
           <div class="auth-actions">
             <button id="auth-login-btn" type="button" class="btn-primary">🔑 Přihlásit se</button>
-            <button id="auth-register-btn" type="button" class="btn-start">✨ Vytvořit nový účet</button>
+            <button id="auth-register-btn" type="button" class="btn-start">✨ Registrace</button>
             <button id="auth-guest-btn" type="button" class="btn-soft">🎮 Hrát bez přihlášení (neukládá se)</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODÁL REGISTRACE NOVÉHO ÚČTU -->
+    <div id="register-modal" class="modal-backdrop hidden">
+      <div class="modal-card auth-modal-card">
+        <div class="modal-header auth-modal-header">
+          <div class="auth-hero">
+            <span class="brand-logo">✨</span>
+            <div>
+              <h2>Nová registrace</h2>
+              <p class="modal-sub">Zadej uživatelské jméno a heslo pro přihlášení a své jméno pro oslovování ve hře.</p>
+            </div>
+          </div>
+          <button id="close-register-btn" type="button" class="btn-close" aria-label="Zpět na přihlášení">✕</button>
+        </div>
+
+        <form id="register-form" class="auth-form" onsubmit="return false;">
+          <label class="auth-field">
+            <span>🪪 Uživatelské jméno</span>
+            <input id="reg-username" type="text" placeholder="Slouží k přihlášení (např. petr123)" autocomplete="username" required />
+          </label>
+          <label class="auth-field">
+            <span>🔒 Heslo</span>
+            <input id="reg-password" type="password" placeholder="Zvol si heslo" autocomplete="new-password" required />
+          </label>
+          <label class="auth-field">
+            <span>😊 Jméno</span>
+            <input id="reg-display-name" type="text" placeholder="Tvé jméno pro oslovení (např. Petr nebo Jana)" autocomplete="given-name" required />
+          </label>
+
+          <p id="register-message" class="auth-message hidden"></p>
+
+          <div class="auth-actions">
+            <button id="register-submit-btn" type="button" class="btn-start">✨ Vytvořit účet</button>
+            <button id="register-back-btn" type="button" class="btn-soft">⬅️ Zpět na přihlášení</button>
           </div>
         </form>
       </div>
@@ -267,7 +305,7 @@
           <button id="close-help-btn" type="button" class="btn-close">✕</button>
         </div>
         <ul class="help-list">
-          <li><strong>👤 Účet a ukládání:</strong> Každý hráč má vlastní jméno a heslo. Všechny vydělané koruny, hvězdy, vylepšení i zaměstnanci se ukládají k tvému účtu.</li>
+          <li><strong>👤 Účet a ukládání:</strong> Každý hráč má vlastní uživatelské jméno a heslo pro přihlášení a své jméno pro oslovení. Všechny vydělané koruny, hvězdy, vylepšení i zaměstnanci se ukládají k tvému účtu.</li>
           <li><strong>🗺️ Mapa zastávek:</strong> Kliknutím na číslo zastávky na silnici otevřeš přípravu před směnou.</li>
           <li><strong>🛒 Obchod a doplňování stojanů:</strong> Zákazníci si berou křupky (🥨), sladkosti (🍫) i autokosmetiku (🧴) přímo z regálů. Kliknutím na poloprázdný nebo prázdný stojan dojdeš do <em>Skladu zboží (📦)</em> a stojan doplníš!</li>
           <li><strong>🧑‍🔧 Zaměstnanci:</strong> <em>Toník</em> tankuje a myje okna autům, <em>Anička</em> obsluhuje kávu, gril i limonády a <em>Kuba</em> markuje pokladnu, doplňuje regály a uklízí louže.</li>

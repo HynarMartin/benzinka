@@ -821,6 +821,15 @@ button:disabled {
   max-width: 460px;
 }
 
+.auth-modal-header {
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.auth-modal-header .auth-hero {
+  margin-bottom: 0;
+}
+
 .auth-hero {
   display: flex;
   align-items: center;

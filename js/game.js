@@ -312,7 +312,11 @@
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (parsed && parsed.username && parsed.password) {
-          return { username: parsed.username, password: parsed.password };
+          return {
+            username: parsed.username,
+            displayName: parsed.displayName || parsed.username,
+            password: parsed.password
+          };
         }
       } catch (_err) {
         // Ignore parse errors
@@ -333,6 +337,88 @@
       }
     }
 
+    _escapeHtml(text) {
+      return String(text || '').replace(/[&<>"']/g, (ch) => {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return map[ch] || ch;
+      });
+    }
+
+    _getPlayerDisplayName() {
+      if (this.isGuest || !this.currentUser) return '';
+      return (this.currentUser.displayName || this.currentUser.username || '').trim();
+    }
+
+    _toCzechVocative(name) {
+      const cleaned = String(name || '').trim();
+      if (!cleaned) return '';
+      const firstWord = cleaned.split(/\s+/)[0];
+      const lower = firstWord.toLowerCase();
+
+      const invariable = new Set([
+        'admin', 'dagmar', 'ester', 'miriam', 'karin', 'ines', 'nikol',
+        'nicole', 'rachel', 'carmen', 'ingrid', 'astrid', 'ellen', 'helen',
+        'karen', 'vivien', 'rút', 'rut', 'sarah'
+      ]);
+      if (invariable.has(lower)) return firstWord;
+
+      const last = lower.slice(-1);
+      if ('eěiíyýouů'.includes(last)) return firstWord;
+
+      if (last === 'a') {
+        const isAllCaps = firstWord === firstWord.toUpperCase() && firstWord !== firstWord.toLowerCase();
+        return firstWord.slice(0, -1) + (isAllCaps ? 'O' : 'o');
+      }
+
+      const applySuffix = (stemLen, suffix) => {
+        const isAllCaps = firstWord === firstWord.toUpperCase() && firstWord !== firstWord.toLowerCase();
+        return firstWord.slice(0, firstWord.length - stemLen) + (isAllCaps ? suffix.toUpperCase() : suffix);
+      };
+
+      const elExceptions = new Set(['karel', 'pavel', 'havel']);
+      if (elExceptions.has(lower)) {
+        return applySuffix(2, 'le');
+      }
+      if (lower.endsWith('el') && /(iel|uel|ael|cel)$/.test(lower)) {
+        return applySuffix(0, 'i');
+      }
+
+      if (lower === 'petr' || lower === 'alexandr' || lower === 'silvestr') {
+        return applySuffix(1, 'ře');
+      }
+
+      if (lower.endsWith('ek') || lower.endsWith('ěk')) {
+        if (lower.endsWith('děk')) return applySuffix(3, 'ďku');
+        if (lower.endsWith('těk')) return applySuffix(3, 'ťku');
+        if (lower.endsWith('něk')) return applySuffix(3, 'ňku');
+        if (firstWord.length > 3) return applySuffix(2, 'ku');
+        return applySuffix(0, 'u');
+      }
+
+      if (lower.endsWith('ec')) {
+        return applySuffix(2, 'če');
+      }
+
+      if ('kgh'.includes(last) || lower.endsWith('ch')) {
+        return applySuffix(0, 'u');
+      }
+
+      if ('sxžšřčjcďťň'.includes(last)) {
+        return applySuffix(0, 'i');
+      }
+
+      if ('bdflmnprtvwz'.includes(last)) {
+        return applySuffix(0, 'e');
+      }
+
+      return firstWord;
+    }
+
+    _getPlayerVocative() {
+      const displayName = this._getPlayerDisplayName();
+      return displayName ? this._toCzechVocative(displayName) : '';
+    }
+
     _loadLocalAccounts() {
       let accounts = {};
       try {
@@ -344,10 +430,14 @@
       if (!accounts.admin) {
         accounts.admin = {
           username: 'admin',
+          displayName: 'Admin',
           password: 'admin',
           save: createAdminSave()
         };
       } else {
+        if (!accounts.admin.displayName) {
+          accounts.admin.displayName = 'Admin';
+        }
         const adminUpgrades = createAdminSave().upgrades;
         if (!accounts.admin.save || typeof accounts.admin.save !== 'object') {
           accounts.admin.save = createAdminSave();
@@ -396,6 +486,11 @@
           this.hasApiBackend = true;
           const data = await res.json();
           if (data && data.ok) {
+            this._saveSession({
+              username: data.username,
+              displayName: data.displayName || this.currentUser.displayName || data.username,
+              password: this.currentUser.password
+            });
             this.save = normalizeSave(data.save);
             this._syncStageLevels();
             this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
@@ -408,6 +503,11 @@
           const accounts = this._loadLocalAccounts();
           const acc = accounts[this.currentUser.username.toLowerCase()];
           if (acc && acc.password === this.currentUser.password) {
+            this._saveSession({
+              username: acc.username,
+              displayName: acc.displayName || this.currentUser.displayName || acc.username,
+              password: this.currentUser.password
+            });
             this.save = normalizeSave(acc.save);
             this._syncStageLevels();
             this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
@@ -450,10 +550,12 @@
         // Ignore storage errors
       }
 
+      const displayName = this.currentUser.displayName || this.currentUser.username;
       const accounts = this._loadLocalAccounts();
       const key = this.currentUser.username.toLowerCase();
       accounts[key] = {
         username: this.currentUser.username,
+        displayName,
         password: this.currentUser.password,
         save: this.save
       };
@@ -465,6 +567,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: this.currentUser.username,
+            displayName,
             password: this.currentUser.password,
             save: this.save
           })
@@ -475,10 +578,8 @@
     }
 
     openAuthModal() {
-      const msgEl = document.getElementById('auth-message');
-      msgEl.classList.add('hidden');
-      msgEl.classList.remove('success');
-      msgEl.textContent = '';
+      this._clearAuthFeedback('auth-message');
+      document.getElementById('register-modal').classList.add('hidden');
       document.getElementById('auth-username').value = '';
       document.getElementById('auth-password').value = '';
       document.getElementById('auth-modal').classList.remove('hidden');
@@ -488,30 +589,41 @@
       document.getElementById('auth-modal').classList.add('hidden');
     }
 
-    _showAuthMessage(text, isSuccess) {
-      const msgEl = document.getElementById('auth-message');
+    openRegisterModal() {
+      this._clearAuthFeedback('register-message');
+      document.getElementById('auth-modal').classList.add('hidden');
+      document.getElementById('reg-username').value = '';
+      document.getElementById('reg-password').value = '';
+      document.getElementById('reg-display-name').value = '';
+      document.getElementById('register-modal').classList.remove('hidden');
+      document.getElementById('reg-username').focus();
+    }
+
+    closeRegisterModal(returnToLogin = true) {
+      document.getElementById('register-modal').classList.add('hidden');
+      if (returnToLogin) {
+        this.openAuthModal();
+      }
+    }
+
+    _clearAuthFeedback(elementId) {
+      const msgEl = document.getElementById(elementId);
+      if (!msgEl) return;
+      msgEl.classList.add('hidden');
+      msgEl.classList.remove('success');
+      msgEl.textContent = '';
+    }
+
+    _showFormMessage(elementId, text, isSuccess) {
+      const msgEl = document.getElementById(elementId);
+      if (!msgEl) return;
       msgEl.textContent = text;
       msgEl.classList.remove('hidden');
       if (isSuccess) msgEl.classList.add('success');
       else msgEl.classList.remove('success');
     }
 
-    async _handleAuth(mode) {
-      const username = document.getElementById('auth-username').value.trim();
-      const password = document.getElementById('auth-password').value;
-
-      if (!username || !password) {
-        this._showAuthMessage('Zadej prosím jméno hráče i heslo.', false);
-        return;
-      }
-
-      this.audio.playClick();
-      const endpoint = mode === 'register' ? '/api/register' : '/api/login';
-      const payload =
-        mode === 'register'
-          ? { username, password, save: createDefaultSave() }
-          : { username, password };
-
+    async _submitAuthRequest(endpoint, payload, msgElementId, fallbackHandler) {
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -526,42 +638,73 @@
         this.hasApiBackend = true;
         const data = await res.json();
         if (!data || !data.ok) {
-          this._showAuthMessage((data && data.error) || 'Přihlášení se nezdařilo.', false);
+          this._showFormMessage(msgElementId, (data && data.error) || 'Akce se nezdařila.', false);
           return;
         }
-        this._completeLogin(data.username, password, data.save);
-        return;
+        this._completeLogin(data.username, payload.password, data.save, data.displayName || payload.displayName);
       } catch (_err) {
-        // Fallback when opened directly as file:// without server.js
-        const accounts = this._loadLocalAccounts();
-        const key = username.toLowerCase();
-        if (mode === 'register') {
-          if (accounts[key]) {
-            this._showAuthMessage('Toto jméno už existuje. Zvol jiné nebo se přihlas.', false);
-            return;
-          }
-          const newSave = createDefaultSave();
-          accounts[key] = { username, password, save: newSave };
-          this._saveLocalAccounts(accounts);
-          this._completeLogin(username, password, newSave);
-        } else {
-          const acc = accounts[key];
-          if (!acc) {
-            this._showAuthMessage('Účet s tímto jménem nebyl nalezen.', false);
-            return;
-          }
-          if (acc.password !== password) {
-            this._showAuthMessage('Nesprávné heslo.', false);
-            return;
-          }
-          this._completeLogin(acc.username, password, acc.save);
-        }
+        fallbackHandler();
       }
     }
 
-    _completeLogin(username, password, saveObj) {
+    async _handleLogin() {
+      const username = document.getElementById('auth-username').value.trim();
+      const password = document.getElementById('auth-password').value;
+
+      if (!username || !password) {
+        this._showFormMessage('auth-message', 'Zadej prosím uživatelské jméno i heslo.', false);
+        return;
+      }
+
+      this.audio.playClick();
+      await this._submitAuthRequest('/api/login', { username, password }, 'auth-message', () => {
+        const accounts = this._loadLocalAccounts();
+        const acc = accounts[username.toLowerCase()];
+        if (!acc) {
+          this._showFormMessage('auth-message', 'Účet s tímto uživatelským jménem nebyl nalezen.', false);
+          return;
+        }
+        if (acc.password !== password) {
+          this._showFormMessage('auth-message', 'Nesprávné heslo.', false);
+          return;
+        }
+        this._completeLogin(acc.username, password, acc.save, acc.displayName);
+      });
+    }
+
+    async _handleRegister() {
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const displayName = document.getElementById('reg-display-name').value.trim();
+
+      if (!username || !password || !displayName) {
+        this._showFormMessage('register-message', 'Vyplň prosím uživatelské jméno, heslo i své jméno.', false);
+        return;
+      }
+
+      this.audio.playClick();
+      const initialSave = createDefaultSave();
+      await this._submitAuthRequest(
+        '/api/register',
+        { username, password, displayName, save: initialSave },
+        'register-message',
+        () => {
+          const accounts = this._loadLocalAccounts();
+          const key = username.toLowerCase();
+          if (accounts[key]) {
+            this._showFormMessage('register-message', 'Toto uživatelské jméno už existuje. Zvol jiné nebo se přihlas.', false);
+            return;
+          }
+          accounts[key] = { username, displayName, password, save: initialSave };
+          this._saveLocalAccounts(accounts);
+          this._completeLogin(username, password, initialSave, displayName);
+        }
+      );
+    }
+
+    _completeLogin(username, password, saveObj, displayName) {
       this.isGuest = false;
-      this._saveSession({ username, password });
+      this._saveSession({ username, displayName: displayName || username, password });
       this.save = normalizeSave(saveObj);
       this._syncStageLevels();
       this.mapViewMode = 'world';
@@ -569,6 +712,7 @@
       document.getElementById('logout-btn').textContent = '🚪 Odhlásit / Účet';
       this.persistSave();
       this.closeAuthModal();
+      this.closeRegisterModal(false);
       this.renderMap();
       this.updateGlobalHUD();
       this.audio.playHappy();
@@ -584,20 +728,44 @@
       this.selectedLevelId = 1;
       document.getElementById('logout-btn').textContent = '🔑 Přihlásit se';
       this.closeAuthModal();
+      this.closeRegisterModal(false);
       this.renderMap();
       this.updateGlobalHUD();
     }
 
     _bindUI() {
-      // Auth Modal buttons
-      document.getElementById('auth-login-btn').addEventListener('click', () => this._handleAuth('login'));
-      document.getElementById('auth-register-btn').addEventListener('click', () => this._handleAuth('register'));
+      // Auth & Register Modal buttons
+      document.getElementById('auth-login-btn').addEventListener('click', () => this._handleLogin());
+      document.getElementById('auth-register-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this.openRegisterModal();
+      });
       document.getElementById('auth-guest-btn').addEventListener('click', () => this._startGuestSession());
       document.getElementById('auth-password').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          this._handleAuth('login');
+          this._handleLogin();
         }
+      });
+
+      document.getElementById('register-submit-btn').addEventListener('click', () => this._handleRegister());
+      document.getElementById('register-back-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this.closeRegisterModal(true);
+      });
+      document.getElementById('close-register-btn').addEventListener('click', () => {
+        this.audio.playClick();
+        this.closeRegisterModal(true);
+      });
+      ['reg-username', 'reg-password', 'reg-display-name'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this._handleRegister();
+          }
+        });
       });
 
       document.getElementById('logout-btn').addEventListener('click', () => {
@@ -1027,11 +1195,10 @@
         allStagesStars += Object.values(stStars).reduce((acc, s) => acc + s, 0);
       });
       const maxTotalStars = this.data.STAGES.length * 24;
+      const playerDisplayName = this._getPlayerDisplayName();
       const userLabel = this.isGuest
         ? 'Host (neukládá se)'
-        : this.currentUser
-        ? this.currentUser.username
-        : 'Host';
+        : playerDisplayName || 'Host';
       document.getElementById('user-badge-name').textContent = userLabel;
       const settingsUserEl = document.getElementById('settings-user-label');
       if (settingsUserEl) {
@@ -1100,8 +1267,12 @@
         });
 
         if (bannerEl) {
+          const vocative = this._getPlayerVocative();
+          const welcomeText = vocative
+            ? `Vítej, ${this._escapeHtml(vocative)}! Klikni na svou aktivní benzínku a otevři jejích 8 dní.`
+            : 'Klikni na svou aktivní benzínku a otevři jejích 8 dní!';
           bannerEl.innerHTML =
-            '<span>🗺️ <strong>Hlavní mapa (4 benzínky):</strong> Klikni na svou aktivní benzínku a otevři jejích 8 dní!</span>';
+            `<span>🗺️ <strong>Hlavní mapa (4 benzínky):</strong> ${welcomeText}</span>`;
         }
 
         const stages = this.data.STAGES;
@@ -4767,6 +4938,13 @@
       const maxStars = this.data.STAGES.length * 24;
       const starsStr = '⭐'.repeat(finalStars) + '☆'.repeat(Math.max(0, 3 - finalStars));
       document.getElementById('victory-stars').textContent = starsStr;
+      const victoryTitleEl = document.getElementById('victory-title');
+      if (victoryTitleEl) {
+        const vocative = this._getPlayerVocative();
+        victoryTitleEl.textContent = vocative
+          ? `Gratulujeme, ${vocative}! Útulná Benzínka je kompletní!`
+          : 'Gratulujeme! Útulná Benzínka je kompletní!';
+      }
 
       const shiftBanner = document.getElementById('victory-shift-banner');
       if (lastShift) {
@@ -4911,8 +5089,15 @@
 
       const starsStr = '⭐'.repeat(starsEarned) + '☆'.repeat(3 - starsEarned);
       document.getElementById('result-stars').textContent = starsStr;
+      const vocative = this._getPlayerVocative();
       document.getElementById('result-title').textContent =
-        starsEarned >= 1 ? `${lvl.name} v benzínce "${curStage.name}" hotový!` : 'Směna skončila těsně pod cílem';
+        starsEarned >= 1
+          ? vocative
+            ? `Skvělá práce, ${vocative}! ${lvl.name} v benzínce "${curStage.name}" je hotový!`
+            : `${lvl.name} v benzínce "${curStage.name}" hotový!`
+          : vocative
+          ? `Nevadí, ${vocative} – směna skončila těsně pod cílem`
+          : 'Směna skončila těsně pod cílem';
       document.getElementById('result-summary').textContent =
         `Obslouženo: ${state.servedCount} · Odešlo bez obsluhy: ${state.angryCount} · Výdělek přidán do pokladny: +${earned} Kč`;
 

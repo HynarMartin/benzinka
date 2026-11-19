@@ -103,11 +103,15 @@ function loadUsers() {
   if (!users.admin) {
     users.admin = {
       username: 'admin',
+      displayName: 'Admin',
       passwordHash: hashPassword('admin', 'admin_static_salt'),
       save: createAdminSave(),
       updatedAt: '2026-01-01T00:00:00.000Z'
     };
   } else {
+    if (!users.admin.displayName) {
+      users.admin.displayName = 'Admin';
+    }
     const adminUpgrades = createAdminSave().upgrades;
     if (!users.admin.save || typeof users.admin.save !== 'object') {
       users.admin.save = createAdminSave();
@@ -186,43 +190,54 @@ async function handleApi(req, res, reqPath) {
 
   const usernameRaw = typeof body.username === 'string' ? body.username.trim() : '';
   const password = typeof body.password === 'string' ? body.password : '';
+  const displayNameRaw = typeof body.displayName === 'string' ? body.displayName.trim() : '';
   const key = usernameRaw.toLowerCase();
 
   if (!usernameRaw || !password) {
-    sendJson(res, 400, { ok: false, error: 'Vyplň prosím jméno hráče i heslo.' });
+    sendJson(res, 400, { ok: false, error: 'Vyplň prosím uživatelské jméno i heslo.' });
     return;
   }
 
   const users = loadUsers();
 
   if (reqPath === '/api/register') {
+    if (!displayNameRaw) {
+      sendJson(res, 400, { ok: false, error: 'Vyplň prosím i své jméno pro oslovování.' });
+      return;
+    }
     if (users[key]) {
-      sendJson(res, 409, { ok: false, error: 'Toto jméno už existuje. Zvol jiné nebo se přihlas.' });
+      sendJson(res, 409, { ok: false, error: 'Toto uživatelské jméno už existuje. Zvol jiné nebo se přihlas.' });
       return;
     }
     const saveState = body.save && typeof body.save === 'object' ? body.save : {};
     users[key] = {
       username: usernameRaw,
+      displayName: displayNameRaw,
       passwordHash: hashPassword(password),
       save: saveState,
       updatedAt: new Date().toISOString()
     };
     saveUsers(users);
-    sendJson(res, 200, { ok: true, username: usernameRaw, save: saveState });
+    sendJson(res, 200, { ok: true, username: usernameRaw, displayName: displayNameRaw, save: saveState });
     return;
   }
 
   if (reqPath === '/api/login') {
     const user = users[key];
     if (!user) {
-      sendJson(res, 404, { ok: false, error: 'Účet s tímto jménem nebyl nalezen.' });
+      sendJson(res, 404, { ok: false, error: 'Účet s tímto uživatelským jménem nebyl nalezen.' });
       return;
     }
     if (!verifyPassword(password, user.passwordHash)) {
       sendJson(res, 401, { ok: false, error: 'Nesprávné heslo.' });
       return;
     }
-    sendJson(res, 200, { ok: true, username: user.username, save: user.save || {} });
+    sendJson(res, 200, {
+      ok: true,
+      username: user.username,
+      displayName: user.displayName || user.username,
+      save: user.save || {}
+    });
     return;
   }
 
@@ -232,10 +247,13 @@ async function handleApi(req, res, reqPath) {
       sendJson(res, 401, { ok: false, error: 'Neplatné přihlášení pro uložení postupu.' });
       return;
     }
+    if (!user.displayName && displayNameRaw) {
+      user.displayName = displayNameRaw;
+    }
     user.save = body.save && typeof body.save === 'object' ? body.save : user.save;
     user.updatedAt = new Date().toISOString();
     saveUsers(users);
-    sendJson(res, 200, { ok: true, username: user.username });
+    sendJson(res, 200, { ok: true, username: user.username, displayName: user.displayName || user.username });
     return;
   }
 
