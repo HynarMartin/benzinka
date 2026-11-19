@@ -8,8 +8,7 @@ Stylová webová time-management hra v češtině zasazená do prostředí česk
 
 Hra je připravena pro okamžité spuštění přímo v prohlížeči přes **GitHub Pages** (statické hostování ze složky repozitáře bez nutnosti backendu):
 
-🔗 **Odkaz na hru:** `https://<tvoje-jmeno>.github.io/benzinka/`  
-*(V adrese nahraď `<tvoje-jmeno>` svým uživatelským jménem na GitHubu podle toho, kam repozitář nahraješ.)*
+🔗 **Odkaz na hru:** `https://hynarmartin.github.io/benzinka/`  
 
 - **Automatické ukládání postupu:** Při hraní přes GitHub Pages se účty a herní postup ukládají lokálně do prohlížeče (`localStorage`).
 - **Hra bez registrace:** Hru lze kdykoli spustit také v režimu hosta bez přihlášení.
