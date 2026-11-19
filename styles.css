@@ -198,9 +198,19 @@ button:disabled {
   padding: 5px 12px;
   margin-bottom: 6px;
   flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   text-align: center;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+}
+
+.map-banner-btn {
+  padding: 5px 12px;
+  font-size: 0.85rem;
 }
 
 .map-canvas-box {
@@ -307,6 +317,105 @@ button:disabled {
   font-weight: 800;
   white-space: nowrap;
   color: var(--ink-brown);
+}
+
+/* World Map - 4 Big Gas Station Cards */
+.map-stage-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: 230px;
+  background: rgba(255, 251, 242, 0.97);
+  border: 2.5px solid var(--border-warm);
+  border-radius: 18px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(78, 54, 41, 0.16);
+  color: var(--ink-brown);
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.map-stage-node:hover:not(.stage-locked) {
+  transform: translate(-50%, -52%) scale(1.03);
+  box-shadow: 0 12px 24px rgba(78, 54, 41, 0.22);
+}
+
+.map-stage-node.stage-active {
+  border-color: var(--terracotta);
+  background: #fff9ec;
+  box-shadow: 0 0 0 4px rgba(217, 107, 82, 0.22), 0 10px 22px rgba(78, 54, 41, 0.18);
+  cursor: pointer;
+}
+
+.map-stage-node.stage-buyable {
+  border-color: var(--sage);
+  background: #f2faef;
+  box-shadow: 0 0 0 4px rgba(107, 163, 104, 0.25), 0 10px 22px rgba(78, 54, 41, 0.18);
+  cursor: pointer;
+}
+
+.map-stage-node.stage-completed {
+  border-color: #93b88f;
+  background: #f5fbf3;
+}
+
+.map-stage-node.stage-admin-unlocked {
+  cursor: pointer;
+}
+
+.map-stage-node.stage-locked {
+  background: #ece5d8;
+  border-color: #c5b9a5;
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+.stage-node-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.stage-node-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--ink-brown);
+}
+
+.stage-node-sub {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+
+.stage-node-stars {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #b7771a;
+}
+
+.stage-node-action {
+  margin-top: 2px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #f5ebd7;
+  color: var(--ink-brown);
+}
+
+.map-stage-node.stage-active .stage-node-action {
+  background: var(--terracotta);
+  color: #ffffff;
+}
+
+.map-stage-node.stage-buyable .stage-node-action {
+  background: var(--sage);
+  color: #ffffff;
 }
 
 .stop-stars {

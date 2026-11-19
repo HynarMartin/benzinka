@@ -61,8 +61,11 @@
   function createDefaultSave() {
     return {
       coins: 0,
+      currentStage: 1,
+      unlockedStage: 1,
       unlockedLevel: 1,
       stars: {},
+      stageStars: {},
       upgrades: {
         pump_unlock: 1,
         wash_unlock: 1,
@@ -111,10 +114,19 @@
   }
 
   function createAdminSave() {
+    const fullStageStars = { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 };
     return {
       coins: 99999,
+      currentStage: 4,
+      unlockedStage: 4,
       unlockedLevel: 8,
-      stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 },
+      stars: Object.assign({}, fullStageStars),
+      stageStars: {
+        1: Object.assign({}, fullStageStars),
+        2: Object.assign({}, fullStageStars),
+        3: Object.assign({}, fullStageStars),
+        4: Object.assign({}, fullStageStars)
+      },
       upgrades: {
         pump_unlock: 3,
         wash_unlock: 2,
@@ -185,10 +197,19 @@
         normLayout.stations[id] = { x: s.x, y: 185 };
       }
     });
+    const rawStage =
+      typeof raw.currentStage === 'number' ? Math.max(1, Math.min(4, Math.round(raw.currentStage))) : def.currentStage;
+    const rawUnlockedStage =
+      typeof raw.unlockedStage === 'number'
+        ? Math.max(rawStage, Math.min(4, Math.round(raw.unlockedStage)))
+        : Math.max(rawStage, def.unlockedStage);
     return {
       coins: typeof raw.coins === 'number' ? raw.coins : def.coins,
+      currentStage: rawStage,
+      unlockedStage: rawUnlockedStage,
       unlockedLevel: typeof raw.unlockedLevel === 'number' ? raw.unlockedLevel : def.unlockedLevel,
       stars: raw.stars && typeof raw.stars === 'object' ? raw.stars : {},
+      stageStars: raw.stageStars && typeof raw.stageStars === 'object' ? Object.assign({}, raw.stageStars) : {},
       upgrades: Object.assign({}, def.upgrades, raw.upgrades || {}),
       staff: Object.assign({}, def.staff, raw.staff || {}),
       staffEnabled: Object.assign({}, def.staffEnabled, raw.staffEnabled || {}),
@@ -210,7 +231,9 @@
 
       this.selectedLevelId = 1;
       this.screen = 'map'; // 'map' | 'game'
+      this.mapViewMode = 'world'; // 'world' | 'stage'
       this.paused = false;
+      this._syncStageLevels();
 
       this.canvas = document.getElementById('station-canvas');
       this.renderer = new window.StationRenderer(this.canvas);
@@ -337,6 +360,13 @@
             rack_sweets_unlock: 2,
             rack_auto_unlock: 2
           });
+          accounts.admin.save.unlockedStage = 4;
+          if (typeof accounts.admin.save.currentStage !== 'number') {
+            accounts.admin.save.currentStage = 4;
+          }
+          if (!accounts.admin.save.stageStars || typeof accounts.admin.save.stageStars !== 'object') {
+            accounts.admin.save.stageStars = createAdminSave().stageStars;
+          }
         }
       }
       return accounts;
@@ -367,6 +397,7 @@
           const data = await res.json();
           if (data && data.ok) {
             this.save = normalizeSave(data.save);
+            this._syncStageLevels();
             this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
             this.renderMap();
             this.updateGlobalHUD();
@@ -378,6 +409,7 @@
           const acc = accounts[this.currentUser.username.toLowerCase()];
           if (acc && acc.password === this.currentUser.password) {
             this.save = normalizeSave(acc.save);
+            this._syncStageLevels();
             this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
             this.renderMap();
             this.updateGlobalHUD();
@@ -389,6 +421,7 @@
       }
 
       this.save = this.loadFallbackSave();
+      this._syncStageLevels();
       this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
       this.renderMap();
       this.updateGlobalHUD();
@@ -530,6 +563,8 @@
       this.isGuest = false;
       this._saveSession({ username, password });
       this.save = normalizeSave(saveObj);
+      this._syncStageLevels();
+      this.mapViewMode = 'world';
       this.selectedLevelId = Math.min(this.save.unlockedLevel, this.data.LEVELS.length);
       document.getElementById('logout-btn').textContent = '🚪 Odhlásit / Účet';
       this.persistSave();
@@ -544,6 +579,8 @@
       this.isGuest = true;
       this._saveSession(null);
       this.save = createDefaultSave();
+      this._syncStageLevels();
+      this.mapViewMode = 'world';
       this.selectedLevelId = 1;
       document.getElementById('logout-btn').textContent = '🔑 Přihlásit se';
       this.closeAuthModal();
@@ -660,6 +697,8 @@
           }
           const isAdmin = this.currentUser && this.currentUser.username.toLowerCase() === 'admin';
           this.save = isAdmin ? createAdminSave() : createDefaultSave();
+          this._syncStageLevels();
+          this.mapViewMode = 'world';
           this.selectedLevelId = isAdmin ? Math.min(this.save.unlockedLevel, this.data.LEVELS.length) : 1;
           this.persistSave();
           this.renderMap();
@@ -766,8 +805,22 @@
       document.getElementById('result-next-btn').addEventListener('click', () => {
         this.audio.playClick();
         document.getElementById('result-modal').classList.add('hidden');
+        this._syncStageLevels();
+        if (this.selectedLevelId >= this.data.LEVELS.length) {
+          const curStage = this.getCurrentStage();
+          const nextStage = this.data.STAGES.find((s) => s.id === curStage.id + 1);
+          if (nextStage && this.save.coins >= nextStage.unlockCost) {
+            this.buyNextStage();
+            this.exitLevelToMap();
+            return;
+          }
+          this.mapViewMode = 'world';
+          this.exitLevelToMap();
+          return;
+        }
         const nextId = Math.min(this.selectedLevelId + 1, this.data.LEVELS.length);
         this.selectedLevelId = nextId;
+        this.mapViewMode = 'stage';
         this.exitLevelToMap();
       });
 
@@ -783,6 +836,8 @@
       document.getElementById('victory-replay-btn').addEventListener('click', () => {
         this.audio.playClick();
         document.getElementById('victory-modal').classList.add('hidden');
+        this.save.currentStage = this.data.STAGES.length;
+        this._syncStageLevels();
         const finalId = this.data.LEVELS[this.data.LEVELS.length - 1].id;
         this.selectedLevelId = finalId;
         this.startLevel(finalId);
@@ -856,9 +911,122 @@
       });
     }
 
+    getCurrentStage() {
+      const stages = this.data && this.data.STAGES ? this.data.STAGES : [];
+      const curId = (this.save && this.save.currentStage) || 1;
+      return stages.find((s) => s.id === curId) || stages[0];
+    }
+
+    _syncStageLevels() {
+      const stage = this.getCurrentStage();
+      if (stage && stage.levels) {
+        this.data.LEVELS = stage.levels;
+      }
+    }
+
+    getUpgradeCap(upgradeId) {
+      const stage = this.getCurrentStage();
+      const lim = (stage && stage.limits) || {
+        maxPumps: 3,
+        allowedUnlocks: ['pump_unlock', 'wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'],
+        maxUpgradeLevel: 4,
+        maxCarryLevel: 3
+      };
+      if (upgradeId === 'pump_unlock') {
+        return lim.allowedUnlocks.includes('pump_unlock') ? Math.min(3, lim.maxPumps || 3) : 1;
+      }
+      if (
+        upgradeId === 'wash_unlock' ||
+        upgradeId === 'rack_sweets_unlock' ||
+        upgradeId === 'fridge_unlock' ||
+        upgradeId === 'grill_unlock' ||
+        upgradeId === 'rack_auto_unlock'
+      ) {
+        return lim.allowedUnlocks.includes(upgradeId) ? 2 : 1;
+      }
+      if (upgradeId === 'carry') {
+        return Math.min(3, lim.maxCarryLevel || 3);
+      }
+      return Math.min(4, lim.maxUpgradeLevel || 4);
+    }
+
+    getStaffCap(staffId) {
+      const stage = this.getCurrentStage();
+      const lim = (stage && stage.limits) || {
+        allowedStaff: ['tonik', 'anicka', 'kuba'],
+        maxStaffLevel: 3
+      };
+      if (!lim.allowedStaff.includes(staffId)) return 0;
+      return Math.min(3, lim.maxStaffLevel || 3);
+    }
+
+    openStageMap(stageId) {
+      const isAdmin = this.currentUser && this.currentUser.username.toLowerCase() === 'admin';
+      const curStageId = (this.save && this.save.currentStage) || 1;
+      if (isAdmin) {
+        this.save.currentStage = stageId;
+        this.save.unlockedStage = 4;
+        this.save.unlockedLevel = 8;
+        const ss = this.save.stageStars && this.save.stageStars[stageId];
+        this.save.stars = ss ? Object.assign({}, ss) : { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 };
+        this._syncStageLevels();
+        this.selectedLevelId = 1;
+        this.mapViewMode = 'stage';
+        this.persistSave();
+        this.renderMap();
+        return;
+      }
+      if (stageId === curStageId) {
+        this._syncStageLevels();
+        this.mapViewMode = 'stage';
+        this.renderMap();
+      }
+    }
+
+    buyNextStage() {
+      const curStage = this.getCurrentStage();
+      const nextStage = this.data.STAGES.find((s) => s.id === curStage.id + 1);
+      if (!nextStage) return false;
+      if ((this.save.stars[8] || 0) < 1) return false;
+      if (this.save.coins < nextStage.unlockCost) return false;
+
+      if (!this.save.stageStars || typeof this.save.stageStars !== 'object') {
+        this.save.stageStars = {};
+      }
+      this.save.stageStars[curStage.id] = Object.assign({}, this.save.stars);
+      this.save.coins -= nextStage.unlockCost;
+      this.save.currentStage = nextStage.id;
+      this.save.unlockedStage = Math.max(this.save.unlockedStage || 1, nextStage.id);
+      this.save.unlockedLevel = 1;
+      this.save.stars = {};
+
+      const fresh = createDefaultSave();
+      this.save.upgrades = fresh.upgrades;
+      this.save.staff = fresh.staff;
+      this.save.staffEnabled = fresh.staffEnabled;
+      this.save.rackStock = null;
+      this.save.layout = createDefaultLayout();
+
+      this.selectedLevelId = 1;
+      this.mapViewMode = 'stage';
+      this._syncStageLevels();
+      this._applySavedLayout();
+      this.audio.playWin();
+      this.persistSave();
+      this.renderMap();
+      return true;
+    }
+
     updateGlobalHUD() {
-      const totalStars = Object.values(this.save.stars).reduce((acc, s) => acc + s, 0);
-      const maxStars = this.data.LEVELS.length * 3;
+      this._syncStageLevels();
+      const curStage = this.getCurrentStage();
+      const stageStarsCount = Object.values(this.save.stars || {}).reduce((acc, s) => acc + s, 0);
+      let allStagesStars = 0;
+      this.data.STAGES.forEach((st) => {
+        const stStars = st.id === curStage.id ? this.save.stars : (this.save.stageStars && this.save.stageStars[st.id]) || {};
+        allStagesStars += Object.values(stStars).reduce((acc, s) => acc + s, 0);
+      });
+      const maxTotalStars = this.data.STAGES.length * 24;
       const userLabel = this.isGuest
         ? 'Host (neukládá se)'
         : this.currentUser
@@ -870,17 +1038,18 @@
         settingsUserEl.textContent = `Aktivní hráč: ${userLabel}`;
       }
       document.getElementById('map-coins').textContent = `${this.save.coins} Kč`;
-      document.getElementById('map-stars').textContent = `${totalStars} / ${maxStars} ⭐`;
+      document.getElementById('map-stars').textContent = `${stageStarsCount} / 24 ⭐ (Celkem ${allStagesStars} / ${maxTotalStars})`;
       document.getElementById('prep-coins').textContent = `${this.save.coins} Kč`;
       const prepBarCoins = document.getElementById('prep-bar-coins');
       if (prepBarCoins) prepBarCoins.textContent = `${this.save.coins} Kč`;
       const objUpgCoins = document.getElementById('obj-upg-coins');
       if (objUpgCoins) objUpgCoins.textContent = `${this.save.coins} Kč`;
 
-      const finalLvl = this.data.LEVELS[this.data.LEVELS.length - 1];
+      const finalStageId = this.data.STAGES[this.data.STAGES.length - 1].id;
       const isGameCompleted =
         Boolean(this.save.stats && this.save.stats.gameCompleted) ||
-        Boolean(finalLvl && (this.save.stars[finalLvl.id] || 0) >= 1);
+        (curStage.id === finalStageId && (this.save.stars[8] || 0) >= 1) ||
+        Boolean(this.save.stageStars && this.save.stageStars[finalStageId] && (this.save.stageStars[finalStageId][8] || 0) >= 1);
       const victoryBadgeBtn = document.getElementById('victory-badge-btn');
       if (victoryBadgeBtn) {
         victoryBadgeBtn.classList.toggle('hidden', !isGameCompleted);
@@ -888,14 +1057,27 @@
     }
 
     renderMap() {
+      this._syncStageLevels();
       this._applySavedLayout();
       this.updateGlobalHUD();
       const svg = document.getElementById('map-road-svg');
       const nodesLayer = document.getElementById('map-nodes-layer');
+      const bannerEl = document.getElementById('map-banner');
       nodesLayer.innerHTML = '';
 
-      const levels = this.data.LEVELS;
-      let pathMarkup = `
+      const curStage = this.getCurrentStage();
+      const curStageId = curStage.id;
+      const nextStage = this.data.STAGES.find((s) => s.id === curStageId + 1) || null;
+      const stage8Done = (this.save.stars[8] || 0) >= 1;
+      const isAdmin = this.currentUser && this.currentUser.username.toLowerCase() === 'admin';
+      const finalStageId = this.data.STAGES[this.data.STAGES.length - 1].id;
+      const isGameCompleted =
+        Boolean(this.save.stats && this.save.stats.gameCompleted) ||
+        (curStageId === finalStageId && (this.save.stars[8] || 0) >= 1) ||
+        Boolean(this.save.stageStars && this.save.stageStars[finalStageId] && (this.save.stageStars[finalStageId][8] || 0) >= 1);
+
+      if (this.mapViewMode === 'world') {
+        let pathMarkup = `
         <defs>
           <linearGradient id="mapSky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#fff4db" />
@@ -909,14 +1091,233 @@
         <ellipse cx="1020" cy="110" rx="135" ry="38" fill="#8cc4d4" opacity="0.8" />
       `;
 
-      const props = [
-        [65, 290, '🌲'], [185, 445, '🌻'], [310, 210, '🍎'], [445, 470, '🌲'],
-        [585, 195, '⛵'], [710, 445, '🏡'], [835, 165, '🍇'], [960, 425, '⛰️'], [1075, 125, '🚨']
-      ];
-      props.forEach(([px, py, emoji]) => {
+        const worldProps = [
+          [65, 290, '🌲'], [185, 445, '🌻'], [310, 210, '🍎'], [445, 470, '🌲'],
+          [585, 195, '⛵'], [710, 445, '🏡'], [835, 165, '🍇'], [960, 425, '⛰️'], [1075, 125, '🚨']
+        ];
+        worldProps.forEach(([px, py, emoji]) => {
+          pathMarkup += `<text x="${px}" y="${py}" font-size="26" text-anchor="middle">${emoji}</text>`;
+        });
+
+        if (bannerEl) {
+          bannerEl.innerHTML =
+            '<span>🗺️ <strong>Hlavní mapa (4 benzínky):</strong> Klikni na svou aktivní benzínku a otevři jejích 8 směn!</span>';
+        }
+
+        const stages = this.data.STAGES;
+        for (let i = 0; i < stages.length - 1; i++) {
+          const a = stages[i];
+          const b = stages[i + 1];
+          const mx = (a.x + b.x) / 2;
+          const my = (a.y + b.y) / 2 + (i % 2 === 0 ? -45 : 45);
+          const segOpen = b.id <= Math.max(curStageId, this.save.unlockedStage || 1);
+
+          pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
+            segOpen ? '#8c7258' : '#b7ab98'
+          }" stroke-width="26" stroke-linecap="round" opacity="${segOpen ? 0.9 : 0.45}" />`;
+
+          pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
+            segOpen ? '#fff5dc' : '#e6decb'
+          }" stroke-width="4" stroke-dasharray="12 10" stroke-linecap="round" />`;
+        }
+
+        const finalStage = stages[stages.length - 1];
+        if (isGameCompleted && finalStage) {
+          pathMarkup += `<text x="${finalStage.x}" y="${Math.max(36, finalStage.y - 82)}" font-size="32" text-anchor="middle">🏆</text>`;
+        }
+
+        svg.innerHTML = pathMarkup;
+
+        stages.forEach((st) => {
+          const isCurrent = st.id === curStageId;
+          const isPrevCompleted = st.id < curStageId;
+          const isBuyable = st.id === curStageId + 1 && stage8Done;
+          const canAfford = this.save.coins >= st.unlockCost;
+          const stStarsObj = isCurrent ? this.save.stars : (this.save.stageStars && this.save.stageStars[st.id]) || {};
+          const stStarsCount = Object.values(stStarsObj).reduce((acc, s) => acc + s, 0);
+
+          const card = document.createElement('button');
+          card.id = `stage-node-${st.id}`;
+          card.type = 'button';
+          let stateCls = 'stage-locked';
+          let actionTxt = `🔒 ${st.unlockCost} Kč (Dokonči 8. směnu)`;
+          if (isCurrent) {
+            stateCls = 'stage-active';
+            actionTxt = '📍 Otevřít 8 směn';
+          } else if (isPrevCompleted) {
+            stateCls = isAdmin ? 'stage-completed stage-admin-unlocked' : 'stage-completed';
+            actionTxt = isAdmin ? '🛠️ Otevřít (Admin)' : '✅ Dokončeno';
+          } else if (isBuyable) {
+            stateCls = 'stage-buyable';
+            actionTxt = `🏢 Koupit (${st.unlockCost} Kč)`;
+          } else if (isAdmin) {
+            stateCls = 'stage-completed stage-admin-unlocked';
+            actionTxt = '🛠️ Otevřít (Admin)';
+          }
+
+          card.className = `map-stage-node ${stateCls}`;
+          card.style.left = `${(st.x / 1150) * 100}%`;
+          card.style.top = `${(st.y / 560) * 100}%`;
+          card.innerHTML = `
+            <div class="stage-node-icon">${st.icon}</div>
+            <div class="stage-node-title">${st.id}. ${st.name}</div>
+            <div class="stage-node-sub">${st.subtitle}</div>
+            <div class="stage-node-stars">⭐ ${stStarsCount} / 24</div>
+            <div class="stage-node-action">${actionTxt}</div>
+          `;
+
+          if (isAdmin || isCurrent) {
+            card.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.audio.playClick();
+              this.openStageMap(st.id);
+            });
+          } else if (isBuyable) {
+            card.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (canAfford) {
+                this.buyNextStage();
+              } else {
+                this.audio.playSad();
+                if (bannerEl) {
+                  bannerEl.innerHTML = `<span>💰 Na koupi <strong>${st.id}. ${st.name}</strong> potřebuješ <strong>${st.unlockCost} Kč</strong> (v pokladně máš ${this.save.coins} Kč).</span>`;
+                }
+              }
+            });
+          } else {
+            card.title = 'Dokonči předchozí benzínku (všech 8 směn).';
+          }
+
+          nodesLayer.appendChild(card);
+        });
+        return;
+      }
+
+      // Sub-map ('stage'): 8 levels of the active gas station with location-specific backdrop
+      const stageMapThemes = {
+        1: {
+          skyTop: '#fff4db',
+          skyBot: '#e5ebd3',
+          backdrop: `
+            <path d="M0,180 Q280,120 580,165 T1150,150 L1150,560 L0,560 Z" fill="#d7e4c2" opacity="0.78" />
+            <path d="M0,340 Q320,290 660,335 T1150,310 L1150,560 L0,560 Z" fill="#c7d8b0" opacity="0.72" />
+            <ellipse cx="520" cy="145" rx="95" ry="26" fill="#9fd0db" opacity="0.75" />
+            <ellipse cx="970" cy="455" rx="110" ry="30" fill="#a4d3de" opacity="0.65" />
+          `,
+          props: [
+            [70, 290, '🏡'], [185, 445, '🌻'], [320, 195, '🍎'], [465, 470, '🌾'],
+            [610, 190, '🏡'], [755, 445, '🌻'], [885, 165, '🌾'], [1045, 360, '🌲']
+          ],
+          roadOpen: '#8c7258',
+          roadClosed: '#b7ab98',
+          dashOpen: '#fff5dc',
+          dashClosed: '#e6decb'
+        },
+        2: {
+          skyTop: '#e8eef2',
+          skyBot: '#cfd8dc',
+          backdrop: `
+            <rect x="0" y="210" width="1150" height="350" fill="#d8dee2" opacity="0.7" />
+            <rect x="45" y="130" width="180" height="90" rx="8" fill="#b4c0c9" opacity="0.55" />
+            <rect x="260" y="105" width="210" height="115" rx="8" fill="#a2b0ba" opacity="0.55" />
+            <rect x="520" y="135" width="220" height="95" rx="8" fill="#b0bdc7" opacity="0.55" />
+            <rect x="795" y="110" width="260" height="110" rx="8" fill="#9fb0bc" opacity="0.55" />
+            <rect x="130" y="340" width="220" height="150" rx="18" fill="#b9cfab" opacity="0.55" />
+            <rect x="740" y="355" width="250" height="145" rx="18" fill="#b9cfab" opacity="0.55" />
+          `,
+          props: [
+            [80, 165, '🏙️'], [215, 465, '🏢'], [345, 175, '🏛️'], [515, 465, '🚦'],
+            [635, 165, '🌳'], [790, 465, '🏬'], [920, 165, '🏙️'], [1055, 455, '🚦']
+          ],
+          roadOpen: '#545961',
+          roadClosed: '#9da3aa',
+          dashOpen: '#ffffff',
+          dashClosed: '#e2e6ea'
+        },
+        3: {
+          skyTop: '#dce7ee',
+          skyBot: '#c3d1c6',
+          backdrop: `
+            <polygon points="0,210 135,85 280,200 450,70 650,205 835,82 1015,195 1150,105 1150,245 0,245" fill="#94a5b2" opacity="0.72" />
+            <polygon points="135,85 102,120 135,112 168,120" fill="#ffffff" opacity="0.72" />
+            <polygon points="450,70 412,110 450,100 488,110" fill="#ffffff" opacity="0.72" />
+            <polygon points="835,82 802,118 835,108 868,118" fill="#ffffff" opacity="0.72" />
+            <path d="M0,255 Q290,210 610,248 T1150,235 L1150,560 L0,560 Z" fill="#89a38b" opacity="0.65" />
+          `,
+          props: [
+            [75, 195, '⛰️'], [185, 455, '🌲'], [315, 175, '🌲'], [465, 470, '🚛'],
+            [610, 180, '⛰️'], [765, 450, '🏭'], [910, 165, '⚠️'], [1065, 435, '🌲']
+          ],
+          roadOpen: '#4b4e54',
+          roadClosed: '#96999e',
+          dashOpen: '#f2c14e',
+          dashClosed: '#ded7be'
+        },
+        4: {
+          skyTop: '#d8e8f2',
+          skyBot: '#c7d5e0',
+          backdrop: `
+            <rect x="0" y="210" width="1150" height="350" fill="#cfd9e0" opacity="0.65" />
+            <path d="M0,185 L1150,185 L1150,220 L0,220 Z" fill="#8fb3bd" opacity="0.55" />
+            <rect x="0" y="220" width="1150" height="8" fill="#2a9d8f" opacity="0.6" />
+            <rect x="80" y="95" width="990" height="18" rx="6" fill="#3a4c57" opacity="0.28" />
+          `,
+          props: [
+            [75, 170, '🛣️'], [200, 460, '🚛'], [350, 170, '🏙️'], [490, 465, '🚌'],
+            [640, 170, '⛽'], [785, 460, '🚛'], [915, 170, '🛣️'], [1065, 445, '🚨']
+          ],
+          roadOpen: '#39414a',
+          roadClosed: '#8d969e',
+          dashOpen: '#ffffff',
+          dashClosed: '#dde3e8',
+          edgeAccent: '#2a9d8f'
+        }
+      };
+      const smTheme = stageMapThemes[curStageId] || stageMapThemes[1];
+      let pathMarkup = `
+        <defs>
+          <linearGradient id="mapSkyStage" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${smTheme.skyTop}" />
+            <stop offset="100%" stop-color="${smTheme.skyBot}" />
+          </linearGradient>
+        </defs>
+        <rect width="1150" height="560" fill="url(#mapSkyStage)" rx="22" />
+        ${smTheme.backdrop}
+      `;
+      smTheme.props.forEach(([px, py, emoji]) => {
         pathMarkup += `<text x="${px}" y="${py}" font-size="26" text-anchor="middle">${emoji}</text>`;
       });
 
+      if (bannerEl) {
+        const buyBtnHtml =
+          stage8Done && nextStage
+            ? `<button id="buy-next-stage-banner-btn" type="button" class="btn-start map-banner-btn" ${
+                this.save.coins < nextStage.unlockCost ? 'disabled' : ''
+              }>🏢 Koupit: ${nextStage.name} (${nextStage.unlockCost} Kč)</button>`
+            : '';
+        bannerEl.innerHTML = `
+          <button id="back-to-world-map-btn" type="button" class="btn-soft map-banner-btn">⬅️ Hlavní mapa (4 benzínky)</button>
+          <span>${curStage.icon} <strong>${curStage.id}. ${curStage.name}</strong> – Vyber směnu (1–8)</span>
+          ${buyBtnHtml}
+        `;
+        const backBtn = document.getElementById('back-to-world-map-btn');
+        if (backBtn) {
+          backBtn.addEventListener('click', () => {
+            this.audio.playClick();
+            this.mapViewMode = 'world';
+            this.renderMap();
+          });
+        }
+        const buyNextBtn = document.getElementById('buy-next-stage-banner-btn');
+        if (buyNextBtn) {
+          buyNextBtn.addEventListener('click', () => {
+            this.audio.playClick();
+            this.buyNextStage();
+          });
+        }
+      }
+
+      const levels = curStage.levels;
       for (let i = 0; i < levels.length - 1; i++) {
         const a = levels[i];
         const b = levels[i + 1];
@@ -924,20 +1325,21 @@
         const my = (a.y + b.y) / 2 + (i % 2 === 0 ? -38 : 38);
         const unlockedSegment = b.id <= this.save.unlockedLevel;
 
-        pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
-          unlockedSegment ? '#8c7258' : '#b7ab98'
-        }" stroke-width="24" stroke-linecap="round" opacity="${unlockedSegment ? 0.9 : 0.45}" />`;
+        if (smTheme.edgeAccent) {
+          pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${smTheme.edgeAccent}" stroke-width="32" stroke-linecap="round" opacity="${unlockedSegment ? 0.55 : 0.25}" />`;
+        }
 
         pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
-          unlockedSegment ? '#fff5dc' : '#e6decb'
+          unlockedSegment ? smTheme.roadOpen : smTheme.roadClosed
+        }" stroke-width="24" stroke-linecap="round" opacity="${unlockedSegment ? 0.92 : 0.45}" />`;
+
+        pathMarkup += `<path d="M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}" fill="none" stroke="${
+          unlockedSegment ? smTheme.dashOpen : smTheme.dashClosed
         }" stroke-width="3.5" stroke-dasharray="10 10" stroke-linecap="round" />`;
       }
 
       const finalLvl = levels[levels.length - 1];
-      const isGameCompleted =
-        Boolean(this.save.stats && this.save.stats.gameCompleted) ||
-        Boolean(finalLvl && (this.save.stars[finalLvl.id] || 0) >= 1);
-      if (isGameCompleted && finalLvl) {
+      if (isGameCompleted && curStageId === finalStageId && finalLvl) {
         pathMarkup += `<text x="${finalLvl.x}" y="${Math.max(36, finalLvl.y - 44)}" font-size="30" text-anchor="middle">🏆</text>`;
       }
 
@@ -1371,9 +1773,10 @@
       if (target.targetType === 'staff' && target.staffId) {
         const st = this.data.STAFF.find((s) => s.id === target.staffId);
         if (!st) return;
-        const curLvl = this.save.staff[st.id] || 0;
+        const staffCap = this.getStaffCap(st.id);
+        const curLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
         const isHired = curLvl > 0;
-        const isMax = curLvl >= st.maxLevel;
+        const isMax = staffCap === 0 || curLvl >= staffCap;
         const nextCost = !isHired ? st.hireCost : isMax ? null : st.upgradeCosts[curLvl - 1];
         const canAfford = nextCost !== null && this.save.coins >= nextCost;
         const isEnabled = this.save.staffEnabled[st.id] !== false;
@@ -1383,11 +1786,11 @@
         descEl.textContent = st.description;
 
         let pips = '';
-        for (let i = 1; i <= st.maxLevel; i++) {
+        for (let i = 1; i <= staffCap; i++) {
           pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
         }
         pipsEl.innerHTML = `${pips} <span class="lvl-text">${
-          isHired ? `Úr. ${curLvl}/${st.maxLevel}` : 'Nenajatý'
+          isHired ? `Úr. ${curLvl}/${staffCap}` : 'Nenajatý'
         }</span>`;
 
         const row = document.createElement('div');
@@ -1400,7 +1803,9 @@
         buyBtn.textContent = !isHired
           ? `Najmout (${nextCost} Kč)`
           : isMax
-          ? '✨ Zkušený mistr'
+          ? staffCap < st.maxLevel
+            ? `✨ Max v této benzínce (${curLvl}/${staffCap})`
+            : '✨ Zkušený mistr'
           : `Vylepšit – zrychlit (${nextCost} Kč)`;
         if (!isMax) {
           buyBtn.addEventListener('click', () => {
@@ -1439,8 +1844,10 @@
         upgIds.forEach((uid) => {
           const u = this.data.UPGRADES.find((x) => x.id === uid);
           if (!u) return;
-          totalBought += Math.max(0, (this.save.upgrades[u.id] || 1) - 1);
-          totalMax += Math.max(1, u.maxLevel - 1);
+          const capLvl = this.getUpgradeCap(u.id);
+          const effLvl = Math.min(capLvl, this.save.upgrades[u.id] || 1);
+          totalBought += Math.max(0, effLvl - 1);
+          totalMax += Math.max(1, capLvl - 1);
         });
 
         iconEl.textContent = target.icon || firstUpg.icon;
@@ -1516,13 +1923,14 @@
         upgIds.forEach((uid) => {
           const upg = this.data.UPGRADES.find((u) => u.id === uid);
           if (!upg) return;
-          const curLvl = this.save.upgrades[upg.id] || 1;
-          const isMax = curLvl >= upg.maxLevel;
+          const capLvl = this.getUpgradeCap(upg.id);
+          const curLvl = Math.min(capLvl, this.save.upgrades[upg.id] || 1);
+          const isMax = curLvl >= capLvl;
           const nextCost = isMax ? null : upg.costs[curLvl - 1];
           const canAfford = nextCost !== null && this.save.coins >= nextCost;
 
           let pips = '';
-          for (let i = 1; i <= upg.maxLevel; i++) {
+          for (let i = 1; i <= capLvl; i++) {
             pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
           }
 
@@ -1533,12 +1941,12 @@
               <span class="prep-icon">${upg.icon}</span>
               <div>
                 <h4>${upg.name}</h4>
-                <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${upg.maxLevel}</span></div>
+                <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${capLvl}</span></div>
               </div>
             </div>
             <p class="prep-desc">${upg.description}</p>
             <button type="button" class="btn-buy" data-upgrade="${upg.id}" ${isMax || !canAfford ? 'disabled' : ''}>
-              ${isMax ? '✨ Na maximu' : `Vylepšit (${nextCost} Kč)`}
+              ${isMax ? (capLvl < upg.maxLevel ? '✨ Max v této benzínce' : '✨ Na maximu') : `Vylepšit (${nextCost} Kč)`}
             </button>
           `;
           const buyBtn = card.querySelector('.btn-buy');
@@ -1554,23 +1962,36 @@
       modal.classList.remove('hidden');
     }
 
+    _getEffectiveUpgrade(upgradeId) {
+      const raw = (this.save && this.save.upgrades && this.save.upgrades[upgradeId]) || 1;
+      return Math.min(raw, this.getUpgradeCap(upgradeId));
+    }
+
     _isStationUnlocked(stationId) {
       const upgs = (this.save && this.save.upgrades) || {};
       if (stationId === 'pump_0') return true;
-      if (stationId === 'pump_1') return (upgs.pump_unlock || 1) >= 2;
-      if (stationId === 'pump_2') return (upgs.pump_unlock || 1) >= 3;
-      if (stationId === 'bucket') return (upgs.wash_unlock || 1) >= 2;
+      if (stationId === 'pump_1') return this.getUpgradeCap('pump_unlock') >= 2 && (upgs.pump_unlock || 1) >= 2;
+      if (stationId === 'pump_2') return this.getUpgradeCap('pump_unlock') >= 3 && (upgs.pump_unlock || 1) >= 3;
+      if (stationId === 'pump_3') {
+        const stg = this.getCurrentStage();
+        return Boolean(stg && stg.limits && stg.limits.hasHeavyPump);
+      }
+      if (stationId === 'bucket') return this.getUpgradeCap('wash_unlock') >= 2 && (upgs.wash_unlock || 1) >= 2;
       if (stationId === 'coffee') return true;
-      if (stationId === 'grill') return (upgs.grill_unlock || 1) >= 2;
-      if (stationId === 'fridge') return (upgs.fridge_unlock || 1) >= 2;
+      if (stationId === 'grill') return this.getUpgradeCap('grill_unlock') >= 2 && (upgs.grill_unlock || 1) >= 2;
+      if (stationId === 'fridge') return this.getUpgradeCap('fridge_unlock') >= 2 && (upgs.fridge_unlock || 1) >= 2;
       return true;
     }
 
     _isRackUnlocked(rackId) {
       const upgs = (this.save && this.save.upgrades) || {};
       if (rackId === 'rack_snacks') return true;
-      if (rackId === 'rack_sweets') return (upgs.rack_sweets_unlock || 1) >= 2;
-      if (rackId === 'rack_auto') return (upgs.rack_auto_unlock || 1) >= 2;
+      if (rackId === 'rack_sweets') {
+        return this.getUpgradeCap('rack_sweets_unlock') >= 2 && (upgs.rack_sweets_unlock || 1) >= 2;
+      }
+      if (rackId === 'rack_auto') {
+        return this.getUpgradeCap('rack_auto_unlock') >= 2 && (upgs.rack_auto_unlock || 1) >= 2;
+      }
       return true;
     }
 
@@ -1593,8 +2014,11 @@
     }
 
     renderPrepModal() {
+      this._syncStageLevels();
+      const curStage = this.getCurrentStage();
       const level = this.data.LEVELS.find((l) => l.id === this.selectedLevelId) || this.data.LEVELS[0];
-      document.getElementById('prep-level-title').textContent = `🛒 Nakupovat – ${level.id}. ${level.name}`;
+      document.getElementById('prep-level-title').textContent =
+        `🛒 Nakupovat – ${curStage.name} (${level.id}. ${level.name})`;
       document.getElementById('prep-level-subtitle').textContent =
         'Dokup si další tankovací stojany, prodejní regály, vybavení bistra nebo najmi zaměstnance. Vylepšení kupuješ kliknutím přímo na věci a postavičky v benzínce!';
       document.getElementById('prep-level-meta').textContent =
@@ -1605,13 +2029,16 @@
       staffGrid.innerHTML = '';
 
       this.data.STAFF.forEach((st) => {
-        const curLvl = this.save.staff[st.id] || 0;
-        const isHired = curLvl > 0;
-        const canAffordHire = !isHired && this.save.coins >= st.hireCost;
+        const staffCap = this.getStaffCap(st.id);
+        const curLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
+        const isStageLocked = staffCap === 0;
+        const isHired = !isStageLocked && curLvl > 0;
+        const canAffordHire = !isStageLocked && !isHired && this.save.coins >= st.hireCost;
         const isEnabled = this.save.staffEnabled[st.id] !== false;
 
         let pips = '';
-        for (let i = 1; i <= st.maxLevel; i++) {
+        const pipTotal = Math.max(1, staffCap || st.maxLevel);
+        for (let i = 1; i <= pipTotal; i++) {
           pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
         }
 
@@ -1622,14 +2049,16 @@
             <span class="prep-icon">${st.icon}</span>
             <div>
               <h4>${st.name}</h4>
-              <div class="lvl-pips">${pips} <span class="lvl-text">${
-                isHired ? `Úr. ${curLvl}/${st.maxLevel}` : 'Zatím nenajatý'
-              }</span></div>
+              <div class="lvl-pips">${isStageLocked ? '<span class="lvl-text">🔒 Až u větší benzínky</span>' : `${pips} <span class="lvl-text">${
+                isHired ? `Úr. ${curLvl}/${staffCap}` : 'Zatím nenajatý'
+              }</span>`}</div>
             </div>
           </div>
           <p class="prep-desc">${st.description}</p>
           ${
-            !isHired
+            isStageLocked
+              ? `<button type="button" class="btn-buy" disabled>🔒 Nedostupné v této benzínce</button>`
+              : !isHired
               ? `<div class="staff-actions">
                   <button type="button" class="btn-buy" data-staff="${st.id}" ${!canAffordHire ? 'disabled' : ''}>
                     Najmout (${st.hireCost} Kč)
@@ -1645,7 +2074,7 @@
         `;
 
         const buyBtn = card.querySelector('.btn-buy');
-        if (buyBtn && !isHired) {
+        if (buyBtn && !isHired && !isStageLocked) {
           buyBtn.addEventListener('click', () => this.hireOrUpgradeStaff(st.id));
         }
         const toggleBtn = card.querySelector('.btn-toggle');
@@ -1667,11 +2096,12 @@
 
       const pumpUnlockUpg = this.data.UPGRADES.find((u) => u.id === 'pump_unlock');
       if (pumpUnlockUpg) {
-        const curLvl = this.save.upgrades.pump_unlock || 1;
-        const maxLvl = pumpUnlockUpg.maxLevel;
+        const maxLvl = this.getUpgradeCap('pump_unlock');
+        const curLvl = Math.min(maxLvl, this.save.upgrades.pump_unlock || 1);
         const pumpIsMax = curLvl >= maxLvl;
         const buyPumpCost = pumpIsMax ? null : pumpUnlockUpg.costs[curLvl - 1];
         const canBuyPump = !pumpIsMax && this.save.coins >= buyPumpCost;
+        const hasHeavyPump = Boolean(curStage.limits && curStage.limits.hasHeavyPump);
 
         const pumpCard = document.createElement('div');
         pumpCard.className = `prep-card ${pumpIsMax ? 'hired-card' : ''}`;
@@ -1681,7 +2111,13 @@
             <div>
               <h4>${pumpUnlockUpg.name}</h4>
               <div class="lvl-pips"><span class="lvl-text">${
-                pumpIsMax ? '✅ Všechny 3 stojany postaveny' : `Postaveno: ${curLvl}/3 stojanů`
+                hasHeavyPump
+                  ? pumpIsMax
+                    ? `✅ Postaveno: ${curLvl}/${maxLvl} + Stojan 4`
+                    : `Postaveno: ${curLvl}/${maxLvl} + Stojan 4`
+                  : pumpIsMax
+                  ? `✅ Postaveno maximum (${curLvl}/${maxLvl})`
+                  : `Postaveno: ${curLvl}/${maxLvl} stojanů`
               }</span></div>
             </div>
           </div>
@@ -1691,7 +2127,7 @@
               ? `<button type="button" class="btn-buy" data-upgrade="pump_unlock" ${!canBuyPump ? 'disabled' : ''}>
                   Koupit ${curLvl + 1}. stojan (${buyPumpCost} Kč)
                 </button>`
-              : `<p class="obj-upg-note">✅ Všechny 3 stojany jsou v benzínce! Rychlost a cenu paliva vylepšíš kliknutím na stojan.</p>`
+              : `<p class="obj-upg-note">✅ Všechny povolené stojany pro tuto benzínku (${maxLvl}) jsou postaveny!</p>`
           }
         `;
         const buyPumpBtn = pumpCard.querySelector('.btn-buy');
@@ -1704,9 +2140,11 @@
       ['wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'].forEach((unlockId) => {
         const upg = this.data.UPGRADES.find((u) => u.id === unlockId);
         if (!upg) return;
-        const unlocked = (this.save.upgrades[upg.id] || 1) >= 2;
+        const capLvl = this.getUpgradeCap(upg.id);
+        const isStageLocked = capLvl <= 1;
+        const unlocked = !isStageLocked && (this.save.upgrades[upg.id] || 1) >= 2;
         const buyCost = upg.costs[0];
-        const canBuy = !unlocked && this.save.coins >= buyCost;
+        const canBuy = !isStageLocked && !unlocked && this.save.coins >= buyCost;
 
         const card = document.createElement('div');
         card.className = `prep-card ${unlocked ? 'hired-card' : ''}`;
@@ -1716,13 +2154,15 @@
             <div>
               <h4>${upg.name}</h4>
               <div class="lvl-pips"><span class="lvl-text">${
-                unlocked ? '✅ Postaveno v benzínce' : 'Zatím nekoupeno'
+                isStageLocked ? '🔒 Až u větší benzínky' : unlocked ? '✅ Postaveno v benzínce' : 'Zatím nekoupeno'
               }</span></div>
             </div>
           </div>
           <p class="prep-desc">${upg.description}</p>
           ${
-            !unlocked
+            isStageLocked
+              ? `<button type="button" class="btn-buy" disabled>🔒 Nedostupné v této benzínce</button>`
+              : !unlocked
               ? `<button type="button" class="btn-buy" data-upgrade="${upg.id}" ${!canBuy ? 'disabled' : ''}>
                   Koupit (${buyCost} Kč)
                 </button>`
@@ -1730,7 +2170,7 @@
           }
         `;
         const buyBtn = card.querySelector('.btn-buy');
-        if (buyBtn && !unlocked) {
+        if (buyBtn && !unlocked && !isStageLocked) {
           const startPlacement = Boolean(this.levelState && this.levelState.prepMode);
           buyBtn.addEventListener('click', () => this.buyUpgrade(upg.id, { startPlacement }));
         }
@@ -1739,12 +2179,13 @@
 
       const decorUpg = this.data.UPGRADES.find((u) => u.id === 'decor');
       if (decorUpg) {
-        const curLvl = this.save.upgrades.decor || 1;
-        const isMax = curLvl >= decorUpg.maxLevel;
+        const capLvl = this.getUpgradeCap('decor');
+        const curLvl = Math.min(capLvl, this.save.upgrades.decor || 1);
+        const isMax = curLvl >= capLvl;
         const nextCost = isMax ? null : decorUpg.costs[curLvl - 1];
         const canAfford = nextCost !== null && this.save.coins >= nextCost;
         let pips = '';
-        for (let i = 1; i <= decorUpg.maxLevel; i++) {
+        for (let i = 1; i <= capLvl; i++) {
           pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
         }
         const decorCard = document.createElement('div');
@@ -1754,12 +2195,12 @@
             <span class="prep-icon">${decorUpg.icon}</span>
             <div>
               <h4>${decorUpg.name}</h4>
-              <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${decorUpg.maxLevel}</span></div>
+              <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${capLvl}</span></div>
             </div>
           </div>
           <p class="prep-desc">${decorUpg.description}</p>
           <button type="button" class="btn-buy" data-upgrade="decor" ${isMax || !canAfford ? 'disabled' : ''}>
-            ${isMax ? '✨ Na maximu' : `Koupit / vylepšit (${nextCost} Kč)`}
+            ${isMax ? (capLvl < decorUpg.maxLevel ? '✨ Max v této benzínce' : '✨ Na maximu') : `Koupit / vylepšit (${nextCost} Kč)`}
           </button>
         `;
         const decorBtn = decorCard.querySelector('.btn-buy');
@@ -1786,14 +2227,16 @@
     }
 
     _syncPrepState() {
+      this._syncStageLevels();
       this._applySavedLayout();
       this.updateGlobalHUD();
       if (this.levelState) {
-        const shoesLvl = this.save.upgrades.shoes || 1;
-        const carryLvl = this.save.upgrades.carry || 1;
+        this.levelState.stageLimits = this.getCurrentStage().limits;
+        const shoesLvl = this._getEffectiveUpgrade('shoes');
+        const carryLvl = this._getEffectiveUpgrade('carry');
         const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
         const maxCarry = 1 + carryLvl;
-        const racksLvl = this.save.upgrades.racks || 1;
+        const racksLvl = this._getEffectiveUpgrade('racks');
         const maxRackStock = 2 + racksLvl * 2;
         const prevById = {};
         (this.levelState.racks || []).forEach((r) => {
@@ -1825,11 +2268,12 @@
             w.speed = playerSpeed;
             w.maxCarry = maxCarry;
           } else {
-            const staffLvl = this.save.staff[w.id] || 0;
+            const staffCap = this.getStaffCap(w.id);
+            const staffLvl = Math.min(staffCap, this.save.staff[w.id] || 0);
             const enabled = this.save.staffEnabled[w.id] !== false;
             w.level = staffLvl;
             w.speed = staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185;
-            w.active = this.levelState.prepMode ? staffLvl > 0 : staffLvl > 0 && enabled;
+            w.active = staffCap > 0 && (this.levelState.prepMode ? staffLvl > 0 : staffLvl > 0 && enabled);
           }
         });
       }
@@ -1843,8 +2287,9 @@
     buyUpgrade(upgradeId, options) {
       const upg = this.data.UPGRADES.find((u) => u.id === upgradeId);
       if (!upg) return;
+      const capLvl = this.getUpgradeCap(upgradeId);
       const curLvl = this.save.upgrades[upgradeId] || 1;
-      if (curLvl >= upg.maxLevel) return;
+      if (curLvl >= capLvl) return;
       const cost = upg.costs[curLvl - 1];
       if (this.save.coins < cost) return;
 
@@ -1885,8 +2330,9 @@
     hireOrUpgradeStaff(staffId) {
       const st = this.data.STAFF.find((s) => s.id === staffId);
       if (!st) return;
+      const staffCap = this.getStaffCap(staffId);
       const curLvl = this.save.staff[staffId] || 0;
-      if (curLvl >= st.maxLevel) return;
+      if (curLvl >= staffCap) return;
       const cost = curLvl === 0 ? st.hireCost : st.upgradeCosts[curLvl - 1];
       if (this.save.coins < cost) return;
 
@@ -1911,13 +2357,14 @@
     }
 
     _createLevelEntities(prepMode) {
+      this._syncStageLevels();
       this._applySavedLayout();
-      const shoesLvl = this.save.upgrades.shoes || 1;
-      const carryLvl = this.save.upgrades.carry || 1;
+      const shoesLvl = this._getEffectiveUpgrade('shoes');
+      const carryLvl = this._getEffectiveUpgrade('carry');
       const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
       const maxCarry = 1 + carryLvl;
 
-      const racksLvl = this.save.upgrades.racks || 1;
+      const racksLvl = this._getEffectiveUpgrade('racks');
       const maxRackStock = 2 + racksLvl * 2;
       const savedRacks = this.save.rackStock && typeof this.save.rackStock === 'object' ? this.save.rackStock : null;
       const racks = Object.values(this.data.RACKS)
@@ -1960,7 +2407,8 @@
       };
 
       this.data.STAFF.forEach((st, idx) => {
-        const staffLvl = this.save.staff[st.id] || 0;
+        const staffCap = this.getStaffCap(st.id);
+        const staffLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
         const enabled = this.save.staffEnabled[st.id] !== false;
         const startPos = staffStartPositions[st.id] || { x: 580, y: 335 };
         workers.push({
@@ -1982,7 +2430,7 @@
           actionTimer: 0,
           actionDuration: 0,
           moving: false,
-          active: prepMode ? staffLvl > 0 : staffLvl > 0 && enabled,
+          active: staffCap > 0 && (prepMode ? staffLvl > 0 : staffLvl > 0 && enabled),
           seed: idx + 1.7
         });
       });
@@ -2011,6 +2459,8 @@
     }
 
     enterPrepMode(levelId) {
+      this._syncStageLevels();
+      const curStage = this.getCurrentStage();
       const level = this.data.LEVELS.find((l) => l.id === levelId) || this.data.LEVELS[0];
       this.selectedLevelId = level.id;
       this.screen = 'game';
@@ -2023,7 +2473,7 @@
       document.getElementById('prep-topbar').classList.remove('hidden');
       document.getElementById('shift-topbar').classList.add('hidden');
 
-      document.getElementById('prep-bar-title').textContent = `${level.id}. ${level.name}`;
+      document.getElementById('prep-bar-title').textContent = `${curStage.name} · ${level.id}. ${level.name}`;
       document.getElementById('prep-bar-sub').textContent =
         `Zákazníků: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
       document.getElementById('game-tip-bar').innerHTML =
@@ -2033,6 +2483,8 @@
 
       this.levelState = {
         level,
+        stageId: curStage.id,
+        stageLimits: curStage.limits,
         save: this.save,
         prepMode: true,
         placementMode: null,
@@ -2064,6 +2516,8 @@
     }
 
     startLevel(levelId) {
+      this._syncStageLevels();
+      const curStage = this.getCurrentStage();
       const level = this.data.LEVELS.find((l) => l.id === levelId) || this.data.LEVELS[0];
       this.selectedLevelId = level.id;
       this.screen = 'game';
@@ -2084,6 +2538,8 @@
 
       this.levelState = {
         level,
+        stageId: curStage.id,
+        stageLimits: curStage.limits,
         save: this.save,
         prepMode: false,
         placementMode: null,
@@ -2228,6 +2684,13 @@
             desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu:',
             hint: '⛽ Klikni pro vylepšení rychlosti a ceny paliva'
           },
+          pump_3: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '🚛',
+            title: 'Stojan 4',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu pro všechny stojany:',
+            hint: '🚛 Klikni pro vylepšení rychlosti a ceny paliva (Stojan 4)'
+          },
           coffee: {
             upgradeIds: ['coffee', 'coffee_price'],
             placementKind: 'station',
@@ -2309,12 +2772,16 @@
       for (let i = state.cars.length - 1; i >= 0; i--) {
         const car = state.cars[i];
         if (car.state === 'waiting') {
-          if (Math.abs(x - car.x) <= 64 && y >= car.y - 88 && y <= car.y + 34) {
+          const halfW = car.isHeavy ? 76 : 64;
+          if (Math.abs(x - car.x) <= halfW && y >= car.y - 88 && y <= car.y + 34) {
             return {
               kind: 'car',
               id: car.id,
               obj: car,
-              hint: `🚗 Auto u stojanu ${car.pumpIndex + 1} (${this._describeOrders(car.orders)})`
+              hint:
+                car.pumpIndex === 3
+                  ? `🚛 Velké vozidlo u Stojanu 4 (${this._describeOrders(car.orders)})`
+                  : `🚗 Auto u stojanu ${car.pumpIndex + 1} (${this._describeOrders(car.orders)})`
             };
           }
         }
@@ -3025,12 +3492,12 @@
     _getPrepDuration(itemId, worker) {
       const base = this.data.ITEMS[itemId].prepTime;
       let upgLevel = 1;
-      if (itemId === 'fuel') upgLevel = this.save.upgrades.pumps || 1;
-      else if (itemId === 'coffee') upgLevel = this.save.upgrades.coffee || 1;
-      else if (itemId === 'snack') upgLevel = this.save.upgrades.grill || 1;
-      else if (itemId === 'wash') upgLevel = this.save.upgrades.wash || 1;
-      else if (itemId === 'drink') upgLevel = this.save.upgrades.drink_speed || 1;
-      else if (itemId === 'crate') upgLevel = this.save.upgrades.racks || 1;
+      if (itemId === 'fuel') upgLevel = this._getEffectiveUpgrade('pumps');
+      else if (itemId === 'coffee') upgLevel = this._getEffectiveUpgrade('coffee');
+      else if (itemId === 'snack') upgLevel = this._getEffectiveUpgrade('grill');
+      else if (itemId === 'wash') upgLevel = this._getEffectiveUpgrade('wash');
+      else if (itemId === 'drink') upgLevel = this._getEffectiveUpgrade('drink_speed');
+      else if (itemId === 'crate') upgLevel = this._getEffectiveUpgrade('racks');
 
       const upgFactor = 1 + (upgLevel - 1) * 0.3;
       const staffFactor = this._getStaffSpeedMultiplier(worker);
@@ -3040,12 +3507,12 @@
     _getItemPrice(itemId) {
       const item = this.data.ITEMS[itemId];
       let bonus = 0;
-      if (itemId === 'coffee') bonus = ((this.save.upgrades.coffee_price || 1) - 1) * 1;
-      else if (itemId === 'snack') bonus = ((this.save.upgrades.grill_price || 1) - 1) * 1;
-      else if (itemId === 'wash') bonus = ((this.save.upgrades.wash_price || 1) - 1) * 1;
-      else if (itemId === 'drink') bonus = ((this.save.upgrades.drink_price || 1) - 1) * 1;
-      else if (itemId === 'fuel') bonus = ((this.save.upgrades.pumps_price || 1) - 1) * 1;
-      else if (item.isRackItem) bonus = ((this.save.upgrades.racks_price || 1) - 1) * 1;
+      if (itemId === 'coffee') bonus = (this._getEffectiveUpgrade('coffee_price') - 1) * 1;
+      else if (itemId === 'snack') bonus = (this._getEffectiveUpgrade('grill_price') - 1) * 1;
+      else if (itemId === 'wash') bonus = (this._getEffectiveUpgrade('wash_price') - 1) * 1;
+      else if (itemId === 'drink') bonus = (this._getEffectiveUpgrade('drink_price') - 1) * 1;
+      else if (itemId === 'fuel') bonus = (this._getEffectiveUpgrade('pumps_price') - 1) * 1;
+      else if (item.isRackItem) bonus = (this._getEffectiveUpgrade('racks_price') - 1) * 1;
       return item.basePrice + bonus;
     }
 
@@ -3095,12 +3562,17 @@
     _trySpawnVisitor() {
       const state = this.levelState;
       const lvl = state.level;
-      const maxPumps = Math.min(3, Math.max(1, this.save.upgrades.pump_unlock || 1));
+      const stage = this.getCurrentStage();
+      const stageMaxPumps = (stage.limits && stage.limits.maxPumps) || 3;
+      const maxPumps = Math.min(stageMaxPumps, Math.max(1, this.save.upgrades.pump_unlock || 1));
 
-      const freePumps = [];
+      const freeNormalPumps = [];
       for (let i = 0; i < maxPumps; i++) {
-        if (!state.cars.some((c) => c.pumpIndex === i)) freePumps.push(i);
+        if (!state.cars.some((c) => c.pumpIndex === i)) freeNormalPumps.push(i);
       }
+      const hasHeavyPump = Boolean(stage.limits && stage.limits.hasHeavyPump);
+      const heavyPumpFree = hasHeavyPump && !state.cars.some((c) => c.pumpIndex === 3);
+      const anyPumpFree = freeNormalPumps.length > 0 || heavyPumpFree;
 
       const freeSpots = [];
       for (let i = 0; i < this.data.SHOP_SPOTS.length; i++) {
@@ -3113,19 +3585,53 @@
         }
       }
 
-      if (freePumps.length === 0 && freeSpots.length === 0) return false;
+      if (!anyPumpFree && freeSpots.length === 0) return false;
 
       let spawnCar = Math.random() < lvl.carChance;
-      if (spawnCar && freePumps.length === 0) spawnCar = false;
+      if (spawnCar && !anyPumpFree) spawnCar = false;
       if (!spawnCar && freeSpots.length === 0) spawnCar = true;
 
-      const decorBonus = 1 + ((this.save.upgrades.decor || 1) - 1) * 0.25;
+      const decorBonus = 1 + (this._getEffectiveUpgrade('decor') - 1) * 0.25;
       const maxPatience = lvl.patienceBase * decorBonus;
 
       if (spawnCar) {
-        const pumpIndex = freePumps[Math.floor(Math.random() * freePumps.length)];
+        let wantBus = hasHeavyPump && stage.busChance > 0 && Math.random() < stage.busChance;
+        let wantTruck = !wantBus && hasHeavyPump && stage.truckChance > 0 && Math.random() < stage.truckChance;
+        let isHeavy = wantBus || wantTruck;
+        if (isHeavy && !heavyPumpFree) {
+          isHeavy = false;
+          wantBus = false;
+          wantTruck = false;
+        } else if (!isHeavy && freeNormalPumps.length === 0 && heavyPumpFree) {
+          const bChance = stage.busChance || 0;
+          const tChance = stage.truckChance || 0;
+          if (bChance > 0 && Math.random() < bChance / Math.max(0.01, bChance + tChance)) {
+            wantBus = true;
+          } else {
+            wantTruck = true;
+          }
+          isHeavy = true;
+        }
+
+        const pumpIndex = isHeavy ? 3 : freeNormalPumps[Math.floor(Math.random() * freeNormalPumps.length)];
         const pump = this.data.STATIONS[`pump_${pumpIndex}`];
-        const palette = CAR_PALETTES[Math.floor(Math.random() * CAR_PALETTES.length)];
+        let variant;
+        let color;
+        let roofColor;
+        if (wantBus) {
+          variant = 'bus';
+          color = '#e09f3e';
+          roofColor = '#fff3d6';
+        } else if (wantTruck) {
+          variant = 'truck';
+          color = '#4e79a7';
+          roofColor = '#e6eef8';
+        } else {
+          const palette = CAR_PALETTES[Math.floor(Math.random() * CAR_PALETTES.length)];
+          variant = palette.variant;
+          color = palette.color;
+          roofColor = palette.roofColor;
+        }
 
         const carAllowed = lvl.orders.filter((o) => (o === 'fuel' || o === 'wash') && this._isItemUnlocked(o));
         const orders = [{ itemId: 'fuel', done: false }];
@@ -3144,9 +3650,10 @@
           orders,
           patience: maxPatience,
           maxPatience,
-          color: palette.color,
-          roofColor: palette.roofColor,
-          variant: palette.variant
+          color,
+          roofColor,
+          variant,
+          isHeavy
         });
       } else {
         const spotIndex = freeSpots[Math.floor(Math.random() * freeSpots.length)];
@@ -3390,7 +3897,8 @@
           w.currentTask = null;
           return;
         }
-        w.actionDuration = this._getPrepDuration('fuel', w);
+        const baseFuelDur = this._getPrepDuration('fuel', w);
+        w.actionDuration = car.isHeavy ? baseFuelDur * 1.45 : baseFuelDur;
         w.actionTimer = w.actionDuration;
       } else if (task.type === 'serveCar') {
         const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
@@ -3566,7 +4074,7 @@
       orders.forEach((o) => {
         base += this._getItemPrice(o.itemId);
       });
-      const tipsLvl = this.save.upgrades.decor_tips || 1;
+      const tipsLvl = this._getEffectiveUpgrade('decor_tips');
       const tipBonus = 1 + (tipsLvl - 1) * 0.15;
       const tip = Math.round(base * 0.15 * Math.max(0, patienceRatio) * tipBonus);
       return base + tip;
@@ -3580,11 +4088,12 @@
         this.audio.playHappy();
         this._spawnParticle(car.x, car.y - 45, 'Jde zaplatit dovnitř 🚶', '#4e3629');
 
+        const rackChance = car.variant === 'bus' ? 0.85 : car.variant === 'truck' ? 0.8 : 0.6;
         const rackAllowed = lvl.orders.filter(
           (o) => this.data.ITEMS[o] && this.data.ITEMS[o].isRackItem && this._isItemUnlocked(o)
         );
         const wantRackItem =
-          rackAllowed.length > 0 && Math.random() < 0.6
+          rackAllowed.length > 0 && Math.random() < rackChance
             ? rackAllowed[Math.floor(Math.random() * rackAllowed.length)]
             : null;
 
@@ -3609,20 +4118,30 @@
             o !== 'wash' &&
             this._isItemUnlocked(o)
         );
-        if (freeSpots.length > 0 && bistroAllowed.length > 0 && Math.random() < 0.55) {
+        const bistroChance = car.variant === 'bus' ? 1.0 : car.variant === 'truck' ? 0.7 : 0.55;
+        if (freeSpots.length > 0 && bistroAllowed.length > 0 && Math.random() < bistroChance) {
           spotIndex = freeSpots[Math.floor(Math.random() * freeSpots.length)];
           const pick = bistroAllowed[Math.floor(Math.random() * bistroAllowed.length)];
           orders = [{ itemId: pick, done: false }];
+          if (car.variant === 'bus' && bistroAllowed.length > 1) {
+            const secondOpts = bistroAllowed.filter((o) => o !== pick);
+            const second = secondOpts[Math.floor(Math.random() * secondOpts.length)];
+            orders.push({ itemId: second, done: false });
+          }
         }
 
-        const decorBonus = 1 + ((this.save.upgrades.decor || 1) - 1) * 0.25;
+        const decorBonus = 1 + (this._getEffectiveUpgrade('decor') - 1) * 0.25;
         const driverPatience = Math.max(car.patience + 18, lvl.patienceBase * decorBonus);
+        const carOrders = car.orders.map((o) => ({ itemId: o.itemId }));
+        if (car.isHeavy) {
+          carOrders.push({ itemId: 'fuel' });
+        }
 
         const driver = {
           id: state.nextEntityId++,
           isDriver: true,
           carId: car.id,
-          carOrders: car.orders.map((o) => ({ itemId: o.itemId })),
+          carOrders,
           paid: false,
           spotIndex,
           x: car.x + 28,
@@ -4145,6 +4664,7 @@
     }
 
     showVictoryModal(lastShift) {
+      this._syncStageLevels();
       const stats = Object.assign(
         {
           totalPlayTime: 0,
@@ -4157,16 +4677,27 @@
         this.save.stats || {}
       );
 
-      const totalStars = Object.values(this.save.stars).reduce((acc, s) => acc + s, 0);
-      const maxStars = this.data.LEVELS.length * 3;
-      const finalLvl = this.data.LEVELS[this.data.LEVELS.length - 1];
-      const finalStars = lastShift ? lastShift.stars : this.save.stars[finalLvl.id] || 3;
+      const finalStage = this.data.STAGES[this.data.STAGES.length - 1];
+      const finalStageStarsObj =
+        this.getCurrentStage().id === finalStage.id
+          ? this.save.stars
+          : (this.save.stageStars && this.save.stageStars[finalStage.id]) || {};
+      const finalLvl = finalStage.levels[finalStage.levels.length - 1];
+      const finalStars = lastShift ? lastShift.stars : finalStageStarsObj[finalLvl.id] || 3;
+
+      let totalStars = 0;
+      this.data.STAGES.forEach((st) => {
+        const stObj =
+          st.id === this.getCurrentStage().id ? this.save.stars : (this.save.stageStars && this.save.stageStars[st.id]) || {};
+        totalStars += Object.values(stObj).reduce((acc, s) => acc + s, 0);
+      });
+      const maxStars = this.data.STAGES.length * 24;
       const starsStr = '⭐'.repeat(finalStars) + '☆'.repeat(Math.max(0, 3 - finalStars));
       document.getElementById('victory-stars').textContent = starsStr;
 
       const shiftBanner = document.getElementById('victory-shift-banner');
       if (lastShift) {
-        shiftBanner.textContent = `Poslední směna (${finalLvl.name}): +${lastShift.earned} Kč · Obslouženo: ${lastShift.served} · Čas směny: ${this._formatDuration(lastShift.time)}`;
+        shiftBanner.textContent = `Poslední směna (${finalStage.name} – ${finalLvl.name}): +${lastShift.earned} Kč · Obslouženo: ${lastShift.served} · Čas směny: ${this._formatDuration(lastShift.time)}`;
         shiftBanner.classList.remove('hidden');
       } else {
         shiftBanner.classList.add('hidden');
@@ -4218,7 +4749,7 @@
         {
           label: '🏁 Odehrané směny',
           value: `${stats.shiftsPlayed} směn`,
-          sub: `Všech ${this.data.LEVELS.length} zastávek pokořeno!`
+          sub: `Všechny ${this.data.STAGES.length} benzínky (32 směn) pokořeny!`
         }
       ];
 
@@ -4240,6 +4771,8 @@
     _endLevel() {
       const state = this.levelState;
       const lvl = state.level;
+      const curStage = this.getCurrentStage();
+      const nextStage = this.data.STAGES.find((s) => s.id === curStage.id + 1) || null;
       const earned = state.earnedCoins;
 
       let starsEarned = 0;
@@ -4268,6 +4801,10 @@
       if (starsEarned > prevStars) {
         this.save.stars[lvl.id] = starsEarned;
       }
+      if (!this.save.stageStars || typeof this.save.stageStars !== 'object') {
+        this.save.stageStars = {};
+      }
+      this.save.stageStars[curStage.id] = Object.assign({}, this.save.stars);
 
       let unlockedNext = false;
       if (starsEarned >= 1 && lvl.id >= this.save.unlockedLevel && lvl.id < this.data.LEVELS.length) {
@@ -4275,7 +4812,8 @@
         unlockedNext = true;
       }
 
-      const isFinalVictory = lvl.id === this.data.LEVELS.length && starsEarned >= 1;
+      const isFinalStage = curStage.id === this.data.STAGES.length;
+      const isFinalVictory = isFinalStage && lvl.id === this.data.LEVELS.length && starsEarned >= 1;
       if (isFinalVictory) {
         this.save.stats.gameCompleted = true;
       }
@@ -4306,23 +4844,39 @@
         `Obslouženo: ${state.servedCount} · Odešlo bez obsluhy: ${state.angryCount} · Výdělek přidán do pokladny: +${earned} Kč`;
 
       const unlockNote = document.getElementById('result-unlock-note');
-      if (unlockedNext) {
+      const nextBtn = document.getElementById('result-next-btn');
+      const stageComplete = lvl.id === this.data.LEVELS.length && starsEarned >= 1 && nextStage;
+
+      if (stageComplete) {
+        if (this.save.coins >= nextStage.unlockCost) {
+          unlockNote.textContent = `🏢 Všech 8 směn hotovo! Můžeš koupit novou benzínku: ${nextStage.id}. ${nextStage.name} (${nextStage.unlockCost} Kč)!`;
+          nextBtn.textContent = `🏢 Koupit: ${nextStage.name} (${nextStage.unlockCost} Kč)`;
+        } else {
+          unlockNote.textContent = `🏁 Všech 8 směn v této benzínce je hotových! Na koupi další (${nextStage.name}) potřebuješ ${nextStage.unlockCost} Kč (v pokladně máš ${this.save.coins} Kč).`;
+          nextBtn.textContent = '🗺️ Na hlavní mapu';
+        }
+        unlockNote.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+      } else if (unlockedNext) {
         const nextLvl = this.data.LEVELS.find((l) => l.id === lvl.id + 1);
         unlockNote.textContent = `🎉 Odemčena nová zastávka na mapě: ${nextLvl.id}. ${nextLvl.name}!`;
         unlockNote.classList.remove('hidden');
+        nextBtn.textContent = '➡️ Další zastávka';
+        nextBtn.classList.remove('hidden');
       } else if (starsEarned === 0) {
         unlockNote.textContent =
           '💡 Tip: Před dalším pokusem si vylepši benzínku nebo najmi zaměstnance!';
         unlockNote.classList.remove('hidden');
+        nextBtn.textContent = '➡️ Další zastávka';
+        nextBtn.classList.add('hidden');
       } else {
         unlockNote.classList.add('hidden');
-      }
-
-      const nextBtn = document.getElementById('result-next-btn');
-      if (lvl.id < this.data.LEVELS.length && this.save.unlockedLevel > lvl.id) {
-        nextBtn.classList.remove('hidden');
-      } else {
-        nextBtn.classList.add('hidden');
+        nextBtn.textContent = '➡️ Další zastávka';
+        if (lvl.id < this.data.LEVELS.length && this.save.unlockedLevel > lvl.id) {
+          nextBtn.classList.remove('hidden');
+        } else {
+          nextBtn.classList.add('hidden');
+        }
       }
 
       document.getElementById('result-modal').classList.remove('hidden');

@@ -19,10 +19,19 @@ const MIME_TYPES = {
 };
 
 function createAdminSave() {
+  const fullStageStars = { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 };
   return {
     coins: 99999,
+    currentStage: 4,
+    unlockedStage: 4,
     unlockedLevel: 8,
-    stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 },
+    stars: Object.assign({}, fullStageStars),
+    stageStars: {
+      1: Object.assign({}, fullStageStars),
+      2: Object.assign({}, fullStageStars),
+      3: Object.assign({}, fullStageStars),
+      4: Object.assign({}, fullStageStars)
+    },
     upgrades: {
       pump_unlock: 3,
       wash_unlock: 2,
@@ -111,6 +120,13 @@ function loadUsers() {
         rack_sweets_unlock: 2,
         rack_auto_unlock: 2
       });
+      users.admin.save.unlockedStage = 4;
+      if (typeof users.admin.save.currentStage !== 'number') {
+        users.admin.save.currentStage = 4;
+      }
+      if (!users.admin.save.stageStars || typeof users.admin.save.stageStars !== 'object') {
+        users.admin.save.stageStars = createAdminSave().stageStars;
+      }
     }
   }
   return users;
