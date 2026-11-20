@@ -120,7 +120,7 @@
         <canvas id="station-canvas" width="1540" height="780"></canvas>
       </main>
       <footer id="game-tip-bar" class="game-tip-bar">
-        💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!
+        💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, dofukování aut, vysavač, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!
       </footer>
     </section>
 
@@ -173,7 +173,7 @@
         <form id="register-form" class="auth-form" onsubmit="return false;">
           <label class="auth-field">
             <span>🪪 Uživatelské jméno</span>
-            <input id="reg-username" type="text" placeholder="Slouží k přihlášení (např. petr123)" autocomplete="username" required />
+            <input id="reg-username" type="text" placeholder="Slouží k přihlášení" autocomplete="username" required />
           </label>
           <label class="auth-field">
             <span>🔒 Heslo</span>
@@ -181,7 +181,7 @@
           </label>
           <label class="auth-field">
             <span>😊 Jméno</span>
-            <input id="reg-display-name" type="text" placeholder="Tvé jméno pro oslovení (např. Petr nebo Jana)" autocomplete="given-name" required />
+            <input id="reg-display-name" type="text" placeholder="Tvé jméno pro oslovení" autocomplete="given-name" required />
           </label>
 
           <p id="register-message" class="auth-message hidden"></p>
@@ -227,6 +227,7 @@
         </div>
 
         <div id="prep-panel-staff" class="prep-panel active">
+          <div id="staff-payroll-banner" class="staff-payroll-banner"></div>
           <div id="staff-list" class="prep-grid"></div>
         </div>
 
@@ -270,6 +271,7 @@
         <div id="result-stars" class="result-stars">⭐⭐⭐</div>
         <h2 id="result-title">Směna hotová!</h2>
         <p id="result-summary" class="result-summary"></p>
+        <div id="result-breakdown" class="result-breakdown"></div>
         <p id="result-unlock-note" class="result-unlock hidden"></p>
         <div class="result-actions">
           <button id="result-replay-btn" type="button" class="btn-soft">🔁 Znovu</button>
@@ -308,7 +310,8 @@
           <li><strong>👤 Účet a ukládání:</strong> Každý hráč má vlastní uživatelské jméno a heslo pro přihlášení a své jméno pro oslovení. Všechny vydělané koruny, hvězdy, vylepšení i zaměstnanci se ukládají k tvému účtu.</li>
           <li><strong>🗺️ Mapa zastávek:</strong> Kliknutím na číslo zastávky na silnici otevřeš přípravu před směnou.</li>
           <li><strong>🛒 Obchod a doplňování stojanů:</strong> Zákazníci si berou křupky (🥨), sladkosti (🍫) i autokosmetiku (🧴) přímo z regálů. Kliknutím na poloprázdný nebo prázdný stojan dojdeš do <em>Skladu zboží (📦)</em> a stojan doplníš!</li>
-          <li><strong>🧑‍🔧 Zaměstnanci:</strong> <em>Toník</em> tankuje a myje okna autům, <em>Anička</em> obsluhuje kávu, gril i limonády a <em>Kuba</em> markuje pokladnu, doplňuje regály a uklízí louže.</li>
+          <li><strong>🧑‍🔧 Zaměstnanci a výplaty:</strong> <em>Toník</em> tankuje, myje okna a přímo u parkovacího místa dofukuje kola i vysává auta (auta s kombinovaným přáním po servisu přejedou ke stojanu a až pak jdou zaplatit), <em>Anička</em> obsluhuje kávu, gril i limonády a <em>Kuba</em> markuje pokladnu, doplňuje regály a uklízí všechny louže jedním tahem koštěte. Posuvníkem před směnou jim nastavuješ denní výplatu (0 Kč = odpočívá, vyšší výplata = rychlejší práce), která se strhne na konci dne z tržeb směny.</li>
+          <li><strong>👟 Trvalé vybavení:</strong> <em>Pohodlné tenisky</em> (stačí koupit jednou na celou hru) a <em>Větší tác</em> ti zůstanou natrvalo i po koupi větší benzínky!</li>
           <li><strong>📠 Pokladna:</strong> Pěší hosté po nákupu i obsluze přijdou zaplatit k pokladně — nezapomeň na ni kliknout!</li>
         </ul>
       </div>

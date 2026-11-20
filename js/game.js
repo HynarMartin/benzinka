@@ -69,6 +69,8 @@
       upgrades: {
         pump_unlock: 1,
         wash_unlock: 1,
+        air_unlock: 1,
+        vacuum_unlock: 1,
         grill_unlock: 1,
         fridge_unlock: 1,
         rack_sweets_unlock: 1,
@@ -81,6 +83,10 @@
         grill_price: 1,
         wash: 1,
         wash_price: 1,
+        air: 1,
+        air_price: 1,
+        vacuum: 1,
+        vacuum_price: 1,
         drink_speed: 1,
         drink_price: 1,
         racks: 1,
@@ -95,10 +101,10 @@
         anicka: 0,
         kuba: 0
       },
-      staffEnabled: {
-        tonik: true,
-        anicka: true,
-        kuba: true
+      staffWage: {
+        tonik: 14,
+        anicka: 14,
+        kuba: 14
       },
       stats: {
         totalPlayTime: 0,
@@ -109,6 +115,7 @@
         gameCompleted: false
       },
       rackStock: null,
+      machineStock: null,
       layout: createDefaultLayout()
     };
   }
@@ -128,8 +135,10 @@
         4: Object.assign({}, fullStageStars)
       },
       upgrades: {
-        pump_unlock: 3,
+        pump_unlock: 4,
         wash_unlock: 2,
+        air_unlock: 2,
+        vacuum_unlock: 2,
         grill_unlock: 2,
         fridge_unlock: 2,
         rack_sweets_unlock: 2,
@@ -142,24 +151,28 @@
         grill_price: 4,
         wash: 4,
         wash_price: 4,
+        air: 4,
+        air_price: 4,
+        vacuum: 4,
+        vacuum_price: 4,
         drink_speed: 4,
         drink_price: 4,
         racks: 4,
         racks_price: 4,
         decor: 4,
         decor_tips: 4,
-        shoes: 4,
+        shoes: 2,
         carry: 3
       },
       staff: {
-        tonik: 3,
-        anicka: 3,
-        kuba: 3
+        tonik: 1,
+        anicka: 1,
+        kuba: 1
       },
-      staffEnabled: {
-        tonik: true,
-        anicka: true,
-        kuba: true
+      staffWage: {
+        tonik: 42,
+        anicka: 42,
+        kuba: 42
       },
       stats: {
         totalPlayTime: 720,
@@ -170,6 +183,7 @@
         gameCompleted: true
       },
       rackStock: null,
+      machineStock: null,
       layout: createDefaultLayout()
     };
   }
@@ -203,6 +217,37 @@
       typeof raw.unlockedStage === 'number'
         ? Math.max(rawStage, Math.min(4, Math.round(raw.unlockedStage)))
         : Math.max(rawStage, def.unlockedStage);
+    const rawUpgrades = Object.assign({}, def.upgrades, raw.upgrades || {});
+    if (typeof rawUpgrades.shoes === 'number') {
+      rawUpgrades.shoes = Math.max(1, Math.min(2, rawUpgrades.shoes >= 2 ? 2 : 1));
+    }
+    const wageCfg = (typeof window !== 'undefined' && window.GAME_DATA && window.GAME_DATA.STAFF_WAGE_CONFIG) || {
+      min: 0,
+      max: 42,
+      step: 7,
+      defaultWage: 14
+    };
+    const normStaff = {};
+    const normStaffWage = {};
+    ['tonik', 'anicka', 'kuba'].forEach((id) => {
+      const oldLvl = raw.staff && typeof raw.staff[id] === 'number' ? raw.staff[id] : 0;
+      normStaff[id] = oldLvl > 0 ? 1 : 0;
+      if (raw.staffWage && typeof raw.staffWage[id] === 'number') {
+        const clamped = Math.max(
+          wageCfg.min,
+          Math.min(wageCfg.max, Math.round(raw.staffWage[id] / wageCfg.step) * wageCfg.step)
+        );
+        normStaffWage[id] = clamped;
+      } else if (raw.staffEnabled && raw.staffEnabled[id] === false) {
+        normStaffWage[id] = 0;
+      } else if (oldLvl >= 3) {
+        normStaffWage[id] = 35;
+      } else if (oldLvl === 2) {
+        normStaffWage[id] = 21;
+      } else {
+        normStaffWage[id] = def.staffWage[id];
+      }
+    });
     return {
       coins: typeof raw.coins === 'number' ? raw.coins : def.coins,
       currentStage: rawStage,
@@ -210,11 +255,12 @@
       unlockedLevel: typeof raw.unlockedLevel === 'number' ? raw.unlockedLevel : def.unlockedLevel,
       stars: raw.stars && typeof raw.stars === 'object' ? raw.stars : {},
       stageStars: raw.stageStars && typeof raw.stageStars === 'object' ? Object.assign({}, raw.stageStars) : {},
-      upgrades: Object.assign({}, def.upgrades, raw.upgrades || {}),
-      staff: Object.assign({}, def.staff, raw.staff || {}),
-      staffEnabled: Object.assign({}, def.staffEnabled, raw.staffEnabled || {}),
+      upgrades: rawUpgrades,
+      staff: normStaff,
+      staffWage: normStaffWage,
       stats: Object.assign({}, def.stats, raw.stats || {}),
       rackStock: raw.rackStock && typeof raw.rackStock === 'object' ? Object.assign({}, raw.rackStock) : null,
+      machineStock: raw.machineStock && typeof raw.machineStock === 'object' ? Object.assign({}, raw.machineStock) : null,
       layout: normLayout
     };
   }
@@ -443,8 +489,10 @@
           accounts.admin.save = createAdminSave();
         } else {
           accounts.admin.save.upgrades = Object.assign({}, adminUpgrades, accounts.admin.save.upgrades || {}, {
-            pump_unlock: 3,
+            pump_unlock: 4,
             wash_unlock: 2,
+            air_unlock: 2,
+            vacuum_unlock: 2,
             grill_unlock: 2,
             fridge_unlock: 2,
             rack_sweets_unlock: 2,
@@ -1034,6 +1082,11 @@
           this.rotatePlacementMode(1);
           return;
         }
+        if (this.levelState.selectedWorkerId) {
+          this.levelState.selectedWorkerId = null;
+          this._spawnParticle(this.levelState.player.x, this.levelState.player.y - 42, 'Výběr zrušen', '#6d5846');
+          return;
+        }
         if (this.settings.rightClickCancel) {
           this.levelState.player.taskQueue = [];
         }
@@ -1069,6 +1122,10 @@
           this.togglePause();
         } else if (e.code === 'Escape' || e.code === 'KeyC') {
           this.audio.playClick();
+          if (e.code === 'Escape' && this.levelState.selectedWorkerId) {
+            this.levelState.selectedWorkerId = null;
+            return;
+          }
           this.levelState.player.taskQueue = [];
           if (this.levelState.player.actionTimer <= 0) {
             this.levelState.player.currentTask = null;
@@ -1090,21 +1147,44 @@
       if (stage && stage.levels) {
         this.data.LEVELS = stage.levels;
       }
+      this._syncStageStations(stage ? stage.id : 1);
+    }
+
+    _syncStageStations(stageId) {
+      const base = this.data.BASE_FORECOURT_STATIONS;
+      const byStage = this.data.STAGE_FORECOURT_OVERRIDES;
+      const stageOverrides =
+        (byStage && byStage[stageId]) || (stageId === 4 ? this.data.STAGE4_FORECOURT_OVERRIDES : null);
+      if (!base || !this.data.STATIONS) return;
+      Object.keys(base).forEach((id) => {
+        if (this.data.STATIONS[id]) {
+          Object.assign(this.data.STATIONS[id], base[id]);
+        }
+      });
+      if (stageOverrides) {
+        Object.keys(stageOverrides).forEach((id) => {
+          if (this.data.STATIONS[id]) {
+            Object.assign(this.data.STATIONS[id], stageOverrides[id]);
+          }
+        });
+      }
     }
 
     getUpgradeCap(upgradeId) {
       const stage = this.getCurrentStage();
       const lim = (stage && stage.limits) || {
         maxPumps: 3,
-        allowedUnlocks: ['pump_unlock', 'wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'],
+        allowedUnlocks: ['pump_unlock', 'wash_unlock', 'air_unlock', 'vacuum_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'],
         maxUpgradeLevel: 4,
         maxCarryLevel: 3
       };
       if (upgradeId === 'pump_unlock') {
-        return lim.allowedUnlocks.includes('pump_unlock') ? Math.min(3, lim.maxPumps || 3) : 1;
+        return lim.allowedUnlocks.includes('pump_unlock') ? Math.min(4, lim.maxPumps || 3) : 1;
       }
       if (
         upgradeId === 'wash_unlock' ||
+        upgradeId === 'air_unlock' ||
+        upgradeId === 'vacuum_unlock' ||
         upgradeId === 'rack_sweets_unlock' ||
         upgradeId === 'fridge_unlock' ||
         upgradeId === 'grill_unlock' ||
@@ -1112,8 +1192,11 @@
       ) {
         return lim.allowedUnlocks.includes(upgradeId) ? 2 : 1;
       }
+      if (upgradeId === 'shoes') {
+        return 2;
+      }
       if (upgradeId === 'carry') {
-        return Math.min(3, lim.maxCarryLevel || 3);
+        return 3;
       }
       return Math.min(4, lim.maxUpgradeLevel || 4);
     }
@@ -1121,11 +1204,68 @@
     getStaffCap(staffId) {
       const stage = this.getCurrentStage();
       const lim = (stage && stage.limits) || {
-        allowedStaff: ['tonik', 'anicka', 'kuba'],
-        maxStaffLevel: 3
+        allowedStaff: ['tonik', 'anicka', 'kuba']
       };
-      if (!lim.allowedStaff.includes(staffId)) return 0;
-      return Math.min(3, lim.maxStaffLevel || 3);
+      return lim.allowedStaff.includes(staffId) ? 1 : 0;
+    }
+
+    _getStaffWagePerformance(wage) {
+      const cfg = (this.data && this.data.STAFF_WAGE_CONFIG) || { min: 0, max: 42, step: 7, defaultWage: 14 };
+      const w = Math.max(cfg.min, Math.min(cfg.max, Math.round((Number(wage) || 0) / cfg.step) * cfg.step));
+      if (w <= 0) {
+        return { wage: 0, active: false, walkSpeed: 0, workMultiplier: 0, spawnReduction: 0, tierLabel: '💤 Odpočívá (0 Kč/den)' };
+      }
+      if (w <= cfg.step) {
+        return { wage: cfg.step, active: true, walkSpeed: 78, workMultiplier: 0.75, spawnReduction: 0.14, tierLabel: '🚶 Klidné tempo' };
+      }
+      if (w <= cfg.step * 2) {
+        return { wage: cfg.step * 2, active: true, walkSpeed: 108, workMultiplier: 1.0, spawnReduction: 0.24, tierLabel: '🙂 Standardní tempo' };
+      }
+      if (w <= cfg.step * 3) {
+        return { wage: cfg.step * 3, active: true, walkSpeed: 135, workMultiplier: 1.25, spawnReduction: 0.34, tierLabel: '⚡ Svižné tempo' };
+      }
+      if (w <= cfg.step * 4) {
+        return { wage: cfg.step * 4, active: true, walkSpeed: 162, workMultiplier: 1.48, spawnReduction: 0.42, tierLabel: '🔥 Rychlé tempo' };
+      }
+      if (w <= cfg.step * 5) {
+        return { wage: cfg.step * 5, active: true, walkSpeed: 186, workMultiplier: 1.68, spawnReduction: 0.48, tierLabel: '🚀 Vysoké tempo' };
+      }
+      return { wage: cfg.max, active: true, walkSpeed: 210, workMultiplier: 1.9, spawnReduction: 0.54, tierLabel: '🏆 Špičkové tempo' };
+    }
+
+    _getPlannedDailyPayroll() {
+      let total = 0;
+      const items = [];
+      const staff = (this.save && this.save.staff) || {};
+      const wages = (this.save && this.save.staffWage) || {};
+      const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+      (this.data.STAFF || []).forEach((st) => {
+        if (this.getStaffCap(st.id) <= 0 || (staff[st.id] || 0) > 0 === false) return;
+        const rawW = typeof wages[st.id] === 'number' ? wages[st.id] : defWage;
+        const perf = this._getStaffWagePerformance(rawW);
+        if (perf.active) {
+          total += perf.wage;
+          items.push({ id: st.id, shortName: st.shortName, wage: perf.wage });
+        }
+      });
+      return { total, items };
+    }
+
+    _getActiveShiftPayroll() {
+      if (!this.levelState || !Array.isArray(this.levelState.workers)) {
+        return this._getPlannedDailyPayroll();
+      }
+      let total = 0;
+      const items = [];
+      this.levelState.workers.forEach((w) => {
+        if (w.isPlayer || !w.active) return;
+        const wage = Math.max(0, Number(w.wage) || 0);
+        if (wage > 0) {
+          total += wage;
+          items.push({ id: w.id, shortName: w.label, wage });
+        }
+      });
+      return { total, items };
     }
 
     openStageMap(stageId) {
@@ -1169,10 +1309,16 @@
       this.save.stars = {};
 
       const fresh = createDefaultSave();
-      this.save.upgrades = fresh.upgrades;
+      const keptShoes = (this.save.upgrades && this.save.upgrades.shoes) || 1;
+      const keptCarry = (this.save.upgrades && this.save.upgrades.carry) || 1;
+      this.save.upgrades = Object.assign({}, fresh.upgrades, {
+        shoes: keptShoes,
+        carry: keptCarry
+      });
       this.save.staff = fresh.staff;
-      this.save.staffEnabled = fresh.staffEnabled;
+      this.save.staffWage = fresh.staffWage;
       this.save.rackStock = null;
+      this.save.machineStock = null;
       this.save.layout = createDefaultLayout();
 
       this.selectedLevelId = 1;
@@ -1320,7 +1466,7 @@
             actionTxt = isAdmin ? '🛠️ Otevřít (Admin)' : '✅ Dokončeno';
           } else if (isBuyable) {
             stateCls = 'stage-buyable';
-            actionTxt = `🏢 Koupit (${st.unlockCost} Kč)`;
+            actionTxt = `🏢 Koupit větší pumpu za všechny peníze (${st.unlockCost} Kč)`;
           } else if (isAdmin) {
             stateCls = 'stage-completed stage-admin-unlocked';
             actionTxt = '🛠️ Otevřít (Admin)';
@@ -1464,7 +1610,7 @@
           stage8Done && nextStage
             ? `<button id="buy-next-stage-banner-btn" type="button" class="btn-start map-banner-btn" ${
                 this.save.coins < nextStage.unlockCost ? 'disabled' : ''
-              }>🏢 Koupit: ${nextStage.name} (${nextStage.unlockCost} Kč)</button>`
+              }>🏢 Koupit větší pumpu za všechny peníze</button>`
             : '';
         bannerEl.innerHTML = `
           <button id="back-to-world-map-btn" type="button" class="btn-soft map-banner-btn">⬅️ Hlavní mapa (4 benzínky)</button>
@@ -1927,6 +2073,56 @@
       if (modal) modal.classList.add('hidden');
     }
 
+    setStaffWage(staffId, rawWage) {
+      const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+      if (!this.save.staffWage || typeof this.save.staffWage !== 'object') {
+        this.save.staffWage = { tonik: defWage, anicka: defWage, kuba: defWage };
+      }
+      const perf = this._getStaffWagePerformance(rawWage);
+      this.save.staffWage[staffId] = perf.wage;
+      this.persistSave();
+      this._syncPrepState();
+    }
+
+    _buildStaffWageControl(st, onUpdated) {
+      const cfg = (this.data && this.data.STAFF_WAGE_CONFIG) || { min: 0, max: 42, step: 7, defaultWage: 14 };
+      const rawWage =
+        this.save.staffWage && typeof this.save.staffWage[st.id] === 'number'
+          ? this.save.staffWage[st.id]
+          : cfg.defaultWage;
+      const perf = this._getStaffWagePerformance(rawWage);
+      const midWage = Math.round(cfg.max / 2);
+
+      const box = document.createElement('div');
+      box.className = 'staff-wage-box';
+      box.innerHTML = `
+        <div class="staff-wage-top">
+          <span>💸 Výplata za směnu: <strong class="wage-amount">${perf.wage} Kč</strong></span>
+          <span class="staff-wage-tier">${perf.tierLabel}</span>
+        </div>
+        <input type="range" class="staff-wage-slider" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${perf.wage}" aria-label="Výplata pro ${st.shortName}" />
+        <div class="staff-wage-scale">
+          <span>0 Kč (odpočívá)</span>
+          <span>${midWage} Kč</span>
+          <span>${cfg.max} Kč (max tempo)</span>
+        </div>
+      `;
+
+      const slider = box.querySelector('.staff-wage-slider');
+      const amountEl = box.querySelector('.wage-amount');
+      const tierEl = box.querySelector('.staff-wage-tier');
+      if (slider) {
+        slider.addEventListener('input', () => {
+          const nextPerf = this._getStaffWagePerformance(slider.value);
+          amountEl.textContent = `${nextPerf.wage} Kč`;
+          tierEl.textContent = nextPerf.tierLabel;
+          this.setStaffWage(st.id, nextPerf.wage);
+          if (typeof onUpdated === 'function') onUpdated(nextPerf);
+        });
+      }
+      return box;
+    }
+
     openObjectUpgradeModal(target) {
       if (!target) return;
       this._activeObjectTarget = target;
@@ -1945,62 +2141,58 @@
         const st = this.data.STAFF.find((s) => s.id === target.staffId);
         if (!st) return;
         const staffCap = this.getStaffCap(st.id);
-        const curLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
-        const isHired = curLvl > 0;
-        const isMax = staffCap === 0 || curLvl >= staffCap;
-        const nextCost = !isHired ? st.hireCost : isMax ? null : st.upgradeCosts[curLvl - 1];
-        const canAfford = nextCost !== null && this.save.coins >= nextCost;
-        const isEnabled = this.save.staffEnabled[st.id] !== false;
+        const isHired = staffCap > 0 && (this.save.staff[st.id] || 0) > 0;
+        const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+        const rawWage =
+          this.save.staffWage && typeof this.save.staffWage[st.id] === 'number' ? this.save.staffWage[st.id] : defWage;
+        const perf = this._getStaffWagePerformance(rawWage);
 
         iconEl.textContent = st.icon;
         titleEl.textContent = st.name;
-        descEl.textContent = st.description;
-
-        let pips = '';
-        for (let i = 1; i <= staffCap; i++) {
-          pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
-        }
-        pipsEl.innerHTML = `${pips} <span class="lvl-text">${
-          isHired ? `Úr. ${curLvl}/${staffCap}` : 'Nenajatý'
+        descEl.textContent = `${st.description} Zaměstnanci nemají úrovně – jejich tempo i zapojení řídíš posuvníkem výplaty, která se na konci dne strhne z tržeb.`;
+        pipsEl.innerHTML = `<span class="lvl-text">${
+          !isHired
+            ? 'Zatím nenajatý'
+            : perf.active
+            ? `💸 Výplata: ${perf.wage} Kč / den (${perf.tierLabel})`
+            : '💤 Odpočívá (0 Kč / den)'
         }</span>`;
 
-        const row = document.createElement('div');
-        row.className = 'staff-actions';
-
-        const buyBtn = document.createElement('button');
-        buyBtn.type = 'button';
-        buyBtn.className = 'btn-buy';
-        buyBtn.disabled = isMax || !canAfford;
-        buyBtn.textContent = !isHired
-          ? `Najmout (${nextCost} Kč)`
-          : isMax
-          ? staffCap < st.maxLevel
-            ? `✨ Max v této benzínce (${curLvl}/${staffCap})`
-            : '✨ Zkušený mistr'
-          : `Vylepšit – zrychlit (${nextCost} Kč)`;
-        if (!isMax) {
+        if (!isHired) {
+          const canAfford = staffCap > 0 && this.save.coins >= st.hireCost;
+          const row = document.createElement('div');
+          row.className = 'staff-actions';
+          const buyBtn = document.createElement('button');
+          buyBtn.type = 'button';
+          buyBtn.className = 'btn-buy';
+          buyBtn.disabled = !canAfford;
+          buyBtn.textContent = `Najmout do týmu (${st.hireCost} Kč)`;
           buyBtn.addEventListener('click', () => {
             this.hireOrUpgradeStaff(st.id);
           });
-        }
-        row.appendChild(buyBtn);
-
-        if (isHired) {
-          const toggleBtn = document.createElement('button');
-          toggleBtn.type = 'button';
-          toggleBtn.className = `btn-toggle ${isEnabled ? 'on' : 'off'}`;
-          toggleBtn.textContent = isEnabled ? '✅ Ve směně' : '💤 Odpočívá';
-          toggleBtn.addEventListener('click', () => {
-            this.audio.playClick();
-            this.save.staffEnabled[st.id] = !isEnabled;
-            this.persistSave();
-            this._syncPrepState();
-            this.renderPrepModal();
-            this.openObjectUpgradeModal(target);
+          row.appendChild(buyBtn);
+          actionsEl.appendChild(row);
+        } else {
+          const wageCtrl = this._buildStaffWageControl(st, (nextPerf) => {
+            pipsEl.innerHTML = `<span class="lvl-text">${
+              nextPerf.active
+                ? `💸 Výplata: ${nextPerf.wage} Kč / den (${nextPerf.tierLabel})`
+                : '💤 Odpočívá (0 Kč / den)'
+            }</span>`;
+            const payrollNote = actionsEl.querySelector('.obj-payroll-summary');
+            if (payrollNote) {
+              const pr = this._getPlannedDailyPayroll();
+              payrollNote.textContent = `Celková výplata týmu za směnu: ${pr.total} Kč (strhne se na konci dne z tržby).`;
+            }
           });
-          row.appendChild(toggleBtn);
+          actionsEl.appendChild(wageCtrl);
+
+          const pr = this._getPlannedDailyPayroll();
+          const summaryNote = document.createElement('p');
+          summaryNote.className = 'obj-upg-note obj-payroll-summary';
+          summaryNote.textContent = `Celková výplata týmu za směnu: ${pr.total} Kč (strhne se na konci dne z tržby).`;
+          actionsEl.appendChild(summaryNote);
         }
-        actionsEl.appendChild(row);
       } else {
         const upgIds = Array.isArray(target.upgradeIds)
           ? target.upgradeIds
@@ -2111,7 +2303,7 @@
             <div class="prep-card-head">
               <span class="prep-icon">${upg.icon}</span>
               <div>
-                <h4>${upg.name}</h4>
+                <h4>${upg.name}${upg.permanent ? '<span class="perm-badge">♾️ Trvalé</span>' : ''}</h4>
                 <div class="lvl-pips">${pips} <span class="lvl-text">Úr. ${curLvl}/${capLvl}</span></div>
               </div>
             </div>
@@ -2140,14 +2332,23 @@
 
     _isStationUnlocked(stationId) {
       const upgs = (this.save && this.save.upgrades) || {};
+      const stg = this.getCurrentStage();
+      const lim = (stg && stg.limits) || {};
+      const heavyIndices = lim.heavyPumpIndices || (lim.hasHeavyPump ? [3] : []);
       if (stationId === 'pump_0') return true;
       if (stationId === 'pump_1') return this.getUpgradeCap('pump_unlock') >= 2 && (upgs.pump_unlock || 1) >= 2;
       if (stationId === 'pump_2') return this.getUpgradeCap('pump_unlock') >= 3 && (upgs.pump_unlock || 1) >= 3;
       if (stationId === 'pump_3') {
-        const stg = this.getCurrentStage();
-        return Boolean(stg && stg.limits && stg.limits.hasHeavyPump);
+        if ((lim.maxPumps || 3) >= 4) {
+          return this.getUpgradeCap('pump_unlock') >= 4 && (upgs.pump_unlock || 1) >= 4;
+        }
+        return heavyIndices.includes(3);
       }
+      if (stationId === 'pump_4') return heavyIndices.includes(4);
+      if (stationId === 'pump_5') return heavyIndices.includes(5);
       if (stationId === 'bucket') return this.getUpgradeCap('wash_unlock') >= 2 && (upgs.wash_unlock || 1) >= 2;
+      if (stationId === 'air') return this.getUpgradeCap('air_unlock') >= 2 && (upgs.air_unlock || 1) >= 2;
+      if (stationId === 'vacuum') return this.getUpgradeCap('vacuum_unlock') >= 2 && (upgs.vacuum_unlock || 1) >= 2;
       if (stationId === 'coffee') return true;
       if (stationId === 'grill') return this.getUpgradeCap('grill_unlock') >= 2 && (upgs.grill_unlock || 1) >= 2;
       if (stationId === 'fridge') return this.getUpgradeCap('fridge_unlock') >= 2 && (upgs.fridge_unlock || 1) >= 2;
@@ -2177,6 +2378,8 @@
         return true;
       }
       if (itemId === 'wash') return this._isStationUnlocked('bucket');
+      if (itemId === 'air') return this._isStationUnlocked('air');
+      if (itemId === 'vacuum') return this._isStationUnlocked('vacuum');
       if (itemId === 'snack') return this._isStationUnlocked('grill');
       if (itemId === 'drink') return this._isStationUnlocked('fridge');
       if (itemId === 'candy') return this._isRackUnlocked('rack_sweets');
@@ -2192,26 +2395,35 @@
         `🛒 Nakupovat – ${curStage.name} (${level.name})`;
       document.getElementById('prep-level-subtitle').textContent =
         'Dokup si další tankovací stojany, prodejní regály, vybavení bistra nebo najmi zaměstnance. Vylepšení kupuješ kliknutím přímo na věci a postavičky v benzínce!';
+      const intervalStr = this._getEffectiveSpawnInterval(level).toFixed(1).replace('.', ',');
       document.getElementById('prep-level-meta').textContent =
-        `Zákazníků ve směně: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
+        `Zákazníků ve směně: ${level.customers} (příchod ~${intervalStr} s) · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
       document.getElementById('prep-coins').textContent = `${this.save.coins} Kč`;
+
+      const payrollBanner = document.getElementById('staff-payroll-banner');
+      const updatePayrollBanner = () => {
+        if (!payrollBanner) return;
+        const pr = this._getPlannedDailyPayroll();
+        const who = pr.items.length > 0 ? pr.items.map((x) => `${x.shortName} ${x.wage} Kč`).join(' · ') : 'nikdo nemá nastavenou výplatu';
+        payrollBanner.innerHTML = `
+          <span>👷 Výplaty zaměstnanců se strhnou na konci dne z tržeb směny (${who}).</span>
+          <strong>Celková výplata za směnu: ${pr.total} Kč</strong>
+        `;
+      };
+      updatePayrollBanner();
 
       const staffGrid = document.getElementById('staff-list');
       staffGrid.innerHTML = '';
 
       this.data.STAFF.forEach((st) => {
         const staffCap = this.getStaffCap(st.id);
-        const curLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
         const isStageLocked = staffCap === 0;
-        const isHired = !isStageLocked && curLvl > 0;
+        const isHired = !isStageLocked && (this.save.staff[st.id] || 0) > 0;
         const canAffordHire = !isStageLocked && !isHired && this.save.coins >= st.hireCost;
-        const isEnabled = this.save.staffEnabled[st.id] !== false;
-
-        let pips = '';
-        const pipTotal = Math.max(1, staffCap || st.maxLevel);
-        for (let i = 1; i <= pipTotal; i++) {
-          pips += `<span class="lvl-pip ${i <= curLvl ? 'filled' : ''}"></span>`;
-        }
+        const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+        const rawWage =
+          this.save.staffWage && typeof this.save.staffWage[st.id] === 'number' ? this.save.staffWage[st.id] : defWage;
+        const perf = this._getStaffWagePerformance(rawWage);
 
         const card = document.createElement('div');
         card.className = `prep-card ${isHired ? 'hired-card' : ''}`;
@@ -2220,43 +2432,56 @@
             <span class="prep-icon">${st.icon}</span>
             <div>
               <h4>${st.name}</h4>
-              <div class="lvl-pips">${isStageLocked ? '<span class="lvl-text">🔒 Až u větší benzínky</span>' : `${pips} <span class="lvl-text">${
-                isHired ? `Úr. ${curLvl}/${staffCap}` : 'Zatím nenajatý'
-              }</span>`}</div>
+              <div class="lvl-pips"><span class="lvl-text staff-status-line">${
+                isStageLocked
+                  ? '🔒 Až u větší benzínky'
+                  : isHired
+                  ? perf.active
+                    ? `✅ Ve směně · ${perf.wage} Kč/den`
+                    : '💤 Odpočívá (0 Kč/den)'
+                  : 'Zatím nenajatý'
+              }</span></div>
             </div>
           </div>
           <p class="prep-desc">${st.description}</p>
-          ${
-            isStageLocked
-              ? `<button type="button" class="btn-buy" disabled>🔒 Nedostupné v této benzínce</button>`
-              : !isHired
-              ? `<div class="staff-actions">
-                  <button type="button" class="btn-buy" data-staff="${st.id}" ${!canAffordHire ? 'disabled' : ''}>
-                    Najmout (${st.hireCost} Kč)
-                  </button>
-                </div>`
-              : `<div class="staff-actions">
-                  <p class="obj-upg-note">✅ Najatý v benzínce — klikni na něj v benzínce pro vylepšení</p>
-                  <button type="button" class="btn-toggle ${isEnabled ? 'on' : 'off'}">${
-                    isEnabled ? '✅ Ve směně' : '💤 Odpočívá'
-                  }</button>
-                </div>`
-          }
         `;
 
-        const buyBtn = card.querySelector('.btn-buy');
-        if (buyBtn && !isHired && !isStageLocked) {
+        if (isStageLocked) {
+          const lockBtn = document.createElement('button');
+          lockBtn.type = 'button';
+          lockBtn.className = 'btn-buy';
+          lockBtn.disabled = true;
+          lockBtn.textContent = '🔒 Nedostupné v této benzínce';
+          card.appendChild(lockBtn);
+        } else if (!isHired) {
+          const row = document.createElement('div');
+          row.className = 'staff-actions';
+          const buyBtn = document.createElement('button');
+          buyBtn.type = 'button';
+          buyBtn.className = 'btn-buy';
+          buyBtn.dataset.staff = st.id;
+          buyBtn.disabled = !canAffordHire;
+          buyBtn.textContent = `Najmout (${st.hireCost} Kč)`;
           buyBtn.addEventListener('click', () => this.hireOrUpgradeStaff(st.id));
-        }
-        const toggleBtn = card.querySelector('.btn-toggle');
-        if (toggleBtn) {
-          toggleBtn.addEventListener('click', () => {
-            this.audio.playClick();
-            this.save.staffEnabled[st.id] = !isEnabled;
-            this.persistSave();
-            this._syncPrepState();
-            this.renderPrepModal();
+          row.appendChild(buyBtn);
+          card.appendChild(row);
+        } else {
+          const statusLine = card.querySelector('.staff-status-line');
+          const wageCtrl = this._buildStaffWageControl(st, (nextPerf) => {
+            if (statusLine) {
+              statusLine.textContent = nextPerf.active
+                ? `✅ Ve směně · ${nextPerf.wage} Kč/den`
+                : '💤 Odpočívá (0 Kč/den)';
+            }
+            updatePayrollBanner();
+            const metaEl = document.getElementById('prep-level-meta');
+            if (metaEl) {
+              const iStr = this._getEffectiveSpawnInterval(level).toFixed(1).replace('.', ',');
+              metaEl.textContent =
+                `Zákazníků ve směně: ${level.customers} (příchod ~${iStr} s) · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
+            }
           });
+          card.appendChild(wageCtrl);
         }
 
         staffGrid.appendChild(card);
@@ -2273,6 +2498,8 @@
         const buyPumpCost = pumpIsMax ? null : pumpUnlockUpg.costs[curLvl - 1];
         const canBuyPump = !pumpIsMax && this.save.coins >= buyPumpCost;
         const hasHeavyPump = Boolean(curStage.limits && curStage.limits.hasHeavyPump);
+        const heavyIndices = (curStage.limits && curStage.limits.heavyPumpIndices) || (hasHeavyPump ? [3] : []);
+        const heavyLabel = heavyIndices.length > 1 ? `+ ${heavyIndices.length}× Kamiony` : '+ Stojan 4';
 
         const pumpCard = document.createElement('div');
         pumpCard.className = `prep-card ${pumpIsMax ? 'hired-card' : ''}`;
@@ -2284,8 +2511,8 @@
               <div class="lvl-pips"><span class="lvl-text">${
                 hasHeavyPump
                   ? pumpIsMax
-                    ? `✅ Postaveno: ${curLvl}/${maxLvl} + Stojan 4`
-                    : `Postaveno: ${curLvl}/${maxLvl} + Stojan 4`
+                    ? `✅ Postaveno: ${curLvl}/${maxLvl} ${heavyLabel}`
+                    : `Postaveno: ${curLvl}/${maxLvl} ${heavyLabel}`
                   : pumpIsMax
                   ? `✅ Postaveno maximum (${curLvl}/${maxLvl})`
                   : `Postaveno: ${curLvl}/${maxLvl} stojanů`
@@ -2308,7 +2535,7 @@
         upgradesGrid.appendChild(pumpCard);
       }
 
-      ['wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'].forEach((unlockId) => {
+      ['wash_unlock', 'air_unlock', 'vacuum_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock'].forEach((unlockId) => {
         const upg = this.data.UPGRADES.find((u) => u.id === unlockId);
         if (!upg) return;
         const capLvl = this.getUpgradeCap(upg.id);
@@ -2391,7 +2618,7 @@
           </div>
         </div>
         <p class="prep-desc">
-          Kliknutím přímo na kávovar (☕), gril (🌭), mytí (🧽), limonády (🧃), regály (🛒), stojany (⛽), pokladnu (📠), svou postavičku nebo zaměstnance si zvlášť vybereš rychlost, kapacitu či zvýšení ceny!
+          Kliknutím přímo na kávovar (☕), gril (🌭), mytí (🧽), limonády (🧃), regály (🛒), stojany (⛽), pokladnu (📠) nebo svou postavičku si vybereš vylepšení (Pohodlné tenisky a Větší tác jsou trvalé na celou hru). Kliknutím na zaměstnance nastavíš jeho denní výplatu!
         </p>
       `;
       upgradesGrid.appendChild(infoCard);
@@ -2403,9 +2630,18 @@
       this.updateGlobalHUD();
       if (this.levelState) {
         this.levelState.stageLimits = this.getCurrentStage().limits;
+        if (this.levelState.prepMode && this.levelState.level) {
+          const lvl = this.levelState.level;
+          const intStr = this._getEffectiveSpawnInterval(lvl).toFixed(1).replace('.', ',');
+          const subEl = document.getElementById('prep-bar-sub');
+          if (subEl) {
+            subEl.textContent =
+              `Zákazníků: ${lvl.customers} (interval ~${intStr} s) · Cíl: ⭐ ${lvl.stars[0]} Kč · ⭐⭐ ${lvl.stars[1]} Kč · ⭐⭐⭐ ${lvl.stars[2]} Kč`;
+          }
+        }
         const shoesLvl = this._getEffectiveUpgrade('shoes');
         const carryLvl = this._getEffectiveUpgrade('carry');
-        const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
+        const playerSpeed = 215 * (shoesLvl >= 2 ? 1.45 : 1);
         const maxCarry = 1 + carryLvl;
         const racksLvl = this._getEffectiveUpgrade('racks');
         const maxRackStock = 2 + racksLvl * 2;
@@ -2433,6 +2669,7 @@
               maxStock: maxRackStock
             });
           });
+        this.levelState.machineState = this._createMachineState();
 
         this.levelState.workers.forEach((w) => {
           if (w.isPlayer) {
@@ -2440,17 +2677,21 @@
             w.maxCarry = maxCarry;
           } else {
             const staffCap = this.getStaffCap(w.id);
-            const staffLvl = Math.min(staffCap, this.save.staff[w.id] || 0);
-            const enabled = this.save.staffEnabled[w.id] !== false;
-            w.level = staffLvl;
-            w.speed = staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185;
-            w.active = staffCap > 0 && (this.levelState.prepMode ? staffLvl > 0 : staffLvl > 0 && enabled);
+            const isHired = staffCap > 0 && (this.save.staff[w.id] || 0) > 0;
+            const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+            const rawWage =
+              this.save.staffWage && typeof this.save.staffWage[w.id] === 'number' ? this.save.staffWage[w.id] : defWage;
+            const perf = this._getStaffWagePerformance(rawWage);
+            w.wage = perf.wage;
+            w.workMultiplier = perf.workMultiplier;
+            w.speed = perf.walkSpeed || 78;
+            w.active = this.levelState.prepMode ? isHired : isHired && perf.active;
           }
         });
       }
 
       const objModal = document.getElementById('object-upgrade-modal');
-      if (objModal && !objModal.classList.contains('hidden') && this._activeObjectTarget) {
+      if (objModal && !objModal.classList.contains('hidden') && this._activeObjectTarget && this._activeObjectTarget.targetType !== 'staff') {
         this.openObjectUpgradeModal(this._activeObjectTarget);
       }
     }
@@ -2502,19 +2743,30 @@
       const st = this.data.STAFF.find((s) => s.id === staffId);
       if (!st) return;
       const staffCap = this.getStaffCap(staffId);
-      const curLvl = this.save.staff[staffId] || 0;
-      if (curLvl >= staffCap) return;
-      const cost = curLvl === 0 ? st.hireCost : st.upgradeCosts[curLvl - 1];
+      if (staffCap <= 0 || (this.save.staff[staffId] || 0) > 0) return;
+      const cost = st.hireCost;
       if (this.save.coins < cost) return;
 
       this.save.coins -= cost;
-      this.save.staff[staffId] = curLvl + 1;
-      this.save.staffEnabled[staffId] = true;
+      this.save.staff[staffId] = 1;
+      const defWage = (this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+      if (!this.save.staffWage || typeof this.save.staffWage !== 'object') {
+        this.save.staffWage = { tonik: defWage, anicka: defWage, kuba: defWage };
+      }
+      if (typeof this.save.staffWage[staffId] !== 'number' || this.save.staffWage[staffId] <= 0) {
+        this.save.staffWage[staffId] = defWage;
+      }
       this.audio.playUpgrade();
       this.persistSave();
       this._syncPrepState();
       this.renderPrepModal();
       this.renderMap();
+      if (this._activeObjectTarget && this._activeObjectTarget.targetType === 'staff') {
+        const modal = document.getElementById('object-upgrade-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+          this.openObjectUpgradeModal(this._activeObjectTarget);
+        }
+      }
     }
 
     _syncRackStockToSave() {
@@ -2527,12 +2779,66 @@
       });
     }
 
+    _syncMachineStockToSave() {
+      if (!this.levelState || !this.levelState.machineState) return;
+      if (!this.save.machineStock || typeof this.save.machineStock !== 'object') {
+        this.save.machineStock = {};
+      }
+      Object.values(this.levelState.machineState).forEach((m) => {
+        if (m && m.id) this.save.machineStock[m.id] = m.stock;
+      });
+    }
+
+    _createMachineState() {
+      const specs = (this.data && this.data.BISTRO_MACHINES) || {};
+      const saved =
+        this.save && this.save.machineStock && typeof this.save.machineStock === 'object'
+          ? this.save.machineStock
+          : null;
+      const out = {};
+      Object.values(specs).forEach((spec) => {
+        if (!this._isStationUnlocked(spec.id)) return;
+        const maxStock = spec.maxStock || 6;
+        const hasSaved = saved && typeof saved[spec.id] === 'number';
+        const initialStock = hasSaved ? Math.max(0, Math.min(maxStock, saved[spec.id])) : maxStock;
+        out[spec.id] = {
+          id: spec.id,
+          stock: initialStock,
+          maxStock,
+          broken: false
+        };
+      });
+      return out;
+    }
+
+    _scheduleMachineBreakdowns(level, curStage, machineState) {
+      const specs = (this.data && this.data.BISTRO_MACHINES) || {};
+      const approxShiftSec = Math.max(45, (level.customers || 12) * (level.spawnInterval || 8.5));
+      const minT = 14;
+      const maxT = Math.max(minT + 14, approxShiftSec * 0.65);
+      const dayOneScale = curStage && curStage.id === 1 && level && level.id === 1 ? 0.65 : 1;
+      const events = [];
+      Object.keys(machineState).forEach((mId) => {
+        const spec = specs[mId];
+        if (!spec || events.length >= 2) return;
+        const chance = (spec.breakdownChance || 0.16) * dayOneScale;
+        if (Math.random() < chance) {
+          events.push({
+            stationId: mId,
+            atTime: minT + Math.random() * (maxT - minT),
+            triggered: false
+          });
+        }
+      });
+      return events;
+    }
+
     _createLevelEntities(prepMode) {
       this._syncStageLevels();
       this._applySavedLayout();
       const shoesLvl = this._getEffectiveUpgrade('shoes');
       const carryLvl = this._getEffectiveUpgrade('carry');
-      const playerSpeed = 215 * (1 + (shoesLvl - 1) * 0.22);
+      const playerSpeed = 215 * (shoesLvl >= 2 ? 1.45 : 1);
       const maxCarry = 1 + carryLvl;
 
       const racksLvl = this._getEffectiveUpgrade('racks');
@@ -2570,29 +2876,40 @@
         seed: 0
       };
 
+      const curStageId = (this.getCurrentStage() && this.getCurrentStage().id) || 1;
       const workers = [player];
+      const tonikStartByStage = {
+        1: { x: 518, y: 196 },
+        2: { x: 58, y: 382 },
+        3: { x: 58, y: 368 },
+        4: { x: 301, y: 186 }
+      };
       const staffStartPositions = {
-        tonik: { x: 210, y: 395 },
+        tonik: tonikStartByStage[curStageId] || { x: 301, y: 186 },
         anicka: { x: 1138, y: 262 },
         kuba: { x: 1272, y: 412 }
       };
 
       this.data.STAFF.forEach((st, idx) => {
         const staffCap = this.getStaffCap(st.id);
-        const staffLvl = Math.min(staffCap, this.save.staff[st.id] || 0);
-        const enabled = this.save.staffEnabled[st.id] !== false;
+        const isHired = staffCap > 0 && (this.save.staff[st.id] || 0) > 0;
+        const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+        const rawWage =
+          this.save.staffWage && typeof this.save.staffWage[st.id] === 'number' ? this.save.staffWage[st.id] : defWage;
+        const perf = this._getStaffWagePerformance(rawWage);
         const startPos = staffStartPositions[st.id] || { x: 580, y: 335 };
         workers.push({
           id: st.id,
           isPlayer: false,
           label: st.shortName,
           role: st.id,
-          level: staffLvl,
+          wage: perf.wage,
+          workMultiplier: perf.workMultiplier,
           x: startPos.x,
           y: startPos.y,
           homeX: startPos.x,
           homeY: startPos.y,
-          speed: staffLvl <= 1 ? 82 : staffLvl === 2 ? 130 : 185,
+          speed: perf.walkSpeed || 78,
           color: st.color,
           hatColor: st.hatColor,
           held: [],
@@ -2603,7 +2920,7 @@
           actionTimer: 0,
           actionDuration: 0,
           moving: false,
-          active: staffCap > 0 && (prepMode ? staffLvl > 0 : staffLvl > 0 && enabled),
+          active: prepMode ? isHired : isHired && perf.active,
           seed: idx + 1.7
         });
       });
@@ -2646,9 +2963,10 @@
       document.getElementById('prep-topbar').classList.remove('hidden');
       document.getElementById('shift-topbar').classList.add('hidden');
 
+      const prepIntervalStr = this._getEffectiveSpawnInterval(level).toFixed(1).replace('.', ',');
       document.getElementById('prep-bar-title').textContent = `${curStage.name} · ${level.name}`;
       document.getElementById('prep-bar-sub').textContent =
-        `Zákazníků: ${level.customers} · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
+        `Zákazníků: ${level.customers} (interval ~${prepIntervalStr} s) · Cíl: ⭐ ${level.stars[0]} Kč · ⭐⭐ ${level.stars[1]} Kč · ⭐⭐⭐ ${level.stars[2]} Kč`;
       document.getElementById('game-tip-bar').innerHTML =
         '🛠️ <strong>Příprava benzínky:</strong> Klikni přímo na stojan, regál, kávovar, gril, pokladnu, svou postavičku nebo zaměstnance pro vylepšení. Nové stojany a zaměstnance koupíš přes <strong>🛒 Nakupovat</strong>, pak stiskni <strong>▶️ Start hry</strong>!';
 
@@ -2672,10 +2990,13 @@
         cars: [],
         customers: [],
         racks,
+        machineState: this._createMachineState(),
+        machineBreakdowns: [],
         spills: [],
         particles: [],
         workers,
         player,
+        selectedWorkerId: null,
         hoveredTarget: null,
         mouseX: 0,
         mouseY: 0,
@@ -2705,9 +3026,11 @@
       document.getElementById('shift-topbar').classList.remove('hidden');
       document.getElementById('pause-btn').textContent = '⏸️ Pauza';
       document.getElementById('game-tip-bar').innerHTML =
-        '💡 <strong>Tip:</strong> Klikej na předměty (☕ kávovar, 🌭 gril, 🧃 limonády, 📦 sklad, 🥨 stojany v obchodě, 🧽 mytí, ⛽ stojany, 📠 pokladnu) nebo přímo na zákazníky a auta — postava si sama dojde pro suroviny i doplní regály!';
+        '💡 <strong>Tip:</strong> Klikej na předměty, zákazníky a auta — nebo klikni na <strong>zaměstnance</strong> a pak na činnost z jeho popisu práce, aby všeho nechal a šel ji udělat hned!';
 
       const { racks, workers, player } = this._createLevelEntities(false);
+      const machineState = this._createMachineState();
+      const machineBreakdowns = this._scheduleMachineBreakdowns(level, curStage, machineState);
 
       this.levelState = {
         level,
@@ -2727,10 +3050,13 @@
         cars: [],
         customers: [],
         racks,
+        machineState,
+        machineBreakdowns,
         spills: [],
         particles: [],
         workers,
         player,
+        selectedWorkerId: null,
         hoveredTarget: null,
         mouseX: 0,
         mouseY: 0,
@@ -2807,7 +3133,7 @@
               id: w.id,
               targetType: 'staff',
               staffId: w.id,
-              hint: `🧑‍🔧 Klikni pro vylepšení zaměstnance (${w.label})`
+              hint: `💸 Klikni pro nastavení výplaty (${w.label})`
             };
           }
         }
@@ -2835,6 +3161,7 @@
         }
 
         // 3. Stations
+        const isStage4 = ((this.getCurrentStage() && this.getCurrentStage().id) || 1) === 4;
         const stationUpgradeMap = {
           pump_0: {
             upgradeIds: ['pumps', 'pumps_price'],
@@ -2859,10 +3186,26 @@
           },
           pump_3: {
             upgradeIds: ['pumps', 'pumps_price'],
-            icon: '🚛',
-            title: 'Stojan 4',
+            icon: isStage4 ? '⛽' : '🚛',
+            title: isStage4 ? 'Tankovací stojany' : 'Stojan 4',
             desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu pro všechny stojany:',
-            hint: '🚛 Klikni pro vylepšení rychlosti a ceny paliva (Stojan 4)'
+            hint: isStage4
+              ? '⛽ Klikni pro vylepšení rychlosti a ceny paliva (Stojan 4)'
+              : '🚛 Klikni pro vylepšení rychlosti a ceny paliva (Stojan 4)'
+          },
+          pump_4: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '🚛',
+            title: 'Stojan pro kamiony',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu pro všechny stojany:',
+            hint: '🚛 Klikni pro vylepšení rychlosti a ceny paliva (Kamiony 1)'
+          },
+          pump_5: {
+            upgradeIds: ['pumps', 'pumps_price'],
+            icon: '🚛',
+            title: 'Stojan pro kamiony',
+            desc: 'Zrychli tankování paliva nebo navyš jeho prodejní cenu pro všechny stojany:',
+            hint: '🚛 Klikni pro vylepšení rychlosti a ceny paliva (Kamiony 2)'
           },
           coffee: {
             upgradeIds: ['coffee', 'coffee_price'],
@@ -2886,6 +3229,20 @@
             title: 'Mytí oken',
             desc: 'Zrychli mytí čelních skel nebo navyš odměnu:',
             hint: '🧽 Klikni pro vylepšení mytí oken'
+          },
+          air: {
+            upgradeIds: ['air', 'air_price'],
+            icon: '💨',
+            title: 'Dofukování aut',
+            desc: 'Zrychli dofukování pneumatik nebo navyš odměnu:',
+            hint: '💨 Klikni pro vylepšení dofukování pneumatik'
+          },
+          vacuum: {
+            upgradeIds: ['vacuum', 'vacuum_price'],
+            icon: '🌀',
+            title: 'Vysavač',
+            desc: 'Zrychli vysávání aut nebo navyš odměnu:',
+            hint: '🌀 Klikni pro vylepšení vysavače'
           },
           fridge: {
             upgradeIds: ['drink_speed', 'drink_price'],
@@ -2941,21 +3298,57 @@
         return null;
       }
 
+      // 0. Active hired staff workers (selectable to force a priority task)
+      for (let i = state.workers.length - 1; i >= 0; i--) {
+        const w = state.workers[i];
+        if (w.isPlayer || !w.active) continue;
+        if (Math.abs(x - w.x) <= 24 && y >= w.y - 44 && y <= w.y + 28) {
+          const isSel = state.selectedWorkerId === w.id;
+          return {
+            kind: 'worker',
+            id: w.id,
+            obj: w,
+            hint: isSel
+              ? `❌ Zrušit výběr (${w.label})`
+              : `👆 Vybrat zaměstnance: ${w.label} – klikni a přikaž mu práci`
+          };
+        }
+      }
+
+      const selWorker = state.selectedWorkerId
+        ? state.workers.find((w) => w.id === state.selectedWorkerId && !w.isPlayer && w.active)
+        : null;
+      const decorateHint = (target) => {
+        if (selWorker && target) {
+          target.hint = this._getWorkerCommandHint(selWorker, target);
+        }
+        return target;
+      };
+
       // 1. Cars (waiting at pumps)
       for (let i = state.cars.length - 1; i >= 0; i--) {
         const car = state.cars[i];
         if (car.state === 'waiting') {
-          const halfW = car.isHeavy ? 76 : 64;
-          if (Math.abs(x - car.x) <= halfW && y >= car.y - 88 && y <= car.y + 34) {
-            return {
+          let hit = false;
+          if (car.topDown) {
+            const box = this._getCarHalfExtents(car, car.angle || 0);
+            hit = Math.abs(x - car.x) <= box.hw + 12 && Math.abs(y - car.y) <= box.hh + 12;
+          } else {
+            const halfW = car.isHeavy ? 76 : 64;
+            hit = Math.abs(x - car.x) <= halfW && y >= car.y - 88 && y <= car.y + 34;
+          }
+          if (hit) {
+            const serviceSt = car.serviceBayId ? this.data.STATIONS[car.serviceBayId] : null;
+            const pump = !serviceSt && car.pumpIndex >= 0 ? this.data.STATIONS[`pump_${car.pumpIndex}`] : null;
+            const pumpLabel = serviceSt ? serviceSt.label : pump ? pump.label : `Stojan ${car.pumpIndex + 1}`;
+            return decorateHint({
               kind: 'car',
               id: car.id,
               obj: car,
-              hint:
-                car.pumpIndex === 3
-                  ? `🚛 Velké vozidlo u Stojanu 4 (${this._describeOrders(car.orders)})`
-                  : `🚗 Auto u stojanu ${car.pumpIndex + 1} (${this._describeOrders(car.orders)})`
-            };
+              hint: car.isHeavy
+                ? `🚛 Velké vozidlo (${pumpLabel}) · ${this._describeOrders(car.orders)}`
+                : `🚗 Auto (${pumpLabel}) · ${this._describeOrders(car.orders)}`
+            });
           }
         }
       }
@@ -2976,7 +3369,7 @@
                 : cust.state === 'shopping'
                 ? `🛒 Vybírá z regálu · Objednávka: ${this._describeOrders(cust.orders)}`
                 : `🧑 Zákazník (${this._describeOrders(cust.orders)})`;
-            return { kind: 'customer', id: cust.id, obj: cust, hint };
+            return decorateHint({ kind: 'customer', id: cust.id, obj: cust, hint });
           }
         }
       }
@@ -2986,7 +3379,7 @@
         const spill = state.spills[i];
         const dist = Math.hypot(x - spill.x, y - spill.y);
         if (dist <= 32) {
-          return { kind: 'spill', id: spill.id, obj: spill, hint: '🧹 Uklidit louži (+2 Kč)' };
+          return decorateHint({ kind: 'spill', id: spill.id, obj: spill, hint: '🧹 Uklidit louži (+2 Kč)' });
         }
       }
 
@@ -3000,7 +3393,7 @@
             rack.stock === 0
               ? `⚠️ ${rack.label} je prázdný! Klikni pro doplnění 📦`
               : `${rack.icon} ${rack.label} (${rack.stock}/${rack.maxStock}) – klikni pro doplnění`;
-          return { kind: 'rack', id: rack.id, obj: rack, hint };
+          return decorateHint({ kind: 'rack', id: rack.id, obj: rack, hint });
         }
       }
 
@@ -3009,12 +3402,24 @@
         if (!this._isStationUnlocked(st.id)) continue;
         const dist = Math.hypot(x - st.x, y - st.y);
         if (dist <= st.radius) {
-          return {
+          let hint = st.type === 'service' ? st.label : `${st.icon} ${st.label}`;
+          const ms = state.machineState && state.machineState[st.id];
+          const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[st.id];
+          if (ms && spec) {
+            if (ms.broken) {
+              hint = `🔧 ${st.label} je porouchaný! Klikni pro opravu (pouze hráč)`;
+            } else if (ms.stock <= 0) {
+              hint = `⚠️ ${spec.emptyLabel} (${ms.stock}/${ms.maxStock}) – klikni pro doplnění ze skladu`;
+            } else {
+              hint = `${st.icon} ${st.label} (${ms.stock}/${ms.maxStock})`;
+            }
+          }
+          return decorateHint({
             kind: 'station',
             id: st.id,
             obj: st,
-            hint: `${st.icon} ${st.label}`
-          };
+            hint
+          });
         }
       }
 
@@ -3029,9 +3434,346 @@
       return 'outside';
     }
 
+    _getCarPedestrianBounds(car, padL = 1.5, padW = 4) {
+      let halfL = car.variant === 'truck' ? 56 : car.variant === 'bus' ? 55 : car.variant === 'van' ? 34 : 31;
+      let halfW = car.isHeavy ? 19 : car.variant === 'van' ? 17 : 16;
+      if (!car.topDown) {
+        halfL = car.isHeavy ? 68 : 50;
+        halfW = car.isHeavy ? 26 : 22;
+      }
+      halfL += padL;
+      halfW += padW;
+      const a = car.topDown ? car.angle || 0 : 0;
+      const c = Math.abs(Math.cos(a));
+      const s = Math.abs(Math.sin(a));
+      return { hw: c * halfL + s * halfW, hh: s * halfL + c * halfW };
+    }
+
+    _getDriverCarDoorPos(car) {
+      if (!car) return { x: -40, y: 648 };
+      const stageId = (this.getCurrentStage() && this.getCurrentStage().id) || 1;
+      if (car.serviceBayId) {
+        const baySt = this.data.STATIONS[car.serviceBayId];
+        if (baySt) {
+          if (stageId === 3) {
+            return { x: baySt.carX - 42, y: baySt.carY };
+          }
+          return { x: baySt.carX + 42, y: baySt.carY };
+        }
+      }
+      const pump = car.pumpIndex >= 0 ? this.data.STATIONS[`pump_${car.pumpIndex}`] : null;
+      if (pump && pump.carAngle === Math.PI / 2) {
+        // Vertical TIR bay in Stage 4: exit beside front cab door at bottom-right
+        return { x: car.x + 34, y: car.y + 52 };
+      }
+      if (pump && pump.carAngle === Math.PI) {
+        // Horizontal TIR bay in Stage 3: exit below cab onto driveway
+        return { x: car.x - 24, y: car.y + 28 };
+      }
+      if (stageId === 4 && car.pumpIndex >= 0 && car.pumpIndex <= 3) {
+        // Right-side car bays in Stage 4: exit on road side (left of vehicle) clear of pumps & adjacent cars
+        return { x: car.x - 40, y: car.y + 8 };
+      }
+      if (pump && Math.abs((pump.carAngle || 0) + Math.PI / 2) < 0.05) {
+        // Stages 1..3 vertical red bays: exit beside driver door on left side away from right-hand fuel dispenser
+        return { x: car.x - 28, y: car.y + 4 };
+      }
+      // Fallback driveway exit directly below vehicle
+      return { x: car.x, y: car.y + 28 };
+    }
+
+    _getOutsideObstacles(options = {}) {
+      const boxes = [];
+      const includeBuilding = options.includeBuilding !== false;
+      const stationPad = typeof options.stationPad === 'number' ? options.stationPad : 0;
+      const carPadL = typeof options.carPadL === 'number' ? options.carPadL : 1.5;
+      const carPadW = typeof options.carPadW === 'number' ? options.carPadW : 4;
+      const includeMovingCars = Boolean(options.includeMovingCars);
+
+      if (includeBuilding) {
+        // Main shop & storage exterior footprint with doorway gap at x: 690..740 (DOOR_OUT 715,592 -> DOOR_IN 715,554)
+        boxes.push({ x1: 604, y1: 120, x2: 690, y2: 583, kind: 'building', id: 'shop_left' });
+        boxes.push({ x1: 740, y1: 120, x2: 1525, y2: 583, kind: 'building', id: 'shop_right' });
+        boxes.push({ x1: 688, y1: 120, x2: 742, y2: 545, kind: 'building', id: 'shop_back' });
+      }
+
+      const stage = this.getCurrentStage();
+      const stageId = (stage && stage.id) || 1;
+      const stageMaxPumps = (stage && stage.limits && stage.limits.maxPumps) || 2;
+      const heavyIndices = (stage && stage.limits && stage.limits.heavyPumpIndices) ||
+        (stage && stage.limits && stage.limits.hasHeavyPump ? [3] : []);
+      const stationIds = ['bucket'];
+      for (let i = 0; i < stageMaxPumps; i++) stationIds.push(`pump_${i}`);
+      heavyIndices.forEach((idx) => stationIds.push(`pump_${idx}`));
+      if (stageId >= 2) {
+        stationIds.push('air', 'vacuum');
+      }
+
+      stationIds.forEach((id) => {
+        const st = this.data.STATIONS[id];
+        if (!st) return;
+        let hw = 24;
+        let hh = 26;
+        if (id === 'bucket') {
+          hw = 18;
+          hh = 18;
+        } else if (id === 'air' || id === 'vacuum') {
+          hw = 21;
+          hh = 24;
+        } else if (st.isHeavyPump) {
+          if (stageId === 4) {
+            hw = 28;
+            hh = 26;
+          } else {
+            hw = 22;
+            hh = 28;
+          }
+        } else if (stageId < 4) {
+          hw = 18;
+          hh = 26;
+        }
+        boxes.push({
+          x1: st.x - hw - stationPad,
+          y1: st.y - hh - stationPad,
+          x2: st.x + hw + stationPad,
+          y2: st.y + hh + stationPad,
+          kind: 'station',
+          id
+        });
+      });
+
+      const cars = this.levelState && this.levelState.cars ? this.levelState.cars : [];
+      cars.forEach((car) => {
+        const isStatic =
+          car.state === 'waiting' ||
+          car.state === 'waiting_driver' ||
+          car.state === 'waiting_for_pump' ||
+          car.blocked;
+        if (!isStatic && !includeMovingCars) return;
+        const ext = this._getCarPedestrianBounds(car, carPadL, carPadW);
+        boxes.push({
+          x1: car.x - ext.hw,
+          y1: car.y - ext.hh,
+          x2: car.x + ext.hw,
+          y2: car.y + ext.hh,
+          kind: 'car',
+          id: car.id
+        });
+      });
+
+      return boxes;
+    }
+
+    _pointInBox(x, y, b, eps = 0) {
+      return x > b.x1 - eps && x < b.x2 + eps && y > b.y1 - eps && y < b.y2 + eps;
+    }
+
+    _segmentHitsAABB(x1, y1, x2, y2, b) {
+      const eps = 1e-3;
+      const minX = b.x1 + eps;
+      const maxX = b.x2 - eps;
+      const minY = b.y1 + eps;
+      const maxY = b.y2 - eps;
+      if (minX >= maxX || minY >= maxY) return false;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      let t0 = 0;
+      let t1 = 1;
+      const clip = (p, q) => {
+        if (Math.abs(p) < 1e-9) return q >= 0;
+        const r = q / p;
+        if (p < 0) {
+          if (r > t1) return false;
+          if (r > t0) t0 = r;
+        } else {
+          if (r < t0) return false;
+          if (r < t1) t1 = r;
+        }
+        return true;
+      };
+      if (
+        clip(-dx, x1 - minX) &&
+        clip(dx, maxX - x1) &&
+        clip(-dy, y1 - minY) &&
+        clip(dy, maxY - y1)
+      ) {
+        return t0 <= t1;
+      }
+      return false;
+    }
+
+    _pushPointOutsideBoxes(rawX, rawY, boxes, bounds) {
+      let x = bounds ? Math.max(bounds.x1, Math.min(bounds.x2, rawX)) : rawX;
+      let y = bounds ? Math.max(bounds.y1, Math.min(bounds.y2, rawY)) : rawY;
+      for (let pass = 0; pass < 3; pass++) {
+        let moved = false;
+        for (let i = 0; i < boxes.length; i++) {
+          const b = boxes[i];
+          if (x > b.x1 && x < b.x2 && y > b.y1 && y < b.y2) {
+            const cands = [
+              { x: b.x1 - 3, y },
+              { x: b.x2 + 3, y },
+              { x, y: b.y1 - 3 },
+              { x, y: b.y2 + 3 }
+            ];
+            let bestPt = null;
+            let bestDist = Infinity;
+            for (let k = 0; k < cands.length; k++) {
+              const cx = bounds ? Math.max(bounds.x1, Math.min(bounds.x2, cands[k].x)) : cands[k].x;
+              const cy = bounds ? Math.max(bounds.y1, Math.min(bounds.y2, cands[k].y)) : cands[k].y;
+              if (cx > b.x1 && cx < b.x2 && cy > b.y1 && cy < b.y2) continue;
+              const d = Math.hypot(cx - x, cy - y);
+              if (d < bestDist) {
+                bestDist = d;
+                bestPt = { x: cx, y: cy };
+              }
+            }
+            if (bestPt) {
+              x = bestPt.x;
+              y = bestPt.y;
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+      return { x, y };
+    }
+
+    _routeAroundBoxes(sx, sy, ex, ey, boxes, bounds, extraNodes, pushPt) {
+      const segHitsAny = (x1, y1, x2, y2, skipSet) => {
+        for (let i = 0; i < boxes.length; i++) {
+          if (skipSet && skipSet.has(i)) continue;
+          if (this._segmentHitsAABB(x1, y1, x2, y2, boxes[i])) return true;
+        }
+        return false;
+      };
+
+      if (!segHitsAny(sx, sy, ex, ey, null)) {
+        pushPt(ex, ey);
+        return;
+      }
+
+      const cornerPad = 4;
+      const inBounds = (pt) =>
+        pt.x >= bounds.x1 && pt.x <= bounds.x2 && pt.y >= bounds.y1 && pt.y <= bounds.y2;
+      const isFree = (pt) => {
+        for (let i = 0; i < boxes.length; i++) {
+          if (this._pointInBox(pt.x, pt.y, boxes[i], 0)) return false;
+        }
+        return true;
+      };
+
+      const safeStart = isFree({ x: sx, y: sy }) ? { x: sx, y: sy } : this._pushPointOutsideBoxes(sx, sy, boxes, bounds);
+      const safeGoal = isFree({ x: ex, y: ey }) ? { x: ex, y: ey } : this._pushPointOutsideBoxes(ex, ey, boxes, bounds);
+
+      if (!segHitsAny(safeStart.x, safeStart.y, safeGoal.x, safeGoal.y, null)) {
+        if (Math.hypot(safeStart.x - sx, safeStart.y - sy) > 2) pushPt(safeStart.x, safeStart.y);
+        if (Math.hypot(safeGoal.x - ex, safeGoal.y - ey) > 2) {
+          pushPt(safeGoal.x, safeGoal.y);
+        }
+        pushPt(ex, ey);
+        return;
+      }
+
+      const nodes = [safeStart, safeGoal];
+      const addUniqueNode = (pt) => {
+        if (!inBounds(pt) || !isFree(pt)) return;
+        for (let i = 0; i < nodes.length; i++) {
+          if (Math.hypot(nodes[i].x - pt.x, nodes[i].y - pt.y) < 3) return;
+        }
+        nodes.push(pt);
+      };
+
+      boxes.forEach((b) => {
+        addUniqueNode({ x: b.x1 - cornerPad, y: b.y1 - cornerPad });
+        addUniqueNode({ x: b.x2 + cornerPad, y: b.y1 - cornerPad });
+        addUniqueNode({ x: b.x1 - cornerPad, y: b.y2 + cornerPad });
+        addUniqueNode({ x: b.x2 + cornerPad, y: b.y2 + cornerPad });
+      });
+      if (Array.isArray(extraNodes)) {
+        extraNodes.forEach(addUniqueNode);
+      }
+
+      const n = nodes.length;
+      const gScore = new Array(n).fill(Infinity);
+      const fScore = new Array(n).fill(Infinity);
+      const parent = new Array(n).fill(-1);
+      const closed = new Array(n).fill(false);
+      gScore[0] = 0;
+      fScore[0] = Math.hypot(nodes[1].x - nodes[0].x, nodes[1].y - nodes[0].y);
+
+      let foundGoal = false;
+      for (let iter = 0; iter < n; iter++) {
+        let u = -1;
+        let bestF = Infinity;
+        for (let i = 0; i < n; i++) {
+          if (!closed[i] && fScore[i] < bestF) {
+            bestF = fScore[i];
+            u = i;
+          }
+        }
+        if (u === -1 || gScore[u] === Infinity) break;
+        if (u === 1) {
+          foundGoal = true;
+          break;
+        }
+        closed[u] = true;
+        const nu = nodes[u];
+        for (let v = 1; v < n; v++) {
+          if (closed[v] || v === u) continue;
+          const nv = nodes[v];
+          const edgeCost = Math.hypot(nv.x - nu.x, nv.y - nu.y);
+          const tentativeG = gScore[u] + edgeCost;
+          if (tentativeG >= gScore[v]) continue;
+          if (!segHitsAny(nu.x, nu.y, nv.x, nv.y, null)) {
+            gScore[v] = tentativeG;
+            fScore[v] = tentativeG + Math.hypot(nodes[1].x - nv.x, nodes[1].y - nv.y);
+            parent[v] = u;
+          }
+        }
+      }
+
+      if (foundGoal) {
+        const rawPath = [];
+        let cur = 1;
+        while (cur !== -1) {
+          rawPath.push(nodes[cur]);
+          cur = parent[cur];
+        }
+        rawPath.reverse();
+
+        // String-pull smoothing so characters take natural diagonal shortcuts clear of corners
+        const smooth = [rawPath[0]];
+        let anchorIdx = 0;
+        while (anchorIdx < rawPath.length - 1) {
+          let farthest = anchorIdx + 1;
+          for (let probe = rawPath.length - 1; probe > anchorIdx + 1; probe--) {
+            if (!segHitsAny(rawPath[anchorIdx].x, rawPath[anchorIdx].y, rawPath[probe].x, rawPath[probe].y, null)) {
+              farthest = probe;
+              break;
+            }
+          }
+          smooth.push(rawPath[farthest]);
+          anchorIdx = farthest;
+        }
+
+        for (let i = 0; i < smooth.length; i++) {
+          if (i === 0 && Math.hypot(smooth[i].x - sx, smooth[i].y - sy) <= 2) continue;
+          pushPt(smooth[i].x, smooth[i].y);
+        }
+        if (Math.hypot(safeGoal.x - ex, safeGoal.y - ey) > 2) {
+          pushPt(ex, ey);
+        }
+        return;
+      }
+
+      pushPt(ex, ey);
+    }
+
     _clampWalkTarget(rawX, rawY) {
       let x = Math.max(35, Math.min(1505, rawX));
-      let y = Math.max(245, Math.min(592, rawY));
+      let y = Math.max(175, Math.min(592, rawY));
 
       // Keep clear of exterior left shop wall (x: 604..634, y < 584)
       if (x >= 604 && x < 634 && y < 584) {
@@ -3052,6 +3794,7 @@
       if (x > 1310 && y <= 478) {
         x = Math.max(1340, Math.min(1492, x));
         y = Math.max(255, Math.min(454, y));
+        return { x, y };
       }
 
       // Main shop interior bounds
@@ -3066,25 +3809,23 @@
           this.levelState && this.levelState.racks
             ? this.levelState.racks
             : Object.values(this.data.RACKS).filter((r) => this._isRackUnlocked(r.id));
-        activeRacks.forEach((r) => {
+        const rackBoxes = activeRacks.map((r) => {
           const isVert = (r.rot || 0) % 2 === 1;
           const hw = isVert ? 30 : 48;
           const hh = isVert ? 48 : 30;
-          if (x >= r.x - hw && x <= r.x + hw && y >= r.y - hh && y <= r.y + hh) {
-            const dxLeft = Math.abs(x - (r.x - hw));
-            const dxRight = Math.abs(r.x + hw - x);
-            const dyTop = Math.abs(y - (r.y - hh));
-            const dyBot = Math.abs(r.y + hh - y);
-            const minD = Math.min(dxLeft, dxRight, dyTop, dyBot);
-            if (minD === dyTop) y = r.y - hh - 4;
-            else if (minD === dyBot) y = r.y + hh + 4;
-            else if (minD === dxLeft) x = r.x - hw - 4;
-            else x = r.x + hw + 4;
-          }
+          return { x1: r.x - hw, y1: r.y - hh, x2: r.x + hw, y2: r.y + hh };
         });
+        return this._pushPointOutsideBoxes(x, y, rackBoxes, { x1: 636, y1: 245, x2: 1296, y2: 580 });
       }
 
-      return { x, y };
+      // Outside forecourt bounds: avoid walking straight into stationary pumps, equipment, or parked cars
+      const outsideBoxes = this._getOutsideObstacles({
+        includeBuilding: true,
+        stationPad: 2,
+        carPadL: 2,
+        carPadW: 4
+      });
+      return this._pushPointOutsideBoxes(x, y, outsideBoxes, { x1: 28, y1: 168, x2: 1505, y2: 598 });
     }
 
     _buildPath(fromX, fromY, toX, toY) {
@@ -3101,12 +3842,44 @@
 
       const routeOutside = (sx, sy, ex, ey) => {
         if ((sx < 620 && sy < 582 && ex >= 615) || (ex < 620 && ey < 582 && sx >= 615)) {
-          pushPt(PATH_WAYPOINTS.CORNER_SW.x, PATH_WAYPOINTS.CORNER_SW.y);
+          // Use clean Visibility A* around all outdoor pumps, equipment, parked cars, and the shop building
+          const outsideBoxes = this._getOutsideObstacles();
+          const bounds = {
+            x1: Math.min(20, sx - 8, ex - 8),
+            y1: Math.min(162, sy - 8, ey - 8),
+            x2: Math.max(760, sx + 8, ex + 8),
+            y2: Math.max(614, sy + 8, ey + 8)
+          };
+          const extra = [
+            PATH_WAYPOINTS.CORNER_SW,
+            { x: 301, y: 588 },
+            { x: 301, y: 380 },
+            { x: 392, y: 540 },
+            { x: 392, y: 270 }
+          ];
+          this._routeAroundBoxes(sx, sy, ex, ey, outsideBoxes, bounds, extra, pushPt);
+          return;
         }
         if ((sx > 1310 && sy < 582 && ex < 1310) || (ex > 1310 && ey < 582 && sx < 1310)) {
           pushPt(1322, 592);
+          pushPt(ex, ey);
+          return;
         }
-        pushPt(ex, ey);
+        const outsideBoxes = this._getOutsideObstacles();
+        const bounds = {
+          x1: Math.min(20, sx - 8, ex - 8),
+          y1: Math.min(162, sy - 8, ey - 8),
+          x2: Math.max(760, sx + 8, ex + 8),
+          y2: Math.max(660, sy + 8, ey + 8)
+        };
+        const extra = [
+          PATH_WAYPOINTS.CORNER_SW,
+          { x: 301, y: 588 },
+          { x: 301, y: 380 },
+          { x: 392, y: 540 },
+          { x: 392, y: 270 }
+        ];
+        this._routeAroundBoxes(sx, sy, ex, ey, outsideBoxes, bounds, extra, pushPt);
       };
 
       const routeShopFloor = (sx, sy, ex, ey) => {
@@ -3120,77 +3893,18 @@
           const hh = isVert ? 42 : 26;
           return { x1: r.x - hw - 10, y1: r.y - hh - 10, x2: r.x + hw + 10, y2: r.y + hh + 10 };
         });
-        const segHitsBox = (x1, y1, x2, y2) => {
-          for (let i = 0; i < boxes.length; i++) {
-            const b = boxes[i];
-            const steps = 16;
-            for (let s = 1; s < steps; s++) {
-              const p = s / steps;
-              const px = x1 + (x2 - x1) * p;
-              const py = y1 + (y2 - y1) * p;
-              if (px > b.x1 && px < b.x2 && py > b.y1 && py < b.y2) return true;
-            }
-          }
-          return false;
-        };
-        const isPathClear = (wps) => {
-          let px = sx;
-          let py = sy;
-          for (let i = 0; i < wps.length; i++) {
-            const wp = wps[i];
-            if (segHitsBox(px, py, wp.x, wp.y)) return false;
-            px = wp.x;
-            py = wp.y;
-          }
-          return !segHitsBox(px, py, ex, ey);
-        };
-
-        if (!segHitsBox(sx, sy, ex, ey)) {
-          pushPt(ex, ey);
-          return;
-        }
-
-        const minRackTop = boxes.length > 0 ? Math.min(...boxes.map((b) => b.y1)) : 432;
-        const maxRackBot = boxes.length > 0 ? Math.max(...boxes.map((b) => b.y2)) : 548;
-        const topY = Math.max(380, Math.min(432, minRackTop - 8));
-        const botY = Math.min(568, Math.max(548, maxRackBot + 8));
-        const candidateXs = [665, 715, 790, 845, 890, 945, 990, 1045, 1090, 1155, 1272];
-
-        let bestWaypoints = null;
-        let bestCost = Infinity;
-        const evalCandidate = (wps) => {
-          if (!isPathClear(wps)) return;
-          let cost = 0;
-          let px = sx;
-          let py = sy;
-          wps.forEach((wp) => {
-            cost += Math.hypot(wp.x - px, wp.y - py);
-            px = wp.x;
-            py = wp.y;
-          });
-          cost += Math.hypot(ex - px, ey - py);
-          if (cost < bestCost) {
-            bestCost = cost;
-            bestWaypoints = wps;
-          }
-        };
-
-        evalCandidate([{ x: sx, y: topY }, { x: ex, y: topY }]);
-        evalCandidate([{ x: sx, y: botY }, { x: ex, y: botY }]);
-        candidateXs.forEach((ax) => {
-          evalCandidate([{ x: ax, y: sy }, { x: ax, y: ey }]);
-          evalCandidate([{ x: ax, y: topY }]);
-          evalCandidate([{ x: ax, y: botY }]);
-          evalCandidate([{ x: sx, y: topY }, { x: ax, y: topY }, { x: ax, y: ey }]);
-          evalCandidate([{ x: sx, y: botY }, { x: ax, y: botY }, { x: ax, y: ey }]);
-          evalCandidate([{ x: ax, y: sy }, { x: ax, y: topY }, { x: ex, y: topY }]);
-          evalCandidate([{ x: ax, y: sy }, { x: ax, y: botY }, { x: ex, y: botY }]);
-        });
-
-        if (bestWaypoints) {
-          bestWaypoints.forEach((wp) => pushPt(wp.x, wp.y));
-        }
-        pushPt(ex, ey);
+        const bounds = { x1: 636, y1: 368, x2: 1296, y2: 576 };
+        const extra = [
+          { x: 665, y: 400 },
+          { x: 715, y: 400 },
+          { x: 890, y: 400 },
+          { x: 1090, y: 400 },
+          { x: 1272, y: 400 },
+          { x: 715, y: 562 },
+          { x: 990, y: 562 },
+          { x: 1272, y: 562 }
+        ];
+        this._routeAroundBoxes(sx, sy, ex, ey, boxes, bounds, extra, pushPt);
       };
 
       if (fromZone === toZone) {
@@ -3346,6 +4060,45 @@
       const hit = this._hitTest(pt.x, pt.y);
       const player = this.levelState.player;
 
+      if (hit && hit.kind === 'worker') {
+        this.audio.playClick();
+        if (this.levelState.selectedWorkerId === hit.id) {
+          this.levelState.selectedWorkerId = null;
+          this._spawnParticle(hit.obj.x, hit.obj.y - 44, 'Výběr zrušen', '#6d5846');
+        } else {
+          this.levelState.selectedWorkerId = hit.id;
+          this._spawnParticle(hit.obj.x, hit.obj.y - 44, `👆 ${hit.obj.label} – klikni na jeho úkol`, '#2a9d8f');
+        }
+        this.levelState.hoveredTarget = this._hitTest(pt.x, pt.y);
+        return;
+      }
+
+      if (this.levelState.selectedWorkerId) {
+        const selWorker = this.levelState.workers.find(
+          (w) => w.id === this.levelState.selectedWorkerId && !w.isPlayer && w.active
+        );
+        if (!selWorker) {
+          this.levelState.selectedWorkerId = null;
+        } else if (!hit) {
+          this.audio.playClick();
+          this.levelState.selectedWorkerId = null;
+          this._spawnParticle(selWorker.x, selWorker.y - 42, 'Výběr zrušen', '#6d5846');
+          this.levelState.hoveredTarget = null;
+          return;
+        } else {
+          this.audio.playClick();
+          const result = this._commandWorker(selWorker, hit);
+          if (result.ok) {
+            this.levelState.selectedWorkerId = null;
+            this._spawnParticle(selWorker.x, selWorker.y - 46, result.feedback, '#2a9d8f');
+          } else {
+            this._spawnParticle(pt.x, pt.y - 24, result.reason, '#d95d4a');
+          }
+          this.levelState.hoveredTarget = this._hitTest(pt.x, pt.y);
+          return;
+        }
+      }
+
       if (!hit) {
         const clamped = this._clampWalkTarget(pt.x, pt.y);
         player.taskQueue.push({ type: 'walk', x: clamped.x, y: clamped.y });
@@ -3366,6 +4119,616 @@
       } else if (hit.kind === 'spill') {
         this._queueSpillClick(player, hit.obj);
       }
+    }
+
+    _getWorkerCommandHint(w, hit) {
+      const plan = this._buildForcedWorkerTasks(w, hit);
+      if (plan.ok) {
+        return `👉 Přikázat (${w.label}): ${plan.shortHint || plan.feedback}`;
+      }
+      return `⛔ ${w.label}: ${plan.reason}`;
+    }
+
+    _buildForcedWorkerTasks(w, hit) {
+      if (!w || !hit || !this.levelState) return { ok: false, reason: 'Neplatný cíl.' };
+      const state = this.levelState;
+      const role = w.role;
+
+      if (role === 'tonik') {
+        if (hit.kind === 'car') {
+          const car = hit.obj;
+          if (car.state !== 'waiting') {
+            return { ok: false, reason: 'Auto teď nestojí na místě k obsluze.' };
+          }
+          if (car.serviceBayId) {
+            const baySt = this.data.STATIONS[car.serviceBayId];
+            const bayOrd = car.orders.find(
+              (o) => !o.done && (o.itemId === car.serviceBayId || (baySt && o.itemId === baySt.itemId))
+            );
+            if (baySt && bayOrd && this._isStationUnlocked(baySt.id)) {
+              const feedback = bayOrd.itemId === 'vacuum' ? '🌀 Toník jde vysát auto!' : '💨 Toník jde dofouknout kola!';
+              return {
+                ok: true,
+                clearBroom: true,
+                tasks: [
+                  {
+                    type: 'serviceCarBay',
+                    carId: car.id,
+                    stationId: baySt.id,
+                    itemId: bayOrd.itemId,
+                    x: baySt.walkX,
+                    y: baySt.walkY
+                  }
+                ],
+                feedback,
+                shortHint: bayOrd.itemId === 'vacuum' ? 'Vysát auto' : 'Dofouknout kola'
+              };
+            }
+            return { ok: false, reason: 'Toník u tohoto auta teď nemá co obsloužit.' };
+          }
+
+          const pump = this.data.STATIONS[`pump_${car.pumpIndex}`];
+          if (!pump) return { ok: false, reason: 'Neplatný stojan.' };
+          const fuelOrd = car.orders.find((o) => !o.done && o.itemId === 'fuel');
+          if (fuelOrd) {
+            return {
+              ok: true,
+              clearBroom: true,
+              tasks: [
+                {
+                  type: 'fuelCar',
+                  carId: car.id,
+                  pumpIndex: car.pumpIndex,
+                  x: pump.walkX,
+                  y: pump.walkY
+                }
+              ],
+              feedback: '⛽ Toník jde hned natankovat!',
+              shortHint: `Natankovat (${pump.label})`
+            };
+          }
+          const washOrd = this._isStationUnlocked('bucket')
+            ? car.orders.find((o) => !o.done && o.itemId === 'wash')
+            : null;
+          if (washOrd) {
+            if (w.held.includes('wash')) {
+              return {
+                ok: true,
+                tasks: [
+                  {
+                    type: 'serveCar',
+                    carId: car.id,
+                    itemId: 'wash',
+                    x: pump.walkX,
+                    y: Math.min(558, pump.walkY + 24)
+                  }
+                ],
+                feedback: '🧽 Toník jde hned umýt sklo!',
+                shortHint: `Umýt sklo (${pump.label})`
+              };
+            }
+            const bucket = this.data.STATIONS.bucket;
+            return {
+              ok: true,
+              needsSlot: 'wash',
+              tasks: [
+                {
+                  type: 'prep',
+                  stationId: bucket.id,
+                  itemId: 'wash',
+                  x: bucket.walkX,
+                  y: bucket.walkY
+                },
+                {
+                  type: 'serveCar',
+                  carId: car.id,
+                  itemId: 'wash',
+                  x: pump.walkX,
+                  y: Math.min(558, pump.walkY + 24)
+                }
+              ],
+              feedback: '🧽 Toník jde pro vodu a umýt sklo!',
+              shortHint: `Umýt sklo (${pump.label})`
+            };
+          }
+          return { ok: false, reason: 'Auto už má vše na nádvoří hotové.' };
+        }
+
+        if (hit.kind === 'station') {
+          const st = hit.obj;
+          if (st.type === 'pump') {
+            const carAtPump = state.cars.find((c) => c.pumpIndex === st.pumpIndex && c.state === 'waiting');
+            if (!carAtPump) return { ok: false, reason: 'U tohoto stojanu teď nestojí auto.' };
+            return this._buildForcedWorkerTasks(w, { kind: 'car', id: carAtPump.id, obj: carAtPump });
+          }
+          if (st.type === 'service') {
+            const carAtBay = state.cars.find((c) => c.serviceBayId === st.id && c.state === 'waiting');
+            if (!carAtBay) return { ok: false, reason: 'U tohoto stanoviště teď nestojí auto.' };
+            return this._buildForcedWorkerTasks(w, { kind: 'car', id: carAtBay.id, obj: carAtBay });
+          }
+          if (st.id === 'bucket') {
+            if (w.held.includes('wash')) {
+              const washCar = state.cars.find(
+                (c) => c.state === 'waiting' && !c.serviceBayId && c.orders.some((o) => !o.done && o.itemId === 'wash')
+              );
+              if (washCar) {
+                return this._buildForcedWorkerTasks(w, { kind: 'car', id: washCar.id, obj: washCar });
+              }
+              return { ok: false, reason: 'Toník už má vodu na okna v ruce.' };
+            }
+            return {
+              ok: true,
+              needsSlot: 'wash',
+              tasks: [
+                {
+                  type: 'prep',
+                  stationId: st.id,
+                  itemId: 'wash',
+                  x: st.walkX,
+                  y: st.walkY
+                }
+              ],
+              feedback: '🧽 Toník jde nabrat vodu na okna!',
+              shortHint: 'Nabrat vodu na okna'
+            };
+          }
+          if (st.id === 'trash' && w.held.length > 0) {
+            return {
+              ok: true,
+              tasks: [{ type: 'trash', x: st.walkX, y: st.walkY }],
+              feedback: '🗑️ Toník jde vysypat ruce!',
+              shortHint: 'Vyhodit věci do koše'
+            };
+          }
+        }
+        return { ok: false, reason: 'Toník jen tankuje, myje skla, dofukuje pneu a vysává auta!' };
+      }
+
+      if (role === 'anicka') {
+        if (hit.kind === 'station') {
+          const st = hit.obj;
+          if (st.id === 'coffee' || st.id === 'grill' || st.id === 'fridge') {
+            const ms = state.machineState && state.machineState[st.id];
+            const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[st.id];
+            if (ms && ms.broken) {
+              return { ok: false, reason: 'Porouchaný stroj musí opravit jedině hráč!' };
+            }
+            if (!ms || !spec || ms.stock >= ms.maxStock) {
+              return { ok: false, reason: 'Tento stroj už má plné suroviny!' };
+            }
+            if (w.held.includes(spec.supplyItemId)) {
+              return {
+                ok: true,
+                tasks: [
+                  {
+                    type: 'restockMachine',
+                    stationId: st.id,
+                    machineRestockId: st.id,
+                    supplyItemId: spec.supplyItemId,
+                    forced: true,
+                    x: st.walkX,
+                    y: st.walkY
+                  }
+                ],
+                feedback: `${this.data.ITEMS[spec.supplyItemId].icon} Anička jde hned doplnit ${st.label}!`,
+                shortHint: `Doplnit ${st.label}`
+              };
+            }
+            const storage = this.data.STATIONS.storage;
+            return {
+              ok: true,
+              needsSlot: spec.supplyItemId,
+              tasks: [
+                {
+                  type: 'prep',
+                  stationId: storage.id,
+                  itemId: spec.supplyItemId,
+                  x: storage.walkX,
+                  y: storage.walkY
+                },
+                {
+                  type: 'restockMachine',
+                  stationId: st.id,
+                  machineRestockId: st.id,
+                  supplyItemId: spec.supplyItemId,
+                  forced: true,
+                  x: st.walkX,
+                  y: st.walkY
+                }
+              ],
+              feedback: `${this.data.ITEMS[spec.supplyItemId].icon} Anička jde pro zásoby a doplní ${st.label}!`,
+              shortHint: `Doplnit ${st.label} ze skladu`
+            };
+          }
+          if (st.id === 'storage') {
+            const needList = Object.values((state && state.machineState) || {})
+              .filter((m) => m && m.stock < m.maxStock)
+              .sort((a, b) => a.stock - b.stock);
+            const targetM = needList[0];
+            if (!targetM) {
+              return { ok: false, reason: 'Kávovar, gril i limonády mají plné suroviny!' };
+            }
+            const spec = this.data.BISTRO_MACHINES[targetM.id];
+            const mSt = this.data.STATIONS[targetM.id];
+            const tasks = [];
+            if (!w.held.includes(spec.supplyItemId)) {
+              tasks.push({
+                type: 'prep',
+                stationId: st.id,
+                itemId: spec.supplyItemId,
+                x: st.walkX,
+                y: st.walkY
+              });
+            }
+            tasks.push({
+              type: 'restockMachine',
+              stationId: mSt.id,
+              machineRestockId: mSt.id,
+              supplyItemId: spec.supplyItemId,
+              forced: true,
+              x: mSt.walkX,
+              y: mSt.walkY
+            });
+            return {
+              ok: true,
+              needsSlot: w.held.includes(spec.supplyItemId) ? null : spec.supplyItemId,
+              tasks,
+              feedback: `${this.data.ITEMS[spec.supplyItemId].icon} Anička jde doplnit ${mSt.label}!`,
+              shortHint: `Doplnit ${mSt.label} ze skladu`
+            };
+          }
+          if (st.id === 'trash' && w.held.length > 0) {
+            return {
+              ok: true,
+              tasks: [{ type: 'trash', x: st.walkX, y: st.walkY }],
+              feedback: '🗑️ Anička jde odložit věci do koše!',
+              shortHint: 'Vyhodit věci do koše'
+            };
+          }
+          return { ok: false, reason: 'Anička obsluhuje jen kávovar, gril, limonády a doplňuje jejich suroviny!' };
+        }
+        if (hit.kind === 'customer') {
+          const cust = hit.obj;
+          if (cust.state === 'leaving' || cust.state === 'returning_to_car' || cust.state === 'waiting_driver') {
+            return { ok: false, reason: 'Tento zákazník už odchází.' };
+          }
+          if (cust.state === 'paying') {
+            return { ok: false, reason: 'Pokladnu obsluhuje Kuba (Anička připravuje bistro)!' };
+          }
+          if (cust.spotIndex < 0) {
+            return { ok: false, reason: 'Zákazník si jen bere zboží z regálu.' };
+          }
+          const spot = this.data.SHOP_SPOTS[cust.spotIndex];
+          const bistroItems = ['coffee', 'snack', 'drink'];
+          const undone = cust.orders.filter(
+            (o) => !o.done && bistroItems.includes(o.itemId) && this._isItemUnlocked(o.itemId)
+          );
+          if (undone.length === 0 || !spot) {
+            return { ok: false, reason: 'Zákazník nechce kávu, gril ani limonádu.' };
+          }
+          const heldMatch = undone.find((o) => w.held.includes(o.itemId));
+          if (heldMatch) {
+            const itemDef = this.data.ITEMS[heldMatch.itemId];
+            return {
+              ok: true,
+              tasks: [
+                {
+                  type: 'serveCustomer',
+                  custId: cust.id,
+                  itemId: heldMatch.itemId,
+                  x: spot.serveX,
+                  y: spot.serveY
+                }
+              ],
+              feedback: `${itemDef.icon} Anička to hned nese zákazníkovi!`,
+              shortHint: `Obsloužit (${itemDef.name})`
+            };
+          }
+          // Prefer non-broken machine first
+          const nextOrd =
+            undone.find((o) => {
+              const sid = this.data.ITEMS[o.itemId].stationId;
+              const m = state.machineState && state.machineState[sid];
+              return !m || !m.broken;
+            }) || undone[0];
+          const itemDef = this.data.ITEMS[nextOrd.itemId];
+          const st = this.data.STATIONS[itemDef.stationId];
+          const ms = state.machineState && state.machineState[st.id];
+          if (ms && ms.broken) {
+            return { ok: false, reason: `${st.label} je porouchaný – opravit ho musí hráč!` };
+          }
+          if (ms && ms.stock <= 0) {
+            const spec = this.data.BISTRO_MACHINES[st.id];
+            const storage = this.data.STATIONS.storage;
+            const tasks = [];
+            if (!w.held.includes(spec.supplyItemId)) {
+              tasks.push({
+                type: 'prep',
+                stationId: storage.id,
+                itemId: spec.supplyItemId,
+                x: storage.walkX,
+                y: storage.walkY
+              });
+            }
+            tasks.push({
+              type: 'restockMachine',
+              stationId: st.id,
+              machineRestockId: st.id,
+              supplyItemId: spec.supplyItemId,
+              forced: true,
+              x: st.walkX,
+              y: st.walkY
+            });
+            tasks.push({
+              type: 'prep',
+              stationId: st.id,
+              itemId: nextOrd.itemId,
+              x: st.walkX,
+              y: st.walkY
+            });
+            tasks.push({
+              type: 'serveCustomer',
+              custId: cust.id,
+              itemId: nextOrd.itemId,
+              x: spot.serveX,
+              y: spot.serveY
+            });
+            return {
+              ok: true,
+              needsSlot: w.held.includes(spec.supplyItemId) ? nextOrd.itemId : spec.supplyItemId,
+              tasks,
+              feedback: `${this.data.ITEMS[spec.supplyItemId].icon} Anička doplní ${st.label} a obslouží!`,
+              shortHint: `Doplnit a obsloužit (${itemDef.name})`
+            };
+          }
+          return {
+            ok: true,
+            needsSlot: nextOrd.itemId,
+            tasks: [
+              {
+                type: 'prep',
+                stationId: st.id,
+                itemId: nextOrd.itemId,
+                x: st.walkX,
+                y: st.walkY
+              },
+              {
+                type: 'serveCustomer',
+                custId: cust.id,
+                itemId: nextOrd.itemId,
+                x: spot.serveX,
+                y: spot.serveY
+              }
+            ],
+            feedback: `${st.icon} Anička jde připravit a donést ${itemDef.name}!`,
+            shortHint: `Připravit a donést (${itemDef.name})`
+          };
+        }
+        return { ok: false, reason: 'Anička jen připravuje kávu, občerstvení, limonády a doplňuje jejich suroviny!' };
+      }
+
+      if (role === 'kuba') {
+        const buildSpillCleanPlan = (firstSpill) => {
+          const broom = this.data.STATIONS.broom;
+          const tasks = [];
+          const hasBroom = w.held.includes('broom');
+          if (!hasBroom) {
+            tasks.push({ type: 'takeBroom', x: broom.walkX, y: broom.walkY });
+          }
+          let refX = hasBroom ? w.x : broom.walkX;
+          let refY = hasBroom ? w.y : broom.walkY;
+          const remaining = state.spills.filter((s) => s.id !== firstSpill.id);
+          tasks.push({ type: 'cleanSpill', spillId: firstSpill.id, x: firstSpill.x, y: firstSpill.y - 8 });
+          refX = firstSpill.x;
+          refY = firstSpill.y - 8;
+          while (remaining.length > 0) {
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            for (let i = 0; i < remaining.length; i++) {
+              const d = Math.hypot(remaining[i].x - refX, remaining[i].y - refY);
+              if (d < bestDist) {
+                bestDist = d;
+                bestIdx = i;
+              }
+            }
+            const nextSp = remaining.splice(bestIdx, 1)[0];
+            tasks.push({ type: 'cleanSpill', spillId: nextSp.id, x: nextSp.x, y: nextSp.y - 8 });
+            refX = nextSp.x;
+            refY = nextSp.y - 8;
+          }
+          tasks.push({ type: 'returnBroom', x: broom.walkX, y: broom.walkY });
+          return {
+            ok: true,
+            needsSlot: hasBroom ? null : 'broom',
+            tasks,
+            feedback: '🧹 Kuba jde hned uklidit louže!',
+            shortHint: 'Uklidit louže'
+          };
+        };
+
+        if (hit.kind === 'rack') {
+          const rack = hit.obj;
+          if (rack.stock >= rack.maxStock) {
+            return { ok: false, reason: 'Tento regál už je úplně plný!' };
+          }
+          if (w.held.includes('crate')) {
+            return {
+              ok: true,
+              clearBroom: true,
+              tasks: [
+                {
+                  type: 'restockRack',
+                  rackId: rack.id,
+                  forced: true,
+                  x: rack.walkX,
+                  y: rack.walkY
+                }
+              ],
+              feedback: `📦 Kuba jde hned doplnit ${rack.label}!`,
+              shortHint: `Doplnit ${rack.label}`
+            };
+          }
+          const storage = this.data.STATIONS.storage;
+          return {
+            ok: true,
+            clearBroom: true,
+            needsSlot: 'crate',
+            tasks: [
+              {
+                type: 'prep',
+                stationId: storage.id,
+                itemId: 'crate',
+                x: storage.walkX,
+                y: storage.walkY
+              },
+              {
+                type: 'restockRack',
+                rackId: rack.id,
+                forced: true,
+                x: rack.walkX,
+                y: rack.walkY
+              }
+            ],
+            feedback: `📦 Kuba jde pro krabici a doplnit ${rack.label}!`,
+            shortHint: `Doplnit ${rack.label}`
+          };
+        }
+
+        if (hit.kind === 'spill') {
+          return buildSpillCleanPlan(hit.obj);
+        }
+
+        if (hit.kind === 'customer') {
+          if (hit.obj.state === 'paying') {
+            const reg = this.data.STATIONS.register;
+            return {
+              ok: true,
+              clearBroom: true,
+              tasks: [{ type: 'register', x: reg.walkX, y: reg.walkY }],
+              feedback: '📠 Kuba běží na pokladnu!',
+              shortHint: 'Obsloužit pokladnu'
+            };
+          }
+          return { ok: false, reason: 'Kuba obsluhuje zákazníky až u pokladny!' };
+        }
+
+        if (hit.kind === 'station') {
+          const st = hit.obj;
+          if (st.id === 'register') {
+            const hasPaying = state.customers.some((c) => c.state === 'paying');
+            return {
+              ok: true,
+              clearBroom: true,
+              tasks: [
+                hasPaying
+                  ? { type: 'register', x: st.walkX, y: st.walkY }
+                  : { type: 'walk', x: st.walkX, y: st.walkY }
+              ],
+              feedback: hasPaying ? '📠 Kuba běží na pokladnu!' : '📠 Kuba jde hlídat pokladnu!',
+              shortHint: hasPaying ? 'Obsloužit pokladnu' : 'Stoupnout si k pokladně'
+            };
+          }
+          if (st.id === 'storage') {
+            const nonFullRack = state.racks
+              .filter((r) => r.stock < r.maxStock)
+              .sort((a, b) => a.stock - b.stock)[0];
+            if (!nonFullRack) {
+              return { ok: false, reason: 'Všechny regály v obchodě jsou už plné!' };
+            }
+            if (w.held.includes('crate')) {
+              return {
+                ok: true,
+                clearBroom: true,
+                tasks: [
+                  {
+                    type: 'restockRack',
+                    rackId: nonFullRack.id,
+                    forced: true,
+                    x: nonFullRack.walkX,
+                    y: nonFullRack.walkY
+                  }
+                ],
+                feedback: `📦 Kuba jde doplnit ${nonFullRack.label}!`,
+                shortHint: `Doplnit ${nonFullRack.label}`
+              };
+            }
+            return {
+              ok: true,
+              clearBroom: true,
+              needsSlot: 'crate',
+              tasks: [
+                {
+                  type: 'prep',
+                  stationId: st.id,
+                  itemId: 'crate',
+                  x: st.walkX,
+                  y: st.walkY
+                },
+                {
+                  type: 'restockRack',
+                  rackId: nonFullRack.id,
+                  forced: true,
+                  x: nonFullRack.walkX,
+                  y: nonFullRack.walkY
+                }
+              ],
+              feedback: `📦 Kuba jde do skladu a doplní ${nonFullRack.label}!`,
+              shortHint: `Vzít krabici a doplnit ${nonFullRack.label}`
+            };
+          }
+          if (st.id === 'broom') {
+            if (state.spills.length > 0) {
+              return buildSpillCleanPlan(state.spills[0]);
+            }
+            if (w.held.includes('broom')) {
+              return {
+                ok: true,
+                tasks: [{ type: 'returnBroom', x: st.walkX, y: st.walkY }],
+                feedback: '🧹 Kuba jde vrátit koště!',
+                shortHint: 'Vrátit koště'
+              };
+            }
+            return { ok: false, reason: 'Venku teď není žádná louže k úklidu.' };
+          }
+          if (st.id === 'trash' && w.held.length > 0) {
+            return {
+              ok: true,
+              tasks: [{ type: 'trash', x: st.walkX, y: st.walkY }],
+              feedback: '🗑️ Kuba jde vysypat ruce!',
+              shortHint: 'Vyhodit věci do koše'
+            };
+          }
+        }
+        return { ok: false, reason: 'Kuba jen obsluhuje pokladnu, doplňuje regály a uklízí louže!' };
+      }
+
+      return { ok: false, reason: `${w.label} tuto činnost nemá v popisu práce.` };
+    }
+
+    _commandWorker(w, hit) {
+      const plan = this._buildForcedWorkerTasks(w, hit);
+      if (!plan.ok) return plan;
+
+      // Cancel whatever the employee is currently doing right now
+      w.actionTimer = 0;
+      w.actionDuration = 0;
+      w.currentTask = null;
+      w.taskQueue = [];
+      w.waypoints = [];
+      w.moving = false;
+
+      if (plan.clearBroom) {
+        const bIdx = w.held.indexOf('broom');
+        if (bIdx !== -1) w.held.splice(bIdx, 1);
+      }
+      if (plan.needsSlot && w.held.length >= w.maxCarry) {
+        const dropIdx = w.held.findIndex((id) => id !== plan.needsSlot);
+        if (dropIdx !== -1) w.held.splice(dropIdx, 1);
+        else w.held.shift();
+      }
+
+      plan.tasks.forEach((t) => w.taskQueue.push(t));
+      return plan;
     }
 
     _getPlannedInventory(player) {
@@ -3392,6 +4755,10 @@
         }
         if (task.type === 'restockRack') {
           const idx = inv.indexOf('crate');
+          if (idx !== -1) inv.splice(idx, 1);
+        }
+        if (task.type === 'restockMachine' && task.supplyItemId) {
+          const idx = inv.indexOf(task.supplyItemId);
           if (idx !== -1) inv.splice(idx, 1);
         }
         if (task.type === 'trash' && inv.length > 0) inv.shift();
@@ -3493,6 +4860,75 @@
 
     _queueStationClick(player, st) {
       if (st.type === 'prep') {
+        const ms = this.levelState.machineState && this.levelState.machineState[st.id];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[st.id];
+        if (ms && spec) {
+          if (ms.broken) {
+            player.taskQueue.push({
+              type: 'repairMachine',
+              stationId: st.id,
+              x: st.walkX,
+              y: st.walkY
+            });
+            return;
+          }
+          const plannedInv = this._getPlannedInventory(player);
+          if (ms.stock <= 0 || (plannedInv.includes(spec.supplyItemId) && ms.stock < ms.maxStock)) {
+            if (plannedInv.includes(spec.supplyItemId)) {
+              player.taskQueue.push({
+                type: 'restockMachine',
+                stationId: st.id,
+                machineRestockId: st.id,
+                supplyItemId: spec.supplyItemId,
+                forced: true,
+                x: st.walkX,
+                y: st.walkY
+              });
+            } else if (!this.settings.smartAssist) {
+              const supIt = this.data.ITEMS[spec.supplyItemId];
+              this._spawnParticle(player.x, player.y - 45, `Vezmi ${supIt ? supIt.icon : '📦'} ze skladu!`, '#d95d4a');
+            } else if (plannedInv.length < player.maxCarry) {
+              const storage = this.data.STATIONS.storage;
+              player.taskQueue.push({
+                type: 'prep',
+                stationId: storage.id,
+                itemId: spec.supplyItemId,
+                x: storage.walkX,
+                y: storage.walkY
+              });
+              player.taskQueue.push({
+                type: 'restockMachine',
+                stationId: st.id,
+                machineRestockId: st.id,
+                supplyItemId: spec.supplyItemId,
+                forced: true,
+                x: st.walkX,
+                y: st.walkY
+              });
+            } else {
+              this._spawnParticle(player.x, player.y - 45, 'Plný tác!', '#d95d4a');
+            }
+            return;
+          }
+        }
+        if (st.id === 'storage') {
+          const plannedInv = this._getPlannedInventory(player);
+          const anyRackEmpty = this.levelState.racks && this.levelState.racks.some((r) => r.stock <= 0);
+          const emptyMachine = Object.values(this.levelState.machineState || {}).find((m) => m && m.stock <= 0);
+          if (emptyMachine && !anyRackEmpty) {
+            const spec = this.data.BISTRO_MACHINES[emptyMachine.id];
+            if (spec && !plannedInv.includes(spec.supplyItemId)) {
+              player.taskQueue.push({
+                type: 'prep',
+                stationId: st.id,
+                itemId: spec.supplyItemId,
+                x: st.walkX,
+                y: st.walkY
+              });
+              return;
+            }
+          }
+        }
         player.taskQueue.push({
           type: 'prep',
           stationId: st.id,
@@ -3500,6 +4936,22 @@
           x: st.walkX,
           y: st.walkY
         });
+      } else if (st.type === 'service') {
+        const carAtBay = this.levelState.cars.find(
+          (c) => c.serviceBayId === st.id && c.state === 'waiting'
+        );
+        if (carAtBay && carAtBay.orders.some((o) => o.itemId === st.itemId && !o.done)) {
+          player.taskQueue.push({
+            type: 'serviceCarBay',
+            carId: carAtBay.id,
+            stationId: st.id,
+            itemId: st.itemId,
+            x: st.walkX,
+            y: st.walkY
+          });
+        } else {
+          player.taskQueue.push({ type: 'walk', x: st.walkX, y: st.walkY });
+        }
       } else if (st.type === 'pump') {
         const carAtPump = this.levelState.cars.find(
           (c) => c.pumpIndex === st.pumpIndex && c.state === 'waiting'
@@ -3544,9 +4996,27 @@
     }
 
     _queueCarClick(player, car) {
-      const pump = this.data.STATIONS[`pump_${car.pumpIndex}`];
       const undone = car.orders.filter((o) => !o.done);
       if (undone.length === 0) return;
+
+      if (car.serviceBayId) {
+        const baySt = this.data.STATIONS[car.serviceBayId];
+        const bayOrder = undone.find((o) => o.itemId === car.serviceBayId || (baySt && o.itemId === baySt.itemId));
+        if (baySt && bayOrder) {
+          player.taskQueue.push({
+            type: 'serviceCarBay',
+            carId: car.id,
+            stationId: baySt.id,
+            itemId: bayOrder.itemId,
+            x: baySt.walkX,
+            y: baySt.walkY
+          });
+          return;
+        }
+      }
+
+      const pump = this.data.STATIONS[`pump_${car.pumpIndex}`];
+      if (!pump) return;
 
       const fuelOrder = undone.find((o) => o.itemId === 'fuel');
       const plannedInv = this._getPlannedInventory(player);
@@ -3558,7 +5028,7 @@
           carId: car.id,
           itemId: matchingHeldOrder.itemId,
           x: pump.walkX,
-          y: pump.walkY + 34
+          y: Math.min(558, pump.walkY + 24)
         });
         return;
       }
@@ -3577,11 +5047,12 @@
       const nextOrder = undone[0];
       const itemDef = this.data.ITEMS[nextOrder.itemId];
       const station = this.data.STATIONS[itemDef.stationId];
+      if (!station || station.type === 'service') return;
       if (!this.settings.smartAssist) {
         this._spawnParticle(player.x, player.y - 45, `Vezmi ${itemDef.icon} ${itemDef.name}`, '#d95d4a');
         return;
       }
-      if (station && plannedInv.length < player.maxCarry) {
+      if (plannedInv.length < player.maxCarry) {
         player.taskQueue.push({
           type: 'prep',
           stationId: station.id,
@@ -3594,7 +5065,7 @@
           carId: car.id,
           itemId: nextOrder.itemId,
           x: pump.walkX,
-          y: pump.walkY + 34
+          y: Math.min(558, pump.walkY + 24)
         });
       } else {
         this._spawnParticle(player.x, player.y - 45, 'Plný tác!', '#d95d4a');
@@ -3653,6 +5124,21 @@
         return;
       }
       if (station && plannedInv.length < player.maxCarry) {
+        const ms = this.levelState.machineState && this.levelState.machineState[station.id];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[station.id];
+        if (ms && ms.broken) {
+          this._spawnParticle(station.x, station.y - 46, `🔧 Oprav nejprve ${station.label}!`, '#d95d4a');
+          return;
+        }
+        if (ms && ms.stock <= 0) {
+          this._spawnParticle(
+            station.x,
+            station.y - 46,
+            `⚠️ ${(spec && spec.emptyLabel) || 'Došly suroviny!'} Doplň ze skladu 📦`,
+            '#d95d4a'
+          );
+          return;
+        }
         player.taskQueue.push({
           type: 'prep',
           stationId: station.id,
@@ -3674,9 +5160,15 @@
 
     _getStaffSpeedMultiplier(worker) {
       if (!worker || worker.isPlayer) return 1.0;
-      if (worker.level <= 1) return 0.48;
-      if (worker.level === 2) return 0.82;
-      return 1.25;
+      if (typeof worker.workMultiplier === 'number' && worker.workMultiplier > 0) {
+        return worker.workMultiplier;
+      }
+      const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+      const rawWage =
+        this.save && this.save.staffWage && typeof this.save.staffWage[worker.id] === 'number'
+          ? this.save.staffWage[worker.id]
+          : defWage;
+      return Math.max(0.5, this._getStaffWagePerformance(rawWage).workMultiplier || 1.0);
     }
 
     _getPrepDuration(itemId, worker) {
@@ -3686,6 +5178,8 @@
       else if (itemId === 'coffee') upgLevel = this._getEffectiveUpgrade('coffee');
       else if (itemId === 'snack') upgLevel = this._getEffectiveUpgrade('grill');
       else if (itemId === 'wash') upgLevel = this._getEffectiveUpgrade('wash');
+      else if (itemId === 'air') upgLevel = this._getEffectiveUpgrade('air');
+      else if (itemId === 'vacuum') upgLevel = this._getEffectiveUpgrade('vacuum');
       else if (itemId === 'drink') upgLevel = this._getEffectiveUpgrade('drink_speed');
       else if (itemId === 'crate') upgLevel = this._getEffectiveUpgrade('racks');
 
@@ -3700,15 +5194,87 @@
       if (itemId === 'coffee') bonus = (this._getEffectiveUpgrade('coffee_price') - 1) * 1;
       else if (itemId === 'snack') bonus = (this._getEffectiveUpgrade('grill_price') - 1) * 1;
       else if (itemId === 'wash') bonus = (this._getEffectiveUpgrade('wash_price') - 1) * 1;
+      else if (itemId === 'air') bonus = (this._getEffectiveUpgrade('air_price') - 1) * 1;
+      else if (itemId === 'vacuum') bonus = (this._getEffectiveUpgrade('vacuum_price') - 1) * 1;
       else if (itemId === 'drink') bonus = (this._getEffectiveUpgrade('drink_price') - 1) * 1;
       else if (itemId === 'fuel') bonus = (this._getEffectiveUpgrade('pumps_price') - 1) * 1;
       else if (item.isRackItem) bonus = (this._getEffectiveUpgrade('racks_price') - 1) * 1;
       return item.basePrice + bonus;
     }
 
+    _getEffectiveSpawnInterval(level) {
+      const base = (level && level.spawnInterval) || 6.8;
+      if (!this.save) return base;
+      const staff = this.save.staff || {};
+      const staffWage = this.save.staffWage || {};
+
+      const shoesExtra = this._getEffectiveUpgrade('shoes') >= 2 ? 1 : 0;
+      const carryExtra = Math.max(0, this._getEffectiveUpgrade('carry') - 1);
+      let upgradeReduction = shoesExtra * 0.35 + carryExtra * 0.2;
+
+      const pumpExtra = Math.max(0, this._getEffectiveUpgrade('pump_unlock') - 1);
+      upgradeReduction += pumpExtra * 0.12;
+
+      const speedKeys = ['pumps', 'coffee', 'grill', 'wash', 'air', 'vacuum', 'drink_speed'];
+      let speedSum = 0;
+      speedKeys.forEach((k) => {
+        speedSum += Math.max(0, this._getEffectiveUpgrade(k) - 1);
+      });
+      upgradeReduction += (speedSum / speedKeys.length) * 0.25;
+
+      const defWage = (this.data && this.data.STAFF_WAGE_CONFIG && this.data.STAFF_WAGE_CONFIG.defaultWage) || 14;
+      ['tonik', 'anicka', 'kuba'].forEach((sid) => {
+        const cap = this.getStaffCap(sid);
+        const isHired = cap > 0 && (staff[sid] || 0) > 0;
+        if (isHired) {
+          const rawW = typeof staffWage[sid] === 'number' ? staffWage[sid] : defWage;
+          const perf = this._getStaffWagePerformance(rawW);
+          if (perf.active) {
+            upgradeReduction += perf.spawnReduction;
+          }
+        }
+      });
+
+      const maxShiftReduction = Math.min(1.85, base * 0.22);
+      const effective = base - Math.min(maxShiftReduction, upgradeReduction);
+      return Math.max(5.5, Number(effective.toFixed(2)));
+    }
+
     _updateLevel(dt) {
       const state = this.levelState;
       state.time += dt;
+
+      if (state.machineBreakdowns && state.machineBreakdowns.length > 0 && state.machineState) {
+        state.machineBreakdowns.forEach((bd) => {
+          if (bd.triggered || state.time < bd.atTime) return;
+          const ms = state.machineState[bd.stationId];
+          if (!ms || ms.broken) {
+            bd.triggered = true;
+            return;
+          }
+          const inUse = state.workers.some(
+            (w) => w.active && w.actionTimer > 0 && w.currentTask && w.currentTask.stationId === bd.stationId
+          );
+          if (inUse) {
+            bd.atTime = state.time + 0.6;
+            return;
+          }
+          bd.triggered = true;
+          ms.broken = true;
+          const st = this.data.STATIONS[bd.stationId];
+          const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[bd.stationId];
+          this.audio.playSad();
+          if (st) {
+            this._spawnParticle(
+              st.x,
+              st.y - 46,
+              `🔧 Porucha: ${(spec && spec.label) || st.label}! Oprav ho!`,
+              '#c94436',
+              15
+            );
+          }
+        });
+      }
 
       if (state.spawnedCount < state.level.customers) {
         state.spawnTimer -= dt;
@@ -3716,7 +5282,8 @@
           const spawned = this._trySpawnVisitor();
           if (spawned) {
             state.spawnedCount += 1;
-            state.spawnTimer = state.level.spawnInterval * (0.85 + Math.random() * 0.3);
+            const effectiveInterval = this._getEffectiveSpawnInterval(state.level);
+            state.spawnTimer = effectiveInterval * (0.85 + Math.random() * 0.3);
           } else {
             state.spawnTimer = 1.0;
           }
@@ -3761,8 +5328,29 @@
         if (!state.cars.some((c) => c.pumpIndex === i)) freeNormalPumps.push(i);
       }
       const hasHeavyPump = Boolean(stage.limits && stage.limits.hasHeavyPump);
-      const heavyPumpFree = hasHeavyPump && !state.cars.some((c) => c.pumpIndex === 3);
+      const heavyIndices = (stage.limits && stage.limits.heavyPumpIndices) || (hasHeavyPump ? [3] : []);
+      const freeHeavyPumps = heavyIndices.filter((idx) => !state.cars.some((c) => c.pumpIndex === idx));
+      const heavyPumpFree = freeHeavyPumps.length > 0;
       const anyPumpFree = freeNormalPumps.length > 0 || heavyPumpFree;
+      const curStageId = (stage && stage.id) || 1;
+      const freeServiceBays = [];
+      ['air', 'vacuum'].forEach((bayId) => {
+        if (!this._isStationUnlocked(bayId)) return;
+        const baySt = this.data.STATIONS[bayId];
+        const busy = state.cars.some((c) => {
+          if (c.serviceBayId === bayId) {
+            return c.state !== 'leaving' || !baySt || c.y <= baySt.carY + 55;
+          }
+          if (c.prevServiceBayId === bayId && c.state === 'arriving') {
+            return curStageId === 3 ? c.x > 350 : c.x < 330;
+          }
+          return false;
+        });
+        if (!busy) {
+          freeServiceBays.push(bayId);
+        }
+      });
+      const anyVehicleBayFree = anyPumpFree || freeServiceBays.length > 0;
 
       const freeSpots = [];
       for (let i = 0; i < this.data.SHOP_SPOTS.length; i++) {
@@ -3775,11 +5363,19 @@
         }
       }
 
-      if (!anyPumpFree && freeSpots.length === 0) return false;
+      if (!anyVehicleBayFree && freeSpots.length === 0) return false;
+
+      const spawnPos = { x: -110, y: 738 };
+      const entranceClear = !state.cars.some(
+        (c) => Math.hypot(c.x - spawnPos.x, c.y - spawnPos.y) < 145
+      );
 
       let spawnCar = Math.random() < lvl.carChance;
-      if (spawnCar && !anyPumpFree) spawnCar = false;
-      if (!spawnCar && freeSpots.length === 0) spawnCar = true;
+      if (spawnCar && (!anyVehicleBayFree || !entranceClear)) spawnCar = false;
+      if (!spawnCar && freeSpots.length === 0) {
+        if (!anyVehicleBayFree || !entranceClear) return false;
+        spawnCar = true;
+      }
 
       const decorBonus = 1 + (this._getEffectiveUpgrade('decor') - 1) * 0.25;
       const maxPatience = lvl.patienceBase * decorBonus;
@@ -3792,7 +5388,7 @@
           isHeavy = false;
           wantBus = false;
           wantTruck = false;
-        } else if (!isHeavy && freeNormalPumps.length === 0 && heavyPumpFree) {
+        } else if (!isHeavy && freeNormalPumps.length === 0 && freeServiceBays.length === 0 && heavyPumpFree) {
           const bChance = stage.busChance || 0;
           const tChance = stage.truckChance || 0;
           if (bChance > 0 && Math.random() < bChance / Math.max(0.01, bChance + tChance)) {
@@ -3803,8 +5399,12 @@
           isHeavy = true;
         }
 
-        const pumpIndex = isHeavy ? 3 : freeNormalPumps[Math.floor(Math.random() * freeNormalPumps.length)];
-        const pump = this.data.STATIONS[`pump_${pumpIndex}`];
+        // Non-heavy passenger cars can start at unlocked air/vacuum bays (either service-only or service -> fuel -> pay)
+        let serviceBayId = null;
+        if (!isHeavy && freeServiceBays.length > 0 && (freeNormalPumps.length === 0 || Math.random() < 0.42)) {
+          serviceBayId = freeServiceBays[Math.floor(Math.random() * freeServiceBays.length)];
+        }
+
         let variant;
         let color;
         let roofColor;
@@ -3823,28 +5423,62 @@
           roofColor = palette.roofColor;
         }
 
-        const carAllowed = lvl.orders.filter((o) => (o === 'fuel' || o === 'wash') && this._isItemUnlocked(o));
-        const orders = [{ itemId: 'fuel', done: false }];
-        if (carAllowed.length > 1 && Math.random() < lvl.multiChance) {
-          orders.push({ itemId: 'wash', done: false });
+        const orders = [];
+        let pumpIndex = -1;
+        let targetDest = null;
+
+        if (serviceBayId) {
+          const serviceSt = this.data.STATIONS[serviceBayId];
+          orders.push({ itemId: serviceBayId, done: false });
+          // Half of service-bay cars also want fuel afterwards!
+          if (Math.random() < 0.55) {
+            orders.push({ itemId: 'fuel', done: false });
+            if (this._isItemUnlocked('wash') && lvl.orders.includes('wash') && Math.random() < lvl.multiChance * 0.5) {
+              orders.push({ itemId: 'wash', done: false });
+            }
+          }
+          targetDest = serviceSt;
+        } else {
+          pumpIndex = isHeavy
+            ? freeHeavyPumps[Math.floor(Math.random() * freeHeavyPumps.length)]
+            : freeNormalPumps[Math.floor(Math.random() * freeNormalPumps.length)];
+          targetDest = this.data.STATIONS[`pump_${pumpIndex}`];
+          orders.push({ itemId: 'fuel', done: false });
+          if (this._isItemUnlocked('wash') && lvl.orders.includes('wash') && Math.random() < lvl.multiChance) {
+            orders.push({ itemId: 'wash', done: false });
+          }
         }
 
-        state.cars.push({
+        const carPatience = isHeavy ? Math.round(maxPatience + 8) : maxPatience;
+        const carObj = {
           id: state.nextEntityId++,
           pumpIndex,
-          x: -90,
-          y: 648,
-          targetX: pump.carX,
-          targetY: pump.carY,
+          serviceBayId,
+          x: spawnPos.x,
+          y: spawnPos.y,
+          targetX: targetDest.carX,
+          targetY: targetDest.carY,
+          angle: 0,
+          targetAngle: typeof targetDest.carAngle === 'number' ? targetDest.carAngle : 0,
+          topDown: true,
+          reversing: false,
+          waypoints: [],
+          pauseTimer: 0,
+          blocked: false,
+          blockedTimer: 0,
           state: 'arriving',
           orders,
-          patience: maxPatience,
-          maxPatience,
+          patience: carPatience,
+          maxPatience: carPatience,
           color,
           roofColor,
           variant,
           isHeavy
-        });
+        };
+        carObj.waypoints = serviceBayId
+          ? this._buildCarBayArrivalPlan(carObj, targetDest, stage.id)
+          : this._buildCarArrivalPlan(carObj, targetDest, stage.id);
+        state.cars.push(carObj);
       } else {
         const spotIndex = freeSpots[Math.floor(Math.random() * freeSpots.length)];
         const bistroAllowed = lvl.orders.filter(
@@ -3853,6 +5487,8 @@
             !this.data.ITEMS[o].isRackItem &&
             o !== 'fuel' &&
             o !== 'wash' &&
+            o !== 'air' &&
+            o !== 'vacuum' &&
             this._isItemUnlocked(o)
         );
         const pool = bistroAllowed.length > 0 ? bistroAllowed : ['coffee'];
@@ -3909,11 +5545,27 @@
 
       if (state.spills.length < 2 && Math.random() < lvl.spillChance) {
         const inShop = Math.random() < 0.55;
+        let sx = 700 + Math.random() * 540;
+        let sy = 412 + Math.random() * 28;
+        if (!inShop) {
+          if (stage.id === 4) {
+            if (Math.random() < 0.5) {
+              sx = 74 + Math.random() * 140;
+              sy = 435 + Math.random() * 105;
+            } else {
+              sx = 410 + Math.random() * 85;
+              sy = 230 + Math.random() * 270;
+            }
+          } else {
+            sx = 395 + Math.random() * 135;
+            sy = 392 + Math.random() * 140;
+          }
+        }
         state.spills.push({
           id: state.nextEntityId++,
           type: inShop ? 'coffee' : 'oil',
-          x: inShop ? 700 + Math.random() * 540 : 90 + Math.random() * 430,
-          y: inShop ? 412 + Math.random() * 28 : 360 + Math.random() * 45
+          x: sx,
+          y: sy
         });
       }
 
@@ -3957,6 +5609,80 @@
 
       // All orders completed! Go pay at register
       this._checkCustomerDone(cust);
+    }
+
+    _stepPedestrian(ent, finalX, finalY, speed, arriveThreshold, dt) {
+      if (ent._rerouteCooldown > 0) {
+        ent._rerouteCooldown = Math.max(0, ent._rerouteCooldown - dt);
+      }
+      const nextPt =
+        ent.waypoints && ent.waypoints.length > 0 ? ent.waypoints[0] : { x: finalX, y: finalY };
+      const dx = nextPt.x - ent.x;
+      const dy = nextPt.y - ent.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist <= arriveThreshold) {
+        ent.x = nextPt.x;
+        ent.y = nextPt.y;
+        if (ent.waypoints && ent.waypoints.length > 0) {
+          ent.waypoints.shift();
+          ent.moving = true;
+          return true;
+        }
+        ent.moving = false;
+        return false;
+      }
+
+      const step = Math.min(dist, speed * dt);
+      let nx = ent.x + (dx / dist) * step;
+      let ny = ent.y + (dy / dist) * step;
+
+      if (this._getZone(ent.x, ent.y) === 'outside' || this._getZone(nx, ny) === 'outside') {
+        const boxes = this._getOutsideObstacles({
+          includeBuilding: true,
+          stationPad: -1,
+          carPadL: 0.5,
+          carPadW: 2
+        });
+        let hit = false;
+        for (let i = 0; i < boxes.length; i++) {
+          if (this._segmentHitsAABB(ent.x, ent.y, nx, ny, boxes[i]) || this._pointInBox(nx, ny, boxes[i], 0)) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit) {
+          if (!ent._rerouteCooldown || ent._rerouteCooldown <= 0) {
+            ent._rerouteCooldown = 0.25;
+            const repath = this._buildPath(ent.x, ent.y, finalX, finalY);
+            if (repath.length > 0) {
+              ent.waypoints = repath;
+              const rw = ent.waypoints[0];
+              const rdx = rw.x - ent.x;
+              const rdy = rw.y - ent.y;
+              const rdist = Math.hypot(rdx, rdy);
+              if (rdist > 1) {
+                const rstep = Math.min(rdist, speed * dt);
+                nx = ent.x + (rdx / rdist) * rstep;
+                ny = ent.y + (rdy / rdist) * rstep;
+              }
+            }
+          }
+          const safe = this._pushPointOutsideBoxes(nx, ny, boxes, {
+            x1: 20,
+            y1: 162,
+            x2: 1520,
+            y2: 658
+          });
+          nx = safe.x;
+          ny = safe.y;
+        }
+      }
+
+      ent.x = nx;
+      ent.y = ny;
+      ent.moving = true;
+      return true;
     }
 
     _updateWorker(w, dt) {
@@ -4021,6 +5747,18 @@
             if (w.taskQueue.length === 0) this._runStaffAI();
             return;
           }
+        } else if (task.type === 'returnBroom' && w.held.includes('broom') && this.levelState.spills.length > 0) {
+          const unclaimed = this.levelState.spills.filter((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+          if (unclaimed.length > 0) {
+            unclaimed.sort((a, b) => Math.hypot(a.x - w.x, a.y - w.y) - Math.hypot(b.x - w.x, b.y - w.y));
+            const nextSp = unclaimed[0];
+            w.taskQueue.unshift({ type: 'returnBroom', x: task.x, y: task.y });
+            w.taskQueue.unshift({ type: 'cleanSpill', spillId: nextSp.id, x: nextSp.x, y: nextSp.y - 8 });
+            w.currentTask = null;
+            w.waypoints = [];
+            w.moving = false;
+            return;
+          }
         } else if (task.type === 'cleanSpill') {
           const sp = this.levelState.spills.find((s) => s.id === task.spillId);
           if (!sp) {
@@ -4032,36 +5770,7 @@
           }
         }
       }
-      if (w.waypoints && w.waypoints.length > 0) {
-        const wp = w.waypoints[0];
-        const wdx = wp.x - w.x;
-        const wdy = wp.y - w.y;
-        const wdist = Math.hypot(wdx, wdy);
-        if (wdist > 6) {
-          w.moving = true;
-          const step = Math.min(wdist, w.speed * dt);
-          w.x += (wdx / wdist) * step;
-          w.y += (wdy / wdist) * step;
-          return;
-        }
-        w.x = wp.x;
-        w.y = wp.y;
-        w.waypoints.shift();
-        if (w.waypoints.length > 0) {
-          w.moving = true;
-          return;
-        }
-      }
-
-      const dx = task.x - w.x;
-      const dy = task.y - w.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > 6) {
-        w.moving = true;
-        const step = Math.min(dist, w.speed * dt);
-        w.x += (dx / dist) * step;
-        w.y += (dy / dist) * step;
+      if (this._stepPedestrian(w, task.x, task.y, w.speed, 6, dt)) {
         return;
       }
 
@@ -4072,7 +5781,14 @@
       if (task.type === 'walk' || task.type === 'returnHome') {
         w.currentTask = null;
       } else if (task.type === 'prep') {
-        if (w.held.length >= w.maxCarry) {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        if (ms && ms.broken) {
+          if (w.isPlayer) this._spawnParticle(w.x, w.y - 44, '🔧 Stroj je porouchaný – oprav ho!', '#d95d4a');
+          w.currentTask = null;
+        } else if (ms && ms.stock <= 0) {
+          if (w.isPlayer) this._spawnParticle(w.x, w.y - 44, '⚠️ Došly suroviny – doplň je ze skladu!', '#d95d4a');
+          w.currentTask = null;
+        } else if (w.held.length >= w.maxCarry) {
           if (w.isPlayer) this._spawnParticle(w.x, w.y - 44, 'Plný tác!', '#d95d4a');
           w.currentTask = null;
         } else {
@@ -4081,10 +5797,29 @@
         }
       } else if (task.type === 'restockRack') {
         const rack = this.levelState.racks.find((r) => r.id === task.rackId);
-        if (!rack || !w.held.includes('crate') || (!w.isPlayer && rack.stock >= rack.maxStock / 2)) {
+        if (!rack || !w.held.includes('crate') || rack.stock >= rack.maxStock || (!w.isPlayer && !task.forced && rack.stock >= rack.maxStock / 2)) {
           w.currentTask = null;
         } else {
           w.actionDuration = w.isPlayer ? 0.85 : Math.max(0.45, 0.85 / this._getStaffSpeedMultiplier(w));
+          w.actionTimer = w.actionDuration;
+        }
+      } else if (task.type === 'restockMachine') {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[task.stationId];
+        if (!ms || !spec || !w.held.includes(spec.supplyItemId) || ms.stock >= ms.maxStock) {
+          w.currentTask = null;
+        } else {
+          const baseDur = spec.restockTime || 1.55;
+          w.actionDuration = w.isPlayer ? baseDur : Math.max(0.85, baseDur / this._getStaffSpeedMultiplier(w));
+          w.actionTimer = w.actionDuration;
+        }
+      } else if (task.type === 'repairMachine') {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[task.stationId];
+        if (!w.isPlayer || !ms || !ms.broken) {
+          w.currentTask = null;
+        } else {
+          w.actionDuration = (spec && spec.repairTime) || 1.9;
           w.actionTimer = w.actionDuration;
         }
       } else if (task.type === 'fuelCar') {
@@ -4093,7 +5828,17 @@
           w.currentTask = null;
         } else {
           const baseFuelDur = this._getPrepDuration('fuel', w);
-          w.actionDuration = car.isHeavy ? baseFuelDur * 1.45 : baseFuelDur;
+          w.actionDuration = car.isHeavy ? baseFuelDur * 3 : baseFuelDur;
+          w.actionTimer = w.actionDuration;
+        }
+      } else if (task.type === 'serviceCarBay') {
+        const car = this.levelState.cars.find(
+          (c) => c.id === task.carId && c.state === 'waiting' && c.serviceBayId === task.stationId
+        );
+        if (!car || !car.orders.some((o) => o.itemId === task.itemId && !o.done)) {
+          w.currentTask = null;
+        } else {
+          w.actionDuration = this._getPrepDuration(task.itemId, w);
           w.actionTimer = w.actionDuration;
         }
       } else if (task.type === 'serveCar') {
@@ -4169,6 +5914,24 @@
         }
         w.currentTask = null;
       } else if (task.type === 'returnBroom') {
+        if (!w.isPlayer && w.held.includes('broom') && this.levelState.spills.length > 0) {
+          const nextSpill = this.levelState.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+          if (nextSpill) {
+            w.taskQueue.unshift({
+              type: 'returnBroom',
+              x: task.x,
+              y: task.y
+            });
+            w.taskQueue.unshift({
+              type: 'cleanSpill',
+              spillId: nextSpill.id,
+              x: nextSpill.x,
+              y: nextSpill.y - 8
+            });
+            w.currentTask = null;
+            return;
+          }
+        }
         const broomIdx = w.held.indexOf('broom');
         if (broomIdx !== -1) {
           w.held.splice(broomIdx, 1);
@@ -4208,8 +5971,28 @@
     _completeWorkerTask(w, task) {
       if (!task) return;
       if (task.type === 'prep') {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[task.stationId];
+        if (ms && (ms.broken || ms.stock <= 0)) {
+          return;
+        }
         if (w.held.length < w.maxCarry) {
           w.held.push(task.itemId);
+          if (ms) {
+            ms.stock = Math.max(0, ms.stock - 1);
+            this._syncMachineStockToSave();
+            if (ms.stock === 0) {
+              const st = this.data.STATIONS[task.stationId];
+              if (st) {
+                this._spawnParticle(
+                  st.x,
+                  st.y - 46,
+                  `⚠️ ${(spec && spec.emptyLabel) || 'Došly suroviny!'}`,
+                  '#d95d4a'
+                );
+              }
+            }
+          }
           if (task.itemId === 'coffee') this.audio.playCoffee();
           else if (task.itemId === 'snack') this.audio.playGrill();
           else if (task.itemId === 'wash') this.audio.playWash();
@@ -4226,6 +6009,36 @@
           this.audio.playUpgrade();
           this._spawnParticle(rack.x, rack.y - 42, `Doplněno! ${rack.icon} ${rack.stock}/${rack.maxStock}`, '#4f9d69');
         }
+      } else if (task.type === 'restockMachine') {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        const spec = this.data.BISTRO_MACHINES && this.data.BISTRO_MACHINES[task.stationId];
+        const st = this.data.STATIONS[task.stationId];
+        const sIdx = spec ? w.held.indexOf(spec.supplyItemId) : -1;
+        if (ms && spec && sIdx !== -1) {
+          w.held.splice(sIdx, 1);
+          ms.stock = ms.maxStock;
+          this._syncMachineStockToSave();
+          this.audio.playUpgrade();
+          const supIt = this.data.ITEMS[spec.supplyItemId];
+          if (st) {
+            this._spawnParticle(
+              st.x,
+              st.y - 44,
+              `Doplněno! ${supIt ? supIt.icon : '📦'} ${ms.stock}/${ms.maxStock}`,
+              '#4f9d69'
+            );
+          }
+        }
+      } else if (task.type === 'repairMachine') {
+        const ms = this.levelState.machineState && this.levelState.machineState[task.stationId];
+        const st = this.data.STATIONS[task.stationId];
+        if (w.isPlayer && ms && ms.broken) {
+          ms.broken = false;
+          this.audio.playUpgrade();
+          if (st) {
+            this._spawnParticle(st.x, st.y - 46, `🔧 Opraveno! (${st.label})`, '#4f9d69');
+          }
+        }
       } else if (task.type === 'fuelCar') {
         const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
         if (car) {
@@ -4234,6 +6047,18 @@
             order.done = true;
             this.audio.playFuel();
             this._spawnParticle(car.x, car.y - 50, '⛽ ✓', '#4f9d69');
+            this._checkCarDone(car);
+          }
+        }
+      } else if (task.type === 'serviceCarBay') {
+        const car = this.levelState.cars.find((c) => c.id === task.carId && c.state === 'waiting');
+        if (car) {
+          const order = car.orders.find((o) => o.itemId === task.itemId && !o.done);
+          if (order) {
+            order.done = true;
+            this.audio.playClick();
+            const label = task.itemId === 'vacuum' ? 'Vysáto ✓' : 'Dofoukáno ✓';
+            this._spawnParticle(car.x, car.y - 50, label, '#4f9d69');
             this._checkCarDone(car);
           }
         }
@@ -4250,9 +6075,10 @@
 
           if (cust.isDriver) {
             const car = this.levelState.cars.find((c) => c.id === cust.carId);
+            const doorPos = car ? this._getDriverCarDoorPos(car) : { x: -40, y: 648 };
             cust.state = 'returning_to_car';
             cust.paid = true;
-            this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 648);
+            this._setCustomerTarget(cust, doorPos.x, doorPos.y);
           } else {
             cust.state = 'leaving';
             this._setCustomerTarget(cust, 715, 650);
@@ -4296,7 +6122,56 @@
       return base + tip;
     }
 
+    _findFreeNormalPump() {
+      const state = this.levelState;
+      const stage = this.getCurrentStage();
+      const stageMaxPumps = (stage && stage.limits && stage.limits.maxPumps) || 3;
+      const maxPumps = Math.min(stageMaxPumps, Math.max(1, this.save.upgrades.pump_unlock || 1));
+      const free = [];
+      for (let i = 0; i < maxPumps; i++) {
+        if (!state.cars.some((c) => c.pumpIndex === i)) free.push(i);
+      }
+      return free.length > 0 ? free[Math.floor(Math.random() * free.length)] : -1;
+    }
+
+    _tryMoveCarToPump(car) {
+      const pIdx = this._findFreeNormalPump();
+      if (pIdx < 0) return false;
+      const stageId = (this.getCurrentStage() && this.getCurrentStage().id) || 1;
+      const fromBayId = car.serviceBayId;
+      const fromSt = this.data.STATIONS[fromBayId];
+      const pump = this.data.STATIONS[`pump_${pIdx}`];
+      if (!fromSt || !pump) return false;
+
+      car.pumpIndex = pIdx;
+      car.prevServiceBayId = fromBayId;
+      car.serviceBayId = null;
+      car.targetX = pump.carX;
+      car.targetY = pump.carY;
+      car.targetAngle = typeof pump.carAngle === 'number' ? pump.carAngle : 0;
+      car.state = 'arriving';
+      car.blocked = false;
+      car.blockedTimer = 0;
+      car.patience = Math.max(car.patience, car.maxPatience * 0.78);
+      car.waypoints = this._buildCarBayToPumpPlan(car, fromSt, pump, stageId);
+      this._spawnParticle(car.x, car.y - 45, 'Jede natankovat ⛽', '#4e3629');
+      return true;
+    }
+
     _checkCarDone(car) {
+      if (car.state !== 'waiting') return;
+      if (car.serviceBayId) {
+        const bayDone = !car.orders.some((o) => o.itemId === car.serviceBayId && !o.done);
+        if (!bayDone) return;
+        const needsPumpOrder = car.orders.some((o) => (o.itemId === 'fuel' || o.itemId === 'wash') && !o.done);
+        if (needsPumpOrder) {
+          if (!this._tryMoveCarToPump(car)) {
+            car.state = 'waiting_for_pump';
+            this._spawnParticle(car.x, car.y - 45, 'Čeká na volný stojan ⛽', '#8c6b4f');
+          }
+          return;
+        }
+      }
       if (car.orders.every((o) => o.done) && car.state === 'waiting') {
         const state = this.levelState;
         const lvl = state.level;
@@ -4332,6 +6207,8 @@
             !this.data.ITEMS[o].isRackItem &&
             o !== 'fuel' &&
             o !== 'wash' &&
+            o !== 'air' &&
+            o !== 'vacuum' &&
             this._isItemUnlocked(o)
         );
         const bistroChance = car.variant === 'bus' ? 1.0 : car.variant === 'truck' ? 0.7 : 0.55;
@@ -4353,6 +6230,7 @@
           carOrders.push({ itemId: 'fuel' });
         }
 
+        const startDoorPos = this._getDriverCarDoorPos(car);
         const driver = {
           id: state.nextEntityId++,
           isDriver: true,
@@ -4360,10 +6238,10 @@
           carOrders,
           paid: false,
           spotIndex,
-          x: car.x + 28,
-          y: car.y + 18,
-          targetX: car.x + 28,
-          targetY: car.y + 18,
+          x: startDoorPos.x,
+          y: startDoorPos.y,
+          targetX: startDoorPos.x,
+          targetY: startDoorPos.y,
           waypoints: [],
           state: 'arriving',
           moving: true,
@@ -4399,46 +6277,788 @@
       }
     }
 
-    _updateCars(dt) {
-      const cars = this.levelState.cars;
-      for (let i = cars.length - 1; i >= 0; i--) {
-        const car = cars[i];
-        if (car.state === 'arriving') {
-          if (car.x < car.targetX - 36) {
-            car.x = Math.min(car.targetX - 36, car.x + 250 * dt);
+    _buildCarBayArrivalPlan(_car, baySt, stageId) {
+      if (stageId === 3) {
+        // Stage 3 right-side bay (x=494, carAngle=0)
+        return [
+          { x: 340, y: 738, speed: 250 },
+          { x: 340, y: baySt.carY, speed: 195 },
+          { x: 402, y: baySt.carY, speed: 165, bayCrossRight: true },
+          { x: baySt.carX, y: baySt.carY, speed: 135, fixedAngle: 0 }
+        ];
+      }
+      // Stage 2 & Stage 4 left-side bay (x=122 or x=108, carAngle=Math.PI)
+      return [
+        { x: 340, y: 738, speed: 250 },
+        { x: 340, y: baySt.carY, speed: 195 },
+        { x: 262, y: baySt.carY, speed: 165, bayCrossLeft: true },
+        { x: baySt.carX, y: baySt.carY, speed: 135, bayCrossLeft: true, fixedAngle: Math.PI }
+      ];
+    }
+
+    _buildCarBayToPumpPlan(_car, fromBaySt, pump, stageId) {
+      if (stageId === 4) {
+        // Left-side bottom bay (108, 498/548) -> hold cleanly inside bay pocket (x=136) -> reverse east onto northbound lane (340) -> right into pump_0..3
+        return [
+          { x: 136, y: fromBaySt.carY, speed: 135, reverse: true, fixedAngle: Math.PI },
+          { x: 340, y: fromBaySt.carY, speed: 160, reverse: true, fixedAngle: Math.PI, pause: 0.12, bayToStemCommit: true, bayHoldMax: 144 },
+          { x: 340, y: Math.min(548, pump.carY + 18), speed: 205 },
+          { x: 392, y: pump.carY, speed: 175 },
+          { x: pump.carX, y: pump.carY, speed: 150, fixedAngle: 0 }
+        ];
+      }
+      if (stageId === 3) {
+        // Right-side bay (494, 416/514) -> reverse west to northbound lane (340) -> up T-bar -> pull nose-up into vertical bay
+        return [
+          { x: 432, y: fromBaySt.carY, speed: 135, reverse: true, fixedAngle: 0 },
+          { x: 340, y: fromBaySt.carY, speed: 155, reverse: true, fixedAngle: 0, pause: 0.12, bayToStemCommit: true, bayHoldMin: 424 },
+          { x: 340, y: 298, speed: 195, tBarEnter: true },
+          { x: pump.carX, y: 298, speed: 175 },
+          { x: pump.carX, y: pump.carY, speed: 140, fixedAngle: -Math.PI / 2 }
+        ];
+      }
+      // Stage 2 left-side bay (122, 456/532) -> reverse east to northbound lane (340) -> up T-bar -> pull nose-up into vertical bay
+      return [
+        { x: 185, y: fromBaySt.carY, speed: 135, reverse: true, fixedAngle: Math.PI },
+        { x: 340, y: fromBaySt.carY, speed: 160, reverse: true, fixedAngle: Math.PI, pause: 0.12, bayToStemCommit: true, bayHoldMax: 190 },
+        { x: 340, y: 298, speed: 195, tBarEnter: true },
+        { x: pump.carX, y: 298, speed: 175 },
+        { x: pump.carX, y: pump.carY, speed: 140, fixedAngle: -Math.PI / 2 }
+      ];
+    }
+
+    _buildCarArrivalPlan(car, pump, stageId) {
+      if (stageId === 4) {
+        if (car.isHeavy) {
+          // Stage 4 Truck/Bus: turn onto apron at y=400 -> stage at y=406 (well clear above y=498 air bay) -> reverse up into y=282 bay
+          return [
+            { x: 340, y: 738, speed: 235 },
+            { x: 340, y: 400, speed: 195 },
+            { x: 230, y: 404, speed: 165, stage4ApronEnter: true },
+            { x: Math.round((226 + pump.carX) / 2), y: 406, speed: 155, stage4ApronBusy: true },
+            { x: pump.carX, y: 406, speed: 140, stage4ApronBusy: true, fixedAngle: Math.PI / 2, pause: 0.25 },
+            { x: pump.carX, y: pump.carY, speed: 120, reverse: true, fixedAngle: Math.PI / 2 }
+          ];
+        }
+        // Stage 4 Car: bottom eastbound lane -> northbound central road -> right into car bay
+        return [
+          { x: 340, y: 738, speed: 260 },
+          { x: 340, y: Math.min(548, pump.carY + 18), speed: 215 },
+          { x: 392, y: pump.carY, speed: 175 },
+          { x: pump.carX, y: pump.carY, speed: 150, fixedAngle: 0 }
+        ];
+      }
+
+      if (stageId === 3 && (car.isHeavy || car.pumpIndex === 3)) {
+        // Stage 3 Truck: highway eastbound -> northbound central stem -> left directly into horizontal blue truck bay
+        return [
+          { x: 340, y: 738, speed: 235 },
+          { x: 340, y: 468, speed: 185 },
+          { x: 262, y: 468, speed: 155, stage3TruckCross: true },
+          { x: pump.carX, y: pump.carY, speed: 135, fixedAngle: Math.PI, stage3TruckCross: true }
+        ];
+      }
+
+      // Stages 1..3 Cars: bottom eastbound lane -> northbound central stem -> T-bar upper lane (y=298) -> pull nose-up into vertical bay (y=224, -PI/2)
+      return [
+        { x: 340, y: 738, speed: 255 },
+        { x: 340, y: 298, speed: 200, tBarEnter: true },
+        { x: pump.carX, y: 298, speed: 175 },
+        { x: pump.carX, y: pump.carY, speed: 140, fixedAngle: -Math.PI / 2 }
+      ];
+    }
+
+    _startCarLeaving(car) {
+      if (!car) return;
+      const stageId = (this.getCurrentStage() && this.getCurrentStage().id) || 1;
+      car.state = 'leaving';
+      car.targetX = -170;
+      car.pauseTimer = 0.08;
+      car.blocked = false;
+      car.blockedTimer = 0;
+
+      if (car.serviceBayId) {
+        const baySt = this.data.STATIONS[car.serviceBayId];
+        if (baySt) {
+          if (stageId === 3) {
+            car.waypoints = [
+              { x: 432, y: baySt.carY, speed: 135, reverse: true, fixedAngle: 0 },
+              { x: 262, y: baySt.carY, speed: 155, reverse: true, fixedAngle: 0, pause: 0.1, bayExitCommit: true, bayHoldMin: 424 },
+              { x: 262, y: 628, speed: 205 },
+              { x: -165, y: 628, speed: 260 }
+            ];
           } else {
-            const dx = car.targetX - car.x;
-            const dy = car.targetY - car.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist <= 4) {
-              car.x = car.targetX;
-              car.y = car.targetY;
-              car.state = 'waiting';
-            } else {
-              const step = Math.min(dist, 200 * dt);
-              car.x += (dx / dist) * step;
-              car.y += (dy / dist) * step;
+            const holdX = stageId === 4 ? 136 : 185;
+            const holdMax = stageId === 4 ? 144 : 190;
+            car.waypoints = [
+              { x: holdX, y: baySt.carY, speed: 135, reverse: true, fixedAngle: Math.PI },
+              { x: 262, y: baySt.carY, speed: 155, reverse: true, fixedAngle: Math.PI, pause: 0.1, bayExitCommit: true, bayHoldMax: holdMax },
+              { x: 262, y: 628, speed: 205 },
+              { x: -165, y: 628, speed: 260 }
+            ];
+          }
+          return;
+        }
+      }
+
+      if (stageId === 4) {
+        if (car.isHeavy) {
+          // Pull forward straight out of y=282 bay to apron (y=404/394) -> hold clear of x=262 -> turn strictly west of x=301 onto southbound lane -> westbound highway
+          const bayPullY = car.pumpIndex === 4 ? 404 : 394;
+          const holdX = car.pumpIndex === 4 ? 148 : 162;
+          car.waypoints = [
+            { x: car.x, y: bayPullY, speed: 150, fixedAngle: Math.PI / 2 },
+            { x: holdX, y: bayPullY, speed: 160, stage4ApronExitHold: true },
+            { x: 222, y: Math.max(408, bayPullY + 8), speed: 175, stage4ApronCommit: true },
+            { x: 260, y: 474, speed: 185, stage4ApronCommit: true },
+            { x: 262, y: 628, speed: 205 },
+            { x: -170, y: 628, speed: 250 }
+          ];
+        } else {
+          // Back gently out to bay threshold (x=424) -> wait cleanly outside central road if needed -> swing down southbound lane -> westbound highway
+          car.waypoints = [
+            { x: 424, y: car.y + 8, speed: 135, reverse: true, fixedAngle: 0, pause: 0.14 },
+            { x: 262, y: Math.min(552, car.y + 42), speed: 185, stage4Merge: true },
+            { x: 262, y: 628, speed: 215 },
+            { x: -160, y: 628, speed: 265 }
+          ];
+        }
+        return;
+      }
+
+      if (stageId === 3 && (car.isHeavy || car.pumpIndex === 3)) {
+        // Stage 3 Truck: reverse out east to southbound central stem -> drive south to westbound highway
+        car.waypoints = [
+          { x: 262, y: 468, speed: 135, reverse: true, fixedAngle: Math.PI, pause: 0.16, stage3TruckExit: true },
+          { x: 262, y: 628, speed: 195 },
+          { x: -170, y: 628, speed: 250 }
+        ];
+        return;
+      }
+
+      // Stages 1..3 Cars: reverse straight out of vertical bay onto lower T-bar lane (y=338) -> southbound lane (x=262) -> westbound highway
+      car.waypoints = [
+        { x: car.x, y: 338, speed: 135, reverse: true, tBarExit: true, fixedAngle: -Math.PI / 2, pause: 0.1 },
+        { x: 262, y: 338, speed: 175 },
+        { x: 262, y: 628, speed: 210 },
+        { x: -165, y: 628, speed: 260 }
+      ];
+    }
+
+    _obbsOverlap(ax, ay, aAng, aHL, aHW, bx, by, bAng, bHL, bHW) {
+      const ca = Math.cos(aAng || 0);
+      const sa = Math.sin(aAng || 0);
+      const cb = Math.cos(bAng || 0);
+      const sb = Math.sin(bAng || 0);
+      const axes = [
+        { x: ca, y: sa },
+        { x: -sa, y: ca },
+        { x: cb, y: sb },
+        { x: -sb, y: cb }
+      ];
+      const dx = bx - ax;
+      const dy = by - ay;
+      for (let i = 0; i < 4; i++) {
+        const axX = axes[i].x;
+        const axY = axes[i].y;
+        const dist = Math.abs(dx * axX + dy * axY);
+        const rA = aHL * Math.abs(ca * axX + sa * axY) + aHW * Math.abs(-sa * axX + ca * axY);
+        const rB = bHL * Math.abs(cb * axX + sb * axY) + bHW * Math.abs(-sb * axX + cb * axY);
+        if (dist >= rA + rB) return false;
+      }
+      return true;
+    }
+
+    _getCarHalfExtents(car, angle) {
+      if (car.topDown) {
+        const halfL = car.variant === 'truck' ? 58 : car.variant === 'bus' ? 56 : car.variant === 'van' ? 35 : 32;
+        const halfW = car.isHeavy ? 20 : 17;
+        const c = Math.abs(Math.cos(angle || 0));
+        const s = Math.abs(Math.sin(angle || 0));
+        return { hw: c * halfL + s * halfW, hh: s * halfL + c * halfW };
+      }
+      return { hw: car.isHeavy ? 68 : 52, hh: car.isHeavy ? 28 : 24 };
+    }
+
+    _getCarMoveDir(car) {
+      if (car.waypoints && car.waypoints.length > 0) {
+        const wp = car.waypoints[0];
+        const dx = wp.x - car.x;
+        const dy = wp.y - car.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.5) return { x: dx / dist, y: dy / dist };
+      }
+      const a = car.angle || 0;
+      const sign = car.reversing ? -1 : 1;
+      return { x: Math.cos(a) * sign, y: Math.sin(a) * sign };
+    }
+
+    _hasVehicleConflict(car, nextX, nextY, nextAngle, dirX, dirY) {
+      const cars = this.levelState.cars;
+      const boxA = this._getCarHalfExtents(car, nextAngle);
+
+      const wp0Turn = car.waypoints && car.waypoints[0];
+      const wp1Turn = car.waypoints && car.waypoints[1];
+      let cornerLookCap = Infinity;
+      let cornerDist = Infinity;
+      if (wp0Turn && wp1Turn) {
+        const d0 = Math.hypot(wp0Turn.x - car.x, wp0Turn.y - car.y);
+        const d1 = Math.hypot(wp1Turn.x - wp0Turn.x, wp1Turn.y - wp0Turn.y);
+        if (d0 > 0.5 && d1 > 0.5) {
+          const turnDot = ((wp0Turn.x - car.x) / d0) * ((wp1Turn.x - wp0Turn.x) / d1) +
+            ((wp0Turn.y - car.y) / d0) * ((wp1Turn.y - wp0Turn.y) / d1);
+          if (turnDot < 0.35) {
+            cornerDist = d0;
+            cornerLookCap = Math.max(4, d0 - 2);
+          }
+        }
+      }
+
+      const hitsWithMargin = (other, boxB, look, pad) => {
+        const effLook = Math.min(look, cornerLookCap);
+        const effPad = cornerDist < 24 ? Math.min(pad, 6) : pad;
+        const dxToOther = other.x - car.x;
+        const dyToOther = other.y - car.y;
+        const fwd = dxToOther * dirX + dyToOther * dirY;
+        const minFront = -Math.max(8, Math.min(boxB.hw, boxB.hh) * 0.4);
+        if (fwd < minFront) return false;
+        const latPad = 8;
+        const padX = Math.abs(dirX) * effPad + Math.abs(dirY) * latPad;
+        const padY = Math.abs(dirY) * effPad + Math.abs(dirX) * latPad;
+        const fracList = effLook > 24 ? [0.25, 0.6, 1.0] : [0.5, 1.0];
+        const curOv =
+          Math.abs(car.x - other.x) < boxA.hw + boxB.hw + padX &&
+          Math.abs(car.y - other.y) < boxA.hh + boxB.hh + padY;
+        if (curOv) return true;
+        for (let k = 0; k < fracList.length; k++) {
+          const px = nextX + dirX * (effLook * fracList[k]);
+          const py = nextY + dirY * (effLook * fracList[k]);
+          if (
+            Math.abs(px - other.x) < boxA.hw + boxB.hw + padX &&
+            Math.abs(py - other.y) < boxA.hh + boxB.hh + padY
+          ) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      const nearLook = car.isHeavy ? 18 : 14;
+      const yieldLook = car.isHeavy ? 72 : 64;
+
+      for (let j = 0; j < cars.length; j++) {
+        const other = cars[j];
+        if (other.id === car.id) continue;
+        // Highway exit lane (y >= 615) never yields to cars still inside the station apron/bays (y < 595)
+        if (car.topDown && car.state === 'leaving' && car.y >= 615 && other.y < 595) continue;
+        const boxB = this._getCarHalfExtents(other, other.angle || 0);
+        const otherParked =
+          other.state === 'waiting' || other.state === 'waiting_driver' || other.state === 'waiting_for_pump';
+
+        if (otherParked) {
+          if (hitsWithMargin(other, boxB, nearLook, 10)) {
+            if (car.topDown && other.topDown) {
+              const aHL = car.variant === 'truck' ? 58 : car.variant === 'bus' ? 56 : car.variant === 'van' ? 35 : 32;
+              const aHW = car.isHeavy ? 20 : 17;
+              const bHL = other.variant === 'truck' ? 58 : other.variant === 'bus' ? 56 : other.variant === 'van' ? 35 : 32;
+              const bHW = other.isHeavy ? 20 : 17;
+              const lookDist = Math.min(nearLook, cornerLookCap);
+              let realHit = false;
+              const steps = [0, 0.5, 1.0];
+              for (let s = 0; s < steps.length; s++) {
+                const px = nextX + dirX * (lookDist * steps[s]);
+                const py = nextY + dirY * (lookDist * steps[s]);
+                if (this._obbsOverlap(px, py, nextAngle, aHL + 3, aHW + 3, other.x, other.y, other.angle || 0, bHL + 3, bHW + 3)) {
+                  realHit = true;
+                  break;
+                }
+              }
+              if (realHit) return true;
+              continue;
+            }
+            return true;
+          }
+          continue;
+        }
+
+        // Main southbound exit lane (245 <= x <= 288 or stage4ApronCommit, y < 620) has right-of-way over side hold-lines
+        const curWp0Self = car.waypoints && car.waypoints[0];
+        const carOnMainExit =
+          car.topDown &&
+          car.state === 'leaving' &&
+          car.y < 620 &&
+          ((car.x >= 245 && car.x <= 288) || Boolean(curWp0Self && curWp0Self.stage4ApronCommit));
+        if (carOnMainExit) {
+          const oWp0 = other.waypoints && other.waypoints[0];
+          const otherCommittedApron =
+            other.isHeavy && other.x < 245 && oWp0 && oWp0.stage4ApronCommit;
+          const otherCommittedServiceBay =
+            Boolean(oWp0 && (oWp0.bayExitCommit || oWp0.bayToStemCommit)) &&
+            ((other.x > 195 && other.x < 415));
+          const otherHoldingLeft = other.x < 245 && !otherCommittedApron && !otherCommittedServiceBay;
+          const otherHoldingRight = other.x >= 416 && !otherCommittedServiceBay;
+          if (other.state === 'leaving' && (otherHoldingLeft || otherHoldingRight)) {
+            continue;
+          }
+          if (
+            other.state === 'leaving' &&
+            (otherCommittedApron || otherCommittedServiceBay || (other.x >= 245 && other.x < 414)) &&
+            other.y > car.y - 25 &&
+            (hitsWithMargin(other, boxB, nearLook + 12, 18) ||
+              (other.y <= car.y + (other.isHeavy ? 145 : 120) && (otherCommittedApron || otherCommittedServiceBay || other.x > 295)))
+          ) {
+            return true;
+          }
+          if (other.state === 'arriving') {
+            if (oWp0 && (oWp0.stage4ApronEnter || oWp0.stage4ApronBusy) && other.x < 332 && hitsWithMargin(other, boxB, nearLook, 14)) {
+              return true;
+            }
+            if (oWp0 && oWp0.stage3TruckCross && other.x >= 185 && other.x < 332 && hitsWithMargin(other, boxB, yieldLook, 18)) {
+              return true;
+            }
+            if (oWp0 && oWp0.bayCrossLeft && other.x >= 200 && other.x < 332 && hitsWithMargin(other, boxB, yieldLook, 18)) {
+              return true;
+            }
+            if (
+              otherCommittedServiceBay &&
+              hitsWithMargin(other, boxB, nearLook + 10, 14)
+            ) {
+              return true;
+            }
+            continue;
+          }
+        }
+
+        // Stage 4 parked car waiting to reverse out of bay (x >= 425) yields if an arriving truck is swinging its rear trailer near (340, 422)
+        if (
+          car.topDown &&
+          car.state === 'leaving' &&
+          !car.isHeavy &&
+          car.x >= 425 &&
+          other.state === 'arriving' &&
+          other.isHeavy &&
+          other.x >= 255 &&
+          other.x <= 365 &&
+          Math.abs(other.y - car.y) < 125
+        ) {
+          return true;
+        }
+        // Disjoint x=416 gate: leaving car waits cleanly at x>=416 if central road, active leaving apron truck, or an upstream lower-ID leaving car is exiting; once inside (<416), arriving cars yield
+        const curWp = car.waypoints && car.waypoints[0];
+        if (curWp && curWp.stage4Merge && car.x >= 416) {
+          const oWpL = other.waypoints && other.waypoints[0];
+          const otherCommittedLeftBay = Boolean(oWpL && oWpL.bayExitCommit && other.x > (oWpL.bayHoldMax || 144));
+          if (
+            other.state === 'leaving' &&
+            (other.id < car.id || (other.x >= 210 && other.x <= 295) || otherCommittedLeftBay || (other.isHeavy && other.x >= 135 && other.x <= 295 && other.y >= 325)) &&
+            (other.x >= 135 || (other.x >= 50 && other.y >= 320) || otherCommittedLeftBay) &&
+            (other.x <= 416 || (other.id < car.id && other.y < car.y - 30)) &&
+            other.y <= car.y + 135
+          ) {
+            return true;
+          }
+          const oWpM = other.waypoints && other.waypoints[0];
+          if (
+            other.state === 'arriving' &&
+            ((other.x >= 250 &&
+              other.x <= 416 &&
+              other.y >= car.y - (other.isHeavy ? 115 : 85) &&
+              other.y <= car.y + (other.isHeavy ? 155 : 130)) ||
+              (oWpM &&
+                oWpM.bayToStemCommit &&
+                other.x > (oWpM.bayHoldMax || 144) &&
+                other.x <= 360 &&
+                other.y >= car.y - 110 &&
+                other.y <= car.y + 120))
+          ) {
+            return true;
+          }
+        }
+
+        // Truck leaving Stage 4 apron yields BEFORE committing (not stage4ApronCommit); once stage4ApronCommit is active it has right-of-way over x=262 merge traffic
+        const curWpTruck = car.waypoints && car.waypoints[0];
+        const truckAtOrBeforeHold = Boolean(curWpTruck && !curWpTruck.stage4ApronCommit);
+        if (
+          car.topDown &&
+          car.state === 'leaving' &&
+          car.isHeavy &&
+          car.x <= 185 &&
+          car.y <= 575 &&
+          truckAtOrBeforeHold &&
+          other.state === 'leaving' &&
+          ((other.x >= 215 &&
+            other.x < 414 &&
+            other.y >= 200 &&
+            other.y <= 595) ||
+            (other.isHeavy &&
+              other.y >= 275 &&
+              other.y <= 565 &&
+              other.x <= 240 &&
+              ((other.y > 390 && car.y <= 390) || (car.y <= 390 && other.y <= 390 && other.id < car.id))))
+        ) {
+          return true;
+        }
+
+        // Side air/vacuum service bay entrance/exit hold-lines (Stages 2..4)
+        const bayWp = car.waypoints && car.waypoints[0];
+        if (car.state === 'arriving' && bayWp && bayWp.bayCrossLeft && car.x >= 332) {
+          const oBayCrossWp = other.waypoints && other.waypoints[0];
+          if (
+            other.state === 'leaving' &&
+            ((other.x >= 235 && other.x <= 360) ||
+              (oBayCrossWp && (oBayCrossWp.bayExitCommit || oBayCrossWp.stage4ApronCommit) && other.x >= 145)) &&
+            other.y >= car.y - 210 &&
+            other.y <= car.y + 75
+          ) {
+            return true;
+          }
+        }
+        // Northbound arriving car on central stem (x=340) yields cleanly south of an already-committed bayToStemCommit car finishing its merge onto x=340
+        const oBayCommit = other.waypoints && other.waypoints[0];
+        if (
+          car.topDown &&
+          car.state === 'arriving' &&
+          car.x >= 315 &&
+          car.x <= 365 &&
+          oBayCommit &&
+          oBayCommit.bayToStemCommit &&
+          ((oBayCommit.bayHoldMax && other.x > oBayCommit.bayHoldMax && other.x <= 344) ||
+            (oBayCommit.bayHoldMin && other.x < oBayCommit.bayHoldMin && other.x >= 336)) &&
+          car.y >= other.y + 40 &&
+          car.y <= other.y + 150
+        ) {
+          return true;
+        }
+        if (bayWp && (bayWp.bayExitCommit || bayWp.bayToStemCommit)) {
+          const leftHoldMax = bayWp.bayHoldMax || 190;
+          const rightHoldMin = bayWp.bayHoldMin || 415;
+          const holdingLeftBay = bayWp.x <= 345 && car.x <= leftHoldMax;
+          const holdingRightBay = car.x >= rightHoldMin;
+          if (holdingLeftBay || holdingRightBay) {
+            const minLaneX = holdingLeftBay ? 215 : 215;
+            const maxLaneX = holdingLeftBay && bayWp.bayExitCommit && bayWp.x <= 275 ? 310 : 380;
+            if (
+              other.state === 'leaving' &&
+              ((other.x >= minLaneX && other.x < (holdingLeftBay ? 416 : maxLaneX + 20)) ||
+                (other.isHeavy && other.x >= 165 && other.x <= 320)) &&
+              other.y >= Math.min(200, car.y - 130) &&
+              other.y <= car.y + 85
+            ) {
+              return true;
+            }
+            if (
+              other.state === 'arriving' &&
+              other.x >= minLaneX + 20 &&
+              other.x <= maxLaneX &&
+              other.y >= car.y - 80 &&
+              other.y <= car.y + 135
+            ) {
+              return true;
             }
           }
+        }
+
+        // Stages 1..3 T-bar & Stage 3 horizontal truck bay right-of-way rules (disjoint y=415 stem hold boundary)
+        const curWp0 = car.waypoints && car.waypoints[0];
+        if (car.state === 'leaving' && curWp0 && curWp0.tBarExit && car.y < 268) {
+          // Exiting car from top vertical bay (y=224) waits inside bay until upper/lower T-bar & merge toward x=262 are clear
+          if (
+            (other.state === 'arriving' && other.y >= 265 && other.y < 414 && (Math.abs(other.x - car.x) < 155 || (other.x >= 240 && other.x <= 420))) ||
+            (other.state === 'leaving' &&
+              other.y >= 220 &&
+              other.y <= 415 &&
+              other.x >= 150 &&
+              other.x <= 510 &&
+              (other.y >= 265 || other.id < car.id))
+          ) {
+            return true;
+          }
+        }
+        if (car.state === 'arriving' && curWp0 && curWp0.tBarEnter && car.x >= 305 && car.y >= 415 && car.y <= 550) {
+          // Arriving car on stem waits below T-junction (y >= 415) if ANY leaving traffic is in bays/T-bar/upper stem
+          if (other.state === 'leaving' && other.y >= 220 && other.y <= 415 && other.x >= 150 && other.x <= 510) {
+            return true;
+          }
+          if (other.state === 'arriving' && other.isHeavy && other.x <= 325 && other.y >= 410 && other.y <= 520) {
+            return true;
+          }
+        }
+        if (car.state === 'leaving' && car.isHeavy && curWp0 && curWp0.stage3TruckExit && car.x <= 185) {
+          // Stage 3 truck reversing out of pump_3 waits inside bay until southbound stem x=262 & right-bay merge zone are clear
+          if (other.state === 'leaving' && other.x >= 235 && other.x <= 414 && other.y >= 320 && other.y <= 555) {
+            return true;
+          }
+          if (other.state === 'arriving' && other.x >= 245 && other.x <= 414 && other.y >= 390 && other.y <= 555) {
+            return true;
+          }
+        }
+        if (car.state === 'arriving' && car.isHeavy && curWp0 && curWp0.stage3TruckCross && car.x >= 332) {
+          // Stage 3 arriving truck turning West at (340, 468) yields strictly clear on x=340 before rotating toward x=262
+          if (other.state === 'leaving' && other.x >= 235 && other.x <= 300 && other.y >= 260 && other.y <= 535) {
+            return true;
+          }
+        }
+        if (car.state === 'leaving' && car.x >= 240 && car.x <= 295 && car.y <= 415) {
+          // Southbound leaving traffic waits above y=415 while Stage 3 arriving truck has committed across x=185..330 into pump_3
+          if (
+            other.state === 'arriving' &&
+            other.isHeavy &&
+            other.y >= 430 &&
+            other.y <= 505 &&
+            other.x >= 185 &&
+            other.x < 330
+          ) {
+            return true;
+          }
+        }
+
+        // Wait behind a leaving vehicle actively clearing the southbound-to-westbound exit turn at (266, 634)
+        if (
+          car.topDown &&
+          car.state === 'leaving' &&
+          other.state === 'leaving' &&
+          car.x >= 245 &&
+          car.x <= 290 &&
+          other.x >= 210 &&
+          other.x <= 295 &&
+          other.y > car.y + 24 &&
+          hitsWithMargin(other, boxB, nearLook + 8, 12)
+        ) {
+          return true;
+        }
+
+        // Arriving vehicle waits horizontal on lower lane y>=730 before turning north onto x=336 if a leaving vehicle is clearing bottom turn (262, 628)
+        if (
+          car.topDown &&
+          car.state === 'arriving' &&
+          car.y >= 730 &&
+          car.x >= 250 &&
+          other.state === 'leaving' &&
+          other.x >= 210 &&
+          other.x <= 295 &&
+          other.y >= 530 &&
+          other.y <= 645
+        ) {
+          return true;
+        }
+
+        // Arriving truck waits cleanly in northbound lane (x >= 332) while any leaving vehicle is in either truck bay/apron or southbound exit
+        if (
+          curWp &&
+          curWp.stage4ApronEnter &&
+          car.x >= 332 &&
+          other.state === 'leaving' &&
+          other.x < 332 &&
+          other.y >= 250 &&
+          other.y <= 575
+        ) {
+          return true;
+        }
+
+        if (car.state === 'arriving' && other.state === 'leaving') {
+          // Arriving car on central stem yields at a safe distance to let a long-waiting bay car merge out without starvation
+          if (
+            car.topDown &&
+            !(curWp && curWp.bayToStemCommit) &&
+            other.x >= 416 &&
+            other.blocked &&
+            (other.blockedTimer || 0) >= 2.5 &&
+            car.x >= 325 &&
+            car.y >= other.y + 170 &&
+            car.y <= other.y + 250
+          ) {
+            return true;
+          }
+          const oWpCheck = other.waypoints && other.waypoints[0];
+          const oLeftMax = (oWpCheck && oWpCheck.bayHoldMax) || 190;
+          const oRightMin = (oWpCheck && oWpCheck.bayHoldMin) || 415;
+          const otherWaitingInSideBay =
+            other.x >= 416 ||
+            (oWpCheck && (oWpCheck.bayExitCommit || oWpCheck.bayToStemCommit) && (other.x <= oLeftMax || other.x >= oRightMin)) ||
+            (other.isHeavy && other.x < 245 && !(oWpCheck && oWpCheck.stage4ApronCommit));
+          const carOutsideYieldTarget =
+            (car.x > 195 && car.x < 415) ||
+            (car.isHeavy && car.y <= 450 && !(other.isHeavy && other.y > 390));
+          // Wait only for leaving vehicles actually outside bay thresholds (x < 416 in Stage 4, y >= 275 in Stages 1..3, not holding inside side bay)
+          if (car.topDown && (other.y < 275 || (otherWaitingInSideBay && carOutsideYieldTarget))) continue;
+          if (
+            (curWp && (curWp.stage4ApronEnter || curWp.stage4ApronBusy) && car.x < 332) ||
+            (curWp && curWp.bayCrossLeft && car.x < 332) ||
+            (curWp && curWp.bayToStemCommit && car.x > ((curWp.bayHoldMax || 190)) && car.x < 415)
+          ) {
+            if (hitsWithMargin(other, boxB, nearLook, 12)) return true;
+            continue;
+          }
+          if (hitsWithMargin(other, boxB, yieldLook, 24)) return true;
+          continue;
+        }
+        if (car.state === 'leaving' && other.state === 'arriving') {
+          const oWp = other.waypoints && other.waypoints[0];
+          // Stage 4 heavy truck parked in bay waits before pulling down onto apron if another heavy vehicle is actively entering/reversing in the apron
+          if (
+            car.topDown &&
+            car.isHeavy &&
+            car.y < 380 &&
+            other.isHeavy &&
+            other.x < 335 &&
+            other.y >= 340 &&
+            other.y <= 550
+          ) {
+            return true;
+          }
+          if (
+            ((other.isHeavy && other.x < 332 && ((oWp && (oWp.stage4ApronEnter || oWp.stage4ApronBusy)) || (other.topDown && other.reversing))) ||
+              (oWp && oWp.stage3TruckCross && other.x < 330)) &&
+            hitsWithMargin(other, boxB, nearLook, 14)
+          ) {
+            return true;
+          }
+          if (
+            oWp &&
+            oWp.bayToStemCommit &&
+            other.x > 195 &&
+            other.x < 415 &&
+            hitsWithMargin(other, boxB, yieldLook, 18)
+          ) {
+            return true;
+          }
+          continue;
+        }
+
+        // Committed main-road & apron vehicles never yield to vehicles still holding inside/behind their Stage 4/service bay hold-lines
+        const oWpHold = other.waypoints && other.waypoints[0];
+        const oLeftHoldMax = (oWpHold && oWpHold.bayHoldMax) || 190;
+        const oRightHoldMin = (oWpHold && oWpHold.bayHoldMin) || 415;
+        const carOutsideOtherHold =
+          (car.x > 195 && car.x < 415) ||
+          (car.isHeavy && car.y <= 450 && !(other.isHeavy && other.y <= 450)) ||
+          (other.x >= 416 && car.x < 416);
+        const otherWaitingAtHold =
+          (other.state === 'leaving' && other.x >= 416) ||
+          (other.state === 'leaving' && other.isHeavy && other.x < 245 && !(oWpHold && oWpHold.stage4ApronCommit)) ||
+          Boolean(oWpHold && (oWpHold.bayExitCommit || oWpHold.bayToStemCommit) && (other.x <= oLeftHoldMax || other.x >= oRightHoldMin));
+        if (car.topDown && carOutsideOtherHold && otherWaitingAtHold) {
+          continue;
+        }
+
+        const oDir = this._getCarMoveDir(other);
+        const headingDot = dirX * oDir.x + dirY * oDir.y;
+        const forwardDot = (other.x - car.x) * dirX + (other.y - car.y) * dirY;
+        const revForwardOther = (car.x - other.x) * oDir.x + (car.y - other.y) * oDir.y;
+        const otherAheadClearing = forwardDot > 22 && headingDot > -0.35 && revForwardOther < 12;
+
+        if ((headingDot > 0.45 && forwardDot > 6) || otherAheadClearing) {
+          if (hitsWithMargin(other, boxB, nearLook, 16)) return true;
+        } else if (headingDot <= 0.45 && other.id < car.id) {
+          // Strict DAG ordering across merges/intersections: lower ID always proceeds, higher ID yields well clear of junction
+          if (hitsWithMargin(other, boxB, yieldLook, 32)) return true;
+        }
+      }
+      return false;
+    }
+
+    _updateCars(dt) {
+      const cars = this.levelState.cars;
+      const turnAngleToward = (cur, target, maxStep) => {
+        let diff = target - cur;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (Math.abs(diff) <= maxStep) return target;
+        return cur + Math.sign(diff) * maxStep;
+      };
+
+      for (let i = cars.length - 1; i >= 0; i--) {
+        const car = cars[i];
+        if (car.state === 'arriving' || car.state === 'leaving') {
+          if (car.pauseTimer > 0) {
+            car.pauseTimer = Math.max(0, car.pauseTimer - dt);
+            car.reversing = false;
+            continue;
+          }
+
+          const wp =
+            car.waypoints && car.waypoints.length > 0
+              ? car.waypoints[0]
+              : {
+                  x: car.state === 'leaving' ? car.targetX : car.targetX,
+                  y: car.state === 'leaving' ? 720 : car.targetY,
+                  speed: car.state === 'leaving' ? 265 : 220
+                };
+
+          const dx = wp.x - car.x;
+          const dy = wp.y - car.y;
+          const dist = Math.hypot(dx, dy);
+          car.reversing = Boolean(wp.reverse);
+
+          if (dist <= 4) {
+            car.x = wp.x;
+            car.y = wp.y;
+            if (car.topDown && typeof wp.fixedAngle === 'number') {
+              car.angle = wp.fixedAngle;
+            }
+            if (wp.pause && wp.pause > 0) {
+              car.pauseTimer = wp.pause;
+            }
+            if (car.waypoints && car.waypoints.length > 0) {
+              car.waypoints.shift();
+            }
+            if (!car.waypoints || car.waypoints.length === 0) {
+              car.reversing = false;
+              car.blocked = false;
+              car.blockedTimer = 0;
+              if (car.state === 'arriving') {
+                if (car.topDown && typeof car.targetAngle === 'number') {
+                  car.angle = car.targetAngle;
+                }
+                car.state = 'waiting';
+              } else {
+                cars.splice(i, 1);
+              }
+            }
+            continue;
+          }
+
+          const dirX = dx / dist;
+          const dirY = dy / dist;
+          const desiredAngle =
+            typeof wp.fixedAngle === 'number'
+              ? wp.fixedAngle
+              : wp.reverse
+              ? Math.atan2(-dy, -dx)
+              : Math.atan2(dy, dx);
+          const nextAngle = car.topDown ? turnAngleToward(car.angle || 0, desiredAngle, 6.2 * dt) : 0;
+          let moveSpeed = wp.speed || 220;
+
+          const conflict = this._hasVehicleConflict(car, car.x + dirX * Math.min(dist, moveSpeed * dt), car.y + dirY * Math.min(dist, moveSpeed * dt), nextAngle, dirX, dirY);
+          if (conflict) {
+            car.blocked = true;
+            car.blockedTimer = (car.blockedTimer || 0) + dt;
+            continue;
+          } else {
+            car.blocked = false;
+            car.blockedTimer = 0;
+          }
+
+          const step = Math.min(dist, moveSpeed * dt);
+          car.x += dirX * step;
+          car.y += dirY * step;
+          if (car.topDown) car.angle = nextAngle;
+
+          if (car.state === 'leaving' && (car.x > 1620 || car.x < -150)) {
+            cars.splice(i, 1);
+          }
         } else if (car.state === 'waiting') {
+          car.reversing = false;
           car.patience -= dt;
           if (car.patience <= 0) {
-            car.state = 'leaving';
-            car.targetX = 1640;
+            this._startCarLeaving(car);
             this.levelState.angryCount += 1;
             this.audio.playSad();
             this._spawnParticle(car.x, car.y - 45, 'Odjíždí bez obsluhy 😔', '#d95d4a');
           }
-        } else if (car.state === 'leaving') {
-          if (car.y < 648) {
-            car.y = Math.min(648, car.y + 195 * dt);
-            car.x += 120 * dt;
-          } else {
-            car.x += 275 * dt;
-          }
-          if (car.x > 1620) {
-            cars.splice(i, 1);
-          }
+        } else if (car.state === 'waiting_for_pump') {
+          car.reversing = false;
+          this._tryMoveCarToPump(car);
         }
       }
     }
@@ -4447,94 +7067,60 @@
       const custs = this.levelState.customers;
       for (let i = custs.length - 1; i >= 0; i--) {
         const cust = custs[i];
-        let moved = false;
+        const stillWalking = this._stepPedestrian(cust, cust.targetX, cust.targetY, 135, 4, dt);
 
-        if (cust.waypoints && cust.waypoints.length > 0) {
-          const wp = cust.waypoints[0];
-          const wdx = wp.x - cust.x;
-          const wdy = wp.y - cust.y;
-          const wdist = Math.hypot(wdx, wdy);
-          if (wdist > 4) {
-            cust.moving = true;
-            const step = Math.min(wdist, 135 * dt);
-            cust.x += (wdx / wdist) * step;
-            cust.y += (wdy / wdist) * step;
-            moved = true;
-          } else {
-            cust.x = wp.x;
-            cust.y = wp.y;
-            cust.waypoints.shift();
-            if (cust.waypoints.length > 0) {
-              cust.moving = true;
-              moved = true;
-            }
-          }
-        }
-
-        if (!moved) {
-          const dx = cust.targetX - cust.x;
-          const dy = cust.targetY - cust.y;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist > 4) {
-            cust.moving = true;
-            const step = Math.min(dist, 135 * dt);
-            cust.x += (dx / dist) * step;
-            cust.y += (dy / dist) * step;
-          } else {
-            cust.x = cust.targetX;
-            cust.y = cust.targetY;
-            cust.moving = false;
-            if (cust.state === 'arriving') {
-              cust.state = 'waiting';
-            } else if (cust.state === 'shopping') {
-              const rack = this.levelState.racks.find((r) => r.id === cust.targetRackId);
-              if (rack && rack.stock > 0 && cust.wantRackItem) {
-                cust.grabTimer -= dt;
-                if (cust.grabTimer <= 0) {
-                  rack.stock -= 1;
-                  this._syncRackStockToSave();
-                  cust.basket.push(cust.wantRackItem);
-                  const itemDef = this.data.ITEMS[cust.wantRackItem];
-                  this._spawnParticle(cust.x, cust.y - 42, `🛒 Vzal si ${itemDef.icon}`, '#4f9d69');
-                  this.audio.playClick();
-                  cust.wantRackItem = null;
-                  this._assignNextCustomerTarget(cust);
-                }
-              } else if (rack && rack.stock === 0 && cust.wantRackItem) {
-                if (!cust.announcedEmptyRack) {
-                  cust.announcedEmptyRack = true;
-                  this._spawnParticle(cust.x, cust.y - 44, `Chybí zboží v regálu!`, '#d95d4a');
-                }
-                cust.rackWaitTimer -= dt;
-                if (cust.rackWaitTimer <= 0) {
-                  this._spawnParticle(cust.x, cust.y - 44, 'Vyprodáno 🤷', '#8c6b4f');
-                  cust.wantRackItem = null;
-                  this._assignNextCustomerTarget(cust);
-                }
+        if (!stillWalking) {
+          cust.x = cust.targetX;
+          cust.y = cust.targetY;
+          cust.moving = false;
+          if (cust.state === 'arriving') {
+            cust.state = 'waiting';
+          } else if (cust.state === 'shopping') {
+            const rack = this.levelState.racks.find((r) => r.id === cust.targetRackId);
+            if (rack && rack.stock > 0 && cust.wantRackItem) {
+              cust.grabTimer -= dt;
+              if (cust.grabTimer <= 0) {
+                rack.stock -= 1;
+                this._syncRackStockToSave();
+                cust.basket.push(cust.wantRackItem);
+                const itemDef = this.data.ITEMS[cust.wantRackItem];
+                this._spawnParticle(cust.x, cust.y - 42, `🛒 Vzal si ${itemDef.icon}`, '#4f9d69');
+                this.audio.playClick();
+                cust.wantRackItem = null;
+                this._assignNextCustomerTarget(cust);
               }
-            } else if (cust.state === 'returning_to_car') {
-              const car = this.levelState.cars.find((c) => c.id === cust.carId);
-              custs.splice(i, 1);
-              if (car) {
-                car.state = 'leaving';
-                car.targetX = 1640;
-                if (cust.paid) {
-                  this.levelState.servedCount += 1;
-                  this._spawnParticle(car.x, car.y - 45, 'Odjíždí spokojeně ♥', '#3b874b');
-                } else {
-                  this.levelState.angryCount += 1;
-                  this._spawnParticle(car.x, car.y - 45, 'Odjíždí bez zaplacení 😔', '#d95d4a');
-                }
+            } else if (rack && rack.stock === 0 && cust.wantRackItem) {
+              if (!cust.announcedEmptyRack) {
+                cust.announcedEmptyRack = true;
+                this._spawnParticle(cust.x, cust.y - 44, `Chybí zboží v regálu!`, '#d95d4a');
+              }
+              cust.rackWaitTimer -= dt;
+              if (cust.rackWaitTimer <= 0) {
+                this._spawnParticle(cust.x, cust.y - 44, 'Vyprodáno 🤷', '#8c6b4f');
+                cust.wantRackItem = null;
+                this._assignNextCustomerTarget(cust);
+              }
+            }
+          } else if (cust.state === 'returning_to_car') {
+            const car = this.levelState.cars.find((c) => c.id === cust.carId);
+            custs.splice(i, 1);
+            if (car) {
+              this._startCarLeaving(car);
+              if (cust.paid) {
+                this.levelState.servedCount += 1;
+                this._spawnParticle(car.x, car.y - 45, 'Odjíždí spokojeně ♥', '#3b874b');
               } else {
-                if (cust.paid) this.levelState.servedCount += 1;
-                else this.levelState.angryCount += 1;
+                this.levelState.angryCount += 1;
+                this._spawnParticle(car.x, car.y - 45, 'Odjíždí bez zaplacení 😔', '#d95d4a');
               }
-              continue;
-            } else if (cust.state === 'leaving') {
-              custs.splice(i, 1);
-              continue;
+            } else {
+              if (cust.paid) this.levelState.servedCount += 1;
+              else this.levelState.angryCount += 1;
             }
+            continue;
+          } else if (cust.state === 'leaving') {
+            custs.splice(i, 1);
+            continue;
           }
         }
 
@@ -4544,9 +7130,10 @@
             this.audio.playSad();
             if (cust.isDriver) {
               const car = this.levelState.cars.find((c) => c.id === cust.carId);
+              const doorPos = car ? this._getDriverCarDoorPos(car) : { x: -40, y: 648 };
               cust.state = 'returning_to_car';
               cust.paid = false;
-              this._setCustomerTarget(cust, car ? car.x + 24 : -40, car ? car.y + 18 : 648);
+              this._setCustomerTarget(cust, doorPos.x, doorPos.y);
               this._spawnParticle(cust.x, cust.y - 45, 'Odchází bez zaplacení 😔', '#d95d4a');
             } else {
               cust.state = 'leaving';
@@ -4574,22 +7161,22 @@
 
       if (w.role === 'tonik') {
         if (w.held.length > 0) {
-          const heldWashCar = state.cars.find(
+          const heldServiceCar = state.cars.find(
             (c) =>
               c.state === 'waiting' &&
               !this._isTaskClaimed('carId', c.id, w) &&
               c.orders.some((o) => !o.done && w.held.includes(o.itemId))
           );
-          if (heldWashCar) {
-            const pump = this.data.STATIONS[`pump_${heldWashCar.pumpIndex}`];
-            const heldOrd = heldWashCar.orders.find((o) => !o.done && w.held.includes(o.itemId));
+          if (heldServiceCar) {
+            const pump = this.data.STATIONS[`pump_${heldServiceCar.pumpIndex}`];
+            const heldOrd = heldServiceCar.orders.find((o) => !o.done && w.held.includes(o.itemId));
             if (pump && heldOrd) {
               w.taskQueue.push({
                 type: 'serveCar',
-                carId: heldWashCar.id,
+                carId: heldServiceCar.id,
                 itemId: heldOrd.itemId,
                 x: pump.walkX,
-                y: pump.walkY + 34
+                y: Math.min(558, pump.walkY + 24)
               });
               return;
             }
@@ -4599,16 +7186,41 @@
         }
 
         const canWash = this._isStationUnlocked('bucket');
+        const canAir = this._isStationUnlocked('air');
+        const canVacuum = this._isStationUnlocked('vacuum');
+        const canServeItem = (c, itemId) =>
+          (itemId === 'fuel' && !c.serviceBayId) ||
+          (itemId === 'wash' && canWash && !c.serviceBayId) ||
+          (itemId === 'air' && canAir && c.serviceBayId === 'air') ||
+          (itemId === 'vacuum' && canVacuum && c.serviceBayId === 'vacuum');
+
         const targetCar = state.cars.find(
           (c) =>
             c.state === 'waiting' &&
             !this._isTaskClaimed('carId', c.id, w) &&
-            c.orders.some((o) => !o.done && (o.itemId === 'fuel' || (o.itemId === 'wash' && canWash)))
+            c.orders.some((o) => !o.done && canServeItem(c, o.itemId))
         );
         if (!targetCar) return;
+
+        if (targetCar.serviceBayId) {
+          const baySt = this.data.STATIONS[targetCar.serviceBayId];
+          const bayOrd = targetCar.orders.find((o) => !o.done && canServeItem(targetCar, o.itemId));
+          if (baySt && bayOrd) {
+            w.taskQueue.push({
+              type: 'serviceCarBay',
+              carId: targetCar.id,
+              stationId: baySt.id,
+              itemId: bayOrd.itemId,
+              x: baySt.walkX,
+              y: baySt.walkY
+            });
+          }
+          return;
+        }
+
         const pump = this.data.STATIONS[`pump_${targetCar.pumpIndex}`];
         const fuelOrder = targetCar.orders.find((o) => !o.done && o.itemId === 'fuel');
-        if (fuelOrder) {
+        if (fuelOrder && pump) {
           w.taskQueue.push({
             type: 'fuelCar',
             carId: targetCar.id,
@@ -4619,7 +7231,7 @@
           return;
         }
         const washOrder = canWash ? targetCar.orders.find((o) => !o.done && o.itemId === 'wash') : null;
-        if (washOrder) {
+        if (washOrder && pump) {
           const bucket = this.data.STATIONS.bucket;
           w.taskQueue.push({
             type: 'prep',
@@ -4633,11 +7245,33 @@
             carId: targetCar.id,
             itemId: 'wash',
             x: pump.walkX,
-            y: pump.walkY + 34
+            y: Math.min(558, pump.walkY + 24)
           });
         }
       } else if (w.role === 'anicka') {
+        const machines = state.machineState || {};
+        const specs = this.data.BISTRO_MACHINES || {};
+
         if (w.held.length > 0) {
+          const heldSupplyId = w.held.find((id) => this.data.ITEMS[id] && this.data.ITEMS[id].isSupply);
+          if (heldSupplyId) {
+            const supItem = this.data.ITEMS[heldSupplyId];
+            const mId = supItem && supItem.machineId;
+            const mSt = mId && this.data.STATIONS[mId];
+            const ms = mId && machines[mId];
+            if (mSt && ms && ms.stock < ms.maxStock) {
+              w.taskQueue.push({
+                type: 'restockMachine',
+                stationId: mSt.id,
+                machineRestockId: mSt.id,
+                supplyItemId: heldSupplyId,
+                x: mSt.walkX,
+                y: mSt.walkY
+              });
+              return;
+            }
+          }
+
           const heldTarget =
             state.customers.find(
               (c) =>
@@ -4671,7 +7305,19 @@
           return;
         }
 
-        const shopCust = state.customers.find(
+        const isMachineReady = (itemId) => {
+          const stId = this.data.ITEMS[itemId] && this.data.ITEMS[itemId].stationId;
+          const ms = stId && machines[stId];
+          return !ms || (!ms.broken && ms.stock > 0);
+        };
+        const isMachineOutOfStockOnly = (itemId) => {
+          const stId = this.data.ITEMS[itemId] && this.data.ITEMS[itemId].stationId;
+          const ms = stId && machines[stId];
+          return Boolean(ms && !ms.broken && ms.stock <= 0);
+        };
+
+        // 1. If a waiting customer wants a bistro item whose machine is ready, serve them first
+        const readyShopCust = state.customers.find(
           (c) =>
             c.state === 'waiting' &&
             c.spotIndex >= 0 &&
@@ -4680,16 +7326,18 @@
               (o) =>
                 !o.done &&
                 (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
-                this._isItemUnlocked(o.itemId)
+                this._isItemUnlocked(o.itemId) &&
+                isMachineReady(o.itemId)
             )
         );
-        if (shopCust) {
-          const spot = this.data.SHOP_SPOTS[shopCust.spotIndex];
-          const nextOrd = shopCust.orders.find(
+        if (readyShopCust) {
+          const spot = this.data.SHOP_SPOTS[readyShopCust.spotIndex];
+          const nextOrd = readyShopCust.orders.find(
             (o) =>
               !o.done &&
               (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') &&
-              this._isItemUnlocked(o.itemId)
+              this._isItemUnlocked(o.itemId) &&
+              isMachineReady(o.itemId)
           );
           if (spot && nextOrd) {
             const st = this.data.STATIONS[this.data.ITEMS[nextOrd.itemId].stationId];
@@ -4702,10 +7350,48 @@
             });
             w.taskQueue.push({
               type: 'serveCustomer',
-              custId: shopCust.id,
+              custId: readyShopCust.id,
               itemId: nextOrd.itemId,
               x: spot.serveX,
               y: spot.serveY
+            });
+            return;
+          }
+        }
+
+        // 2. Otherwise restock any bistro machine that ran out of ingredients (prefer one a waiting customer needs)
+        const neededEmptyStationIds = new Set();
+        state.customers.forEach((c) => {
+          if (c.state !== 'waiting') return;
+          c.orders.forEach((o) => {
+            if (!o.done && (o.itemId === 'coffee' || o.itemId === 'snack' || o.itemId === 'drink') && isMachineOutOfStockOnly(o.itemId)) {
+              neededEmptyStationIds.add(this.data.ITEMS[o.itemId].stationId);
+            }
+          });
+        });
+        const emptyMachineList = Object.values(machines)
+          .filter((m) => m && m.stock <= 0 && !this._isTaskClaimed('machineRestockId', m.id, w))
+          .sort((a, b) => (neededEmptyStationIds.has(b.id) ? 1 : 0) - (neededEmptyStationIds.has(a.id) ? 1 : 0));
+        const emptyMachine = emptyMachineList[0];
+        if (emptyMachine) {
+          const spec = specs[emptyMachine.id];
+          const mSt = this.data.STATIONS[emptyMachine.id];
+          const storage = this.data.STATIONS.storage;
+          if (spec && mSt && storage) {
+            w.taskQueue.push({
+              type: 'prep',
+              stationId: storage.id,
+              itemId: spec.supplyItemId,
+              x: storage.walkX,
+              y: storage.walkY
+            });
+            w.taskQueue.push({
+              type: 'restockMachine',
+              stationId: mSt.id,
+              machineRestockId: mSt.id,
+              supplyItemId: spec.supplyItemId,
+              x: mSt.walkX,
+              y: mSt.walkY
             });
             return;
           }
@@ -4752,14 +7438,28 @@
 
         if (w.held.includes('broom')) {
           const broom = this.data.STATIONS.broom;
-          const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
-          if (unclaimedSpill) {
+          const remaining = state.spills.filter((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+          let refX = w.x;
+          let refY = w.y;
+          while (remaining.length > 0) {
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            for (let i = 0; i < remaining.length; i++) {
+              const d = Math.hypot(remaining[i].x - refX, remaining[i].y - refY);
+              if (d < bestDist) {
+                bestDist = d;
+                bestIdx = i;
+              }
+            }
+            const nextSpill = remaining.splice(bestIdx, 1)[0];
             w.taskQueue.push({
               type: 'cleanSpill',
-              spillId: unclaimedSpill.id,
-              x: unclaimedSpill.x,
-              y: unclaimedSpill.y - 8
+              spillId: nextSpill.id,
+              x: nextSpill.x,
+              y: nextSpill.y - 8
             });
+            refX = nextSpill.x;
+            refY = nextSpill.y - 8;
           }
           w.taskQueue.push({
             type: 'returnBroom',
@@ -4774,20 +7474,37 @@
           return;
         }
 
-        const unclaimedSpill = state.spills.find((sp) => !this._isTaskClaimed('spillId', sp.id, w));
-        if (unclaimedSpill) {
+        const unclaimedSpills = state.spills.filter((sp) => !this._isTaskClaimed('spillId', sp.id, w));
+        if (unclaimedSpills.length > 0) {
           const broom = this.data.STATIONS.broom;
           w.taskQueue.push({
             type: 'takeBroom',
             x: broom.walkX,
             y: broom.walkY
           });
-          w.taskQueue.push({
-            type: 'cleanSpill',
-            spillId: unclaimedSpill.id,
-            x: unclaimedSpill.x,
-            y: unclaimedSpill.y - 8
-          });
+          let refX = broom.walkX;
+          let refY = broom.walkY;
+          const pending = unclaimedSpills.slice();
+          while (pending.length > 0) {
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            for (let i = 0; i < pending.length; i++) {
+              const d = Math.hypot(pending[i].x - refX, pending[i].y - refY);
+              if (d < bestDist) {
+                bestDist = d;
+                bestIdx = i;
+              }
+            }
+            const nextSpill = pending.splice(bestIdx, 1)[0];
+            w.taskQueue.push({
+              type: 'cleanSpill',
+              spillId: nextSpill.id,
+              x: nextSpill.x,
+              y: nextSpill.y - 8
+            });
+            refX = nextSpill.x;
+            refY = nextSpill.y - 8;
+          }
           w.taskQueue.push({
             type: 'returnBroom',
             x: broom.walkX,
@@ -4948,7 +7665,11 @@
 
       const shiftBanner = document.getElementById('victory-shift-banner');
       if (lastShift) {
-        shiftBanner.textContent = `Poslední směna (${finalStage.name} – ${finalLvl.name}): +${lastShift.earned} Kč · Obslouženo: ${lastShift.served} · Čas směny: ${this._formatDuration(lastShift.time)}`;
+        const grossPart =
+          typeof lastShift.grossEarned === 'number'
+            ? ` · Tržby ${lastShift.grossEarned} Kč${lastShift.starBonus > 0 ? ` +${lastShift.starBonus} Kč ⭐` : ''}${lastShift.totalWages > 0 ? ` − ${lastShift.totalWages} Kč výplaty` : ''}`
+            : '';
+        shiftBanner.textContent = `Poslední směna (${finalStage.name} – ${finalLvl.name}): +${lastShift.earned} Kč čistého${grossPart} · Obslouženo: ${lastShift.served} · Čas: ${this._formatDuration(lastShift.time)}`;
         shiftBanner.classList.remove('hidden');
       } else {
         shiftBanner.classList.add('hidden');
@@ -4965,8 +7686,7 @@
       const maxUpgrades = this.data.UPGRADES.reduce((acc, u) => acc + (u.maxLevel - 1), 0);
 
       const hiredStaff = this.data.STAFF.filter((s) => (this.save.staff[s.id] || 0) > 0).length;
-      const staffLevels = this.data.STAFF.reduce((acc, s) => acc + (this.save.staff[s.id] || 0), 0);
-      const maxStaffLevels = this.data.STAFF.reduce((acc, s) => acc + s.maxLevel, 0);
+      const plannedPayroll = this._getPlannedDailyPayroll();
 
       const cards = [
         {
@@ -4983,7 +7703,7 @@
           sub: `Úspěšnost: ${successRate} % (odešlo ${stats.totalAngryCustomers})`
         },
         {
-          label: '💰 Celkový výdělek',
+          label: '💰 Celkový čistý výdělek',
           value: `${stats.totalEarnedCoins} Kč`,
           sub: `V pokladně zbývá: ${this.save.coins} Kč`
         },
@@ -4995,7 +7715,7 @@
         {
           label: '🛠️ Vylepšení a tým',
           value: `${boughtUpgrades} / ${maxUpgrades} úrovní`,
-          sub: `Zaměstnanci: ${hiredStaff}/${this.data.STAFF.length} (úrovně ${staffLevels}/${maxStaffLevels})`
+          sub: `Najato: ${hiredStaff}/${this.data.STAFF.length} (výplata ${plannedPayroll.total} Kč/směnu)`
         },
         {
           label: '🏁 Odehrané směny',
@@ -5024,12 +7744,19 @@
       const lvl = state.level;
       const curStage = this.getCurrentStage();
       const nextStage = this.data.STAGES.find((s) => s.id === curStage.id + 1) || null;
-      const earned = state.earnedCoins;
+      const grossEarned = Math.max(0, Math.round(state.earnedCoins || 0));
 
       let starsEarned = 0;
-      if (earned >= lvl.stars[2]) starsEarned = 3;
-      else if (earned >= lvl.stars[1]) starsEarned = 2;
-      else if (earned >= lvl.stars[0]) starsEarned = 1;
+      if (grossEarned >= lvl.stars[2]) starsEarned = 3;
+      else if (grossEarned >= lvl.stars[1]) starsEarned = 2;
+      else if (grossEarned >= lvl.stars[0]) starsEarned = 1;
+
+      const starMultiplier = starsEarned === 3 ? 1.2 : starsEarned === 2 ? 1.1 : 1.0;
+      const grossWithBonus = Math.round(grossEarned * starMultiplier);
+      const starBonus = grossWithBonus - grossEarned;
+      const payroll = this._getActiveShiftPayroll();
+      const totalWages = payroll.total;
+      const earned = Math.max(0, grossWithBonus - totalWages);
 
       this.save.coins += earned;
       if (!this.save.stats) {
@@ -5070,6 +7797,7 @@
       }
 
       this._syncRackStockToSave();
+      this._syncMachineStockToSave();
       this.persistSave();
       this.updateGlobalHUD();
       this.audio.stopAmbient();
@@ -5079,6 +7807,10 @@
       if (isFinalVictory) {
         this.showVictoryModal({
           earned,
+          grossEarned,
+          starBonus,
+          starMultiplier,
+          totalWages,
           served: state.servedCount,
           angry: state.angryCount,
           time: state.time,
@@ -5099,7 +7831,34 @@
           ? `Nevadí, ${vocative} – směna skončila těsně pod cílem`
           : 'Směna skončila těsně pod cílem';
       document.getElementById('result-summary').textContent =
-        `Obslouženo: ${state.servedCount} · Odešlo bez obsluhy: ${state.angryCount} · Výdělek přidán do pokladny: +${earned} Kč`;
+        `Obslouženo: ${state.servedCount} · Odešlo bez obsluhy: ${state.angryCount} · Čas směny: ${this._formatDuration(state.time)}`;
+
+      const breakdownEl = document.getElementById('result-breakdown');
+      if (breakdownEl) {
+        const multText = starMultiplier.toFixed(1).replace('.', ',');
+        const wageDetails =
+          payroll.items.length > 0
+            ? ` (${payroll.items.map((x) => `${x.shortName} ${x.wage} Kč`).join(', ')})`
+            : ' (nikdo nepracoval)';
+        breakdownEl.innerHTML = `
+          <div class="result-row">
+            <span>💵 Hrubé tržby (podle nich se hodnotí ⭐)</span>
+            <strong>${grossEarned} Kč</strong>
+          </div>
+          <div class="result-row bonus">
+            <span>⭐ Bonus za ${starsEarned} ⭐ (×${multText})</span>
+            <strong>+${starBonus} Kč</strong>
+          </div>
+          <div class="result-row wage">
+            <span>👷 Výplata zaměstnanců${wageDetails}</span>
+            <strong>−${totalWages} Kč</strong>
+          </div>
+          <div class="result-row total">
+            <span>💰 Čistý výdělek do pokladny</span>
+            <strong>+${earned} Kč</strong>
+          </div>
+        `;
+      }
 
       const unlockNote = document.getElementById('result-unlock-note');
       const nextBtn = document.getElementById('result-next-btn');
@@ -5107,8 +7866,8 @@
 
       if (stageComplete) {
         if (this.save.coins >= nextStage.unlockCost) {
-          unlockNote.textContent = `🏢 Všech 8 směn hotovo! Můžeš přejít na novou benzínku: ${nextStage.id}. ${nextStage.name} (cena přechodu: ${nextStage.unlockCost} Kč, na nové pumpě začínáš od 0 Kč)!`;
-          nextBtn.textContent = `🏢 Koupit: ${nextStage.name} (${nextStage.unlockCost} Kč)`;
+          unlockNote.textContent = `🏢 Všech 8 směn hotovo! Můžeš přejít na novou benzínku: ${nextStage.id}. ${nextStage.name} (potřeba min. ${nextStage.unlockCost} Kč, novou větší pumpu kupuješ za všechny své peníze a začínáš s 0 Kč)!`;
+          nextBtn.textContent = '🏢 Koupit větší pumpu za všechny peníze';
         } else {
           unlockNote.textContent = `🏁 Všech 8 směn v této benzínce je hotových! Na koupi další (${nextStage.name}) potřebuješ ${nextStage.unlockCost} Kč (v pokladně máš ${this.save.coins} Kč).`;
           nextBtn.textContent = '🗺️ Na hlavní mapu';

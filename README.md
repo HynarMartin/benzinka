@@ -19,17 +19,16 @@ Hra je připravena pro okamžité spuštění přímo v prohlížeči přes **Gi
 
 ## ✨ Hlavní herní prvky
 
-- **4 hlavní benzínky a 32 herních dnů:**
-  1. **Malé město**
-  2. **Větší město**
-  3. **Mimoměstský tah**
-  4. **Dálniční centrum**
-  - Každá ze 4 hlavních benzínek nabízí **8 postupných směn (`1. den` – `8. den`)**, vlastní vizuální prostředí, rozšiřující se plochu stanice a stoupající provoz.
-- **Samostatná ekonomika každé stanice:** Při postupu a odemknutí další hlavní benzínky začínáš vždy od nuly se samostatným rozpočtem nové pobočky.
-- **Osobní auta i těžká doprava (`Stojan 4`):** Od 3. a 4. benzínky obsluhuješ vedle běžných stojanů také vyhrazený **Stojan 4** pro kamiony a autobusy.
-- **Chytrá obsluha jedním kliknutím:** Hráč může nést až **2 položky na tácu** najednou. Pokud neseš obě věci, které si zákazník přeje, předáš mu kompletní objednávku jedním kliknutím.
-- **Příprava prodejny a rozložení vybavení:** Mezi dny můžeš v přípravném režimu nakupovat nová vylepšení, přesouvat regály i spotřebiče po prodejně a otáčet regály do všech směrů.
-- **Najímání a řízení zaměstnanců:** Zaměstnanci samostatně pomáhají s chodem stanice (tankování, obsluha, doplňování a úklid), zobrazují přímo nad sebou **textový ukazatel aktuálního úkolu** a po jeho dokončení se vrací zpět na své domovské stanoviště.
+- **4 přepracované benzínky (Pumpa 1–4) a 32 herních dnů:**
+  1. **Malé město** (T-křižovatka, 2 stojany pro auta, mytí oken)
+  2. **Větší město** (T-křižovatka, 3 stojany pro auta, mytí oken, parkovací zálivy pro dofukování pneu a vysavač)
+  3. **Mimoměstský tah** (T-křižovatka s vodorovným stáním pro kamiony, 3 osobní stojany, kompletní venkovní servis)
+  4. **Dálniční centrum** (dvouproudá příjezdová cesta, 2 terminálová stání pro kamiony/autobusy, 4 stojany pro auta, mytí oken, dofukování aut a vysavač)
+  - Každá ze 4 hlavních benzínek nabízí **8 postupných směn (`1. den` – `8. den`)**, vlastní vizuální prostředí a stoupající provoz se správou předností a bezkolizním pohybem vozidel.
+- **Samostatná ekonomika každé stanice & trvalé vybavení:** Novou větší stanici kupuješ za všechny naspořené peníze (`Koupit větší pumpu za všechny peníze`), takže rozpočet i vybavení nové pobočky začínají od `0 Kč`, ale **Pohodlné tenisky** (jednorázový nákup na celou hru) a **Větší tác** ti zůstávají natrvalo napříč všemi benzínkami.
+- **Výplaty zaměstnanců posuvníkem a bilance dne:** Každý najatý zaměstnanec má posuvník denní výplaty (`0–30 Kč`, `0 Kč` = odpočívá, vyšší výplata = rychlejší obsluha). Hvězdy směny se počítají z hrubých tržeb, za `2 ⭐` získáš bonus `×1,1` a za `3 ⭐` `×1,2`; na konci dne se odečtou celkové výplaty zaměstnanců a zobrazí se kompletní přehled dne.
+- **Servis pro auta i těžkou dopravu:** Kromě tankování (`⛽`) a mytí skel (`🧽`) od 2. benzínky nabízí stanice také **dofukování pneumatik** a **vysavač interiéru** s vlastními parkovacími místy (pokud chce řidič navíc i natankovat, po obsluze přejede ke stojanu a teprve odtud jde zaplatit).
+- **Chytrá obsluha a chytrý úklid:** Hráč i zaměstnanci samostatně pomáhají s chodem stanice; při úklidu s koštětem (`🧹`) uklidí zaměstnanec jedním tahem všechny louže na ploše před jeho odložením a po splnění úkolu se vrátí na své výchozí místo.
 - **Integrované zvukové efekty:** Syntetizované herní zvuky bez externích audio závislostí (`js/audio.js`).
 
 ---

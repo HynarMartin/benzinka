@@ -747,370 +747,494 @@
       };
       const stStyle = STAGE_STYLES[stageId] || STAGE_STYLES[1];
 
-      // Driveway road along the bottom
+      // Driveway road along the bottom (shared 2-lane highway layout across all 4 pumps)
       ctx.fillStyle = stStyle.roadColor;
       ctx.fillRect(0, 595, this.width, 185);
 
       if (stageId === 1) {
         // Grassy country road verge at very bottom
         ctx.fillStyle = '#8ead6e';
-        ctx.fillRect(0, 760, this.width, 20);
+        ctx.fillRect(0, 766, this.width, 14);
       }
 
-      // Scaled asphalt forecourt & location grounds by stage (1 -> 2 -> 3 -> 4)
-      if (stageId === 1) {
-        // Compact 2-pump country forecourt + village green garden on the right
-        ctx.fillStyle = stStyle.forecourtColor;
-        roundRect(ctx, 42, 218, 380, 356, 24);
-        ctx.fill();
+      // Scaled forecourt apron + stage-specific road geometry (Stages 1..4 matching schematic)
+      ctx.fillStyle = stStyle.forecourtColor;
+      roundRect(ctx, 12, 160, 594, 434, 18);
+      ctx.fill();
+      ctx.strokeStyle = stageId === 4 ? '#6f7c85' : 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-        // Cozy village green garden in x: 438..604, y: 240..560
+      if (stageId < 4) {
+        const barLeft = stageId === 1 ? 128 : 114;
+        const barRight = stageId === 1 ? 468 : 524;
+        const barTop = 278;
+        const barH = 82;
+        const barBot = barTop + barH;
+        const tCutouts =
+          stageId === 1
+            ? [
+                [156, 212],
+                [364, 420]
+              ]
+            : [
+                [138, 194],
+                [276, 332],
+                [414, 470]
+              ];
+
         ctx.save();
-        ctx.fillStyle = '#9ec481';
-        roundRect(ctx, 438, 240, 166, 320, 22);
+        // T-shaped 2-lane asphalt road (vertical stem x: 228..374 + horizontal bar)
+        ctx.fillStyle = '#363c44';
+        ctx.fillRect(228, barBot - 2, 146, 596 - (barBot - 2));
+        roundRect(ctx, barLeft, barTop, barRight - barLeft, barH, 10);
         ctx.fill();
-        ctx.fillStyle = '#7ca362';
-        ctx.beginPath();
-        ctx.arc(505, 378, 34, 0, Math.PI * 2);
-        ctx.arc(482, 392, 22, 0, Math.PI * 2);
-        ctx.arc(528, 392, 22, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#73533d';
-        ctx.fillRect(500, 396, 10, 28);
-        ctx.fillStyle = '#e26d5c';
-        [
-          [492, 370], [516, 366], [504, 385], [478, 390], [530, 388]
-        ].forEach(([ax, ay]) => {
-          ctx.beginPath();
-          ctx.arc(ax, ay, 3.2, 0, Math.PI * 2);
-          ctx.fill();
+        // Blend T-junction cleanly
+        ctx.fillRect(228, barTop + 6, 146, barH);
+
+        // Curbs/white road edges around T-road
+        ctx.fillStyle = '#cfd8dc';
+        // Vertical stem left & right curbs (leave driveway openings for side service/truck bays)
+        if (stageId === 2) {
+          ctx.fillRect(224, barBot, 6, 426 - barBot);
+          ctx.fillRect(224, 564, 6, 30);
+          ctx.fillRect(372, barBot, 6, 594 - barBot);
+        } else if (stageId === 3) {
+          ctx.fillRect(224, barBot, 6, 428 - barBot);
+          ctx.fillRect(224, 508, 6, 86);
+          ctx.fillRect(372, barBot, 6, 404 - barBot);
+          ctx.fillRect(372, 542, 6, 52);
+        } else {
+          ctx.fillRect(224, barBot, 6, 594 - barBot);
+          ctx.fillRect(372, barBot, 6, 594 - barBot);
+        }
+
+        // Horizontal T-bar bottom curbs (left & right of stem)
+        ctx.fillRect(barLeft, barBot - 4, 228 - barLeft, 6);
+        ctx.fillRect(374, barBot - 4, barRight - 374, 6);
+        // Horizontal T-bar end caps
+        ctx.fillRect(barLeft - 4, barTop, 6, barH);
+        ctx.fillRect(barRight - 2, barTop, 6, barH);
+
+        // Top curb of horizontal T-bar with openings directly beneath car pump bays
+        let curX = barLeft;
+        tCutouts.forEach(([c1, c2]) => {
+          if (c1 > curX) {
+            ctx.fillRect(curX, barTop - 4, c1 - curX, 6);
+          }
+          curX = c2;
         });
-        // Wooden garden bench (x=470, y=470)
-        ctx.fillStyle = '#9c6644';
-        roundRect(ctx, 452, 464, 52, 12, 3);
-        ctx.fill();
-        ctx.fillStyle = '#b07d52';
-        roundRect(ctx, 450, 476, 56, 9, 3);
-        ctx.fill();
-        ctx.fillStyle = '#6c462b';
-        ctx.fillRect(456, 485, 5, 8);
-        ctx.fillRect(495, 485, 5, 8);
-        // Flower beds
-        this._drawFlowerBox(ctx, 548, 492, t);
-        this._drawFlowerBox(ctx, 495, 542, t + 1.1);
-        ctx.restore();
-      } else if (stageId === 2) {
-        // Medium 3-pump urban forecourt + tiled urban pedestrian strip
-        ctx.fillStyle = stStyle.forecourtColor;
-        roundRect(ctx, 24, 205, 564, 315, 24);
-        ctx.fill();
+        if (barRight > curX) {
+          ctx.fillRect(curX, barTop - 4, barRight - curX, 6);
+        }
 
-        ctx.save();
-        ctx.fillStyle = '#b8b3aa';
-        roundRect(ctx, 24, 520, 564, 56, 12);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(95, 92, 86, 0.25)';
-        ctx.lineWidth = 1.2;
-        for (let px = 64; px < 580; px += 44) {
+        // Dashed vertical divider in stem + horizontal divider in T-bar
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([18, 14]);
+        ctx.beginPath();
+        ctx.moveTo(301, barBot - 8);
+        ctx.lineTo(301, 586);
+        ctx.moveTo(barLeft + 16, barTop + barH / 2);
+        ctx.lineTo(barRight - 16, barTop + barH / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Directional lane chevrons on vertical stem (x=262 south ↓, x=340 north ↑)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.34)';
+        ctx.lineWidth = 3;
+        [410, 505].forEach((ay) => {
           ctx.beginPath();
-          ctx.moveTo(px, 522);
-          ctx.lineTo(px, 574);
+          ctx.moveTo(254, ay - 6);
+          ctx.lineTo(262, ay + 5);
+          ctx.lineTo(270, ay - 6);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(332, ay + 5);
+          ctx.lineTo(340, ay - 6);
+          ctx.lineTo(348, ay + 5);
+          ctx.stroke();
+        });
+
+        // Vertical red car parking bays above T-bar cutouts (carY=224, -PI/2) + vertical dispenser pads beside each bay
+        const pumpCount = stageId === 1 ? 2 : 3;
+        const defaultCarXs = stageId === 1 ? [184, 392] : [166, 304, 442];
+        const unlockedPumps = Math.min(pumpCount, (state.save.upgrades && state.save.upgrades.pump_unlock) || 1);
+        for (let idx = 0; idx < pumpCount; idx++) {
+          const stP = window.GAME_DATA && window.GAME_DATA.STATIONS && window.GAME_DATA.STATIONS[`pump_${idx}`];
+          const carX = stP ? stP.carX : defaultCarXs[idx];
+          const carY = stP ? stP.carY : 224;
+          const px = stP ? stP.x : carX + 46;
+          const py = stP ? stP.y : 216;
+          const isUnlocked = idx < unlockedPumps;
+          ctx.globalAlpha = isUnlocked ? 1 : 0.35;
+          ctx.fillStyle = '#3b424b';
+          roundRect(ctx, carX - 23, carY - 44, 46, 88, 10);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(209, 73, 91, 0.7)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([8, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Subtle nose-in arrow chevron pointing up inside vertical bay
+          ctx.strokeStyle = 'rgba(209, 73, 91, 0.42)';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(carX - 7, carY + 4);
+          ctx.lineTo(carX, carY - 6);
+          ctx.lineTo(carX + 7, carY + 4);
+          ctx.stroke();
+
+          ctx.fillStyle = '#dfe6ea';
+          roundRect(ctx, px - 19, py - 27, 38, 54, 9);
+          ctx.fill();
+          ctx.strokeStyle = '#d1495b';
+          ctx.lineWidth = 2.5;
           ctx.stroke();
         }
-        [70, 210, 360, 510].forEach((bx) => {
-          ctx.fillStyle = '#757d84';
-          roundRect(ctx, bx - 14, 538, 28, 16, 4);
-          ctx.fill();
-          ctx.fillStyle = '#5c8a6b';
-          ctx.beginPath();
-          ctx.arc(bx, 535, 10, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        ctx.restore();
-      } else if (stageId === 3) {
-        // Large 590x380 truck-stop forecourt + lower TIR & BUS Bay
-        ctx.fillStyle = stStyle.forecourtColor;
-        roundRect(ctx, 14, 198, 590, 380, 24);
-        ctx.fill();
+        ctx.globalAlpha = 1;
 
-        ctx.save();
-        ctx.fillStyle = '#4b4e53';
-        roundRect(ctx, 34, 454, 548, 114, 14);
+        // Green window-wash pad
+        const stBucket = window.GAME_DATA && window.GAME_DATA.STATIONS && window.GAME_DATA.STATIONS.bucket;
+        const washCoord = stBucket
+          ? { x: stBucket.x, y: stBucket.y }
+          : stageId === 1
+          ? { x: 300, y: 216 }
+          : { x: 84, y: 216 };
+        const washUnlocked = (state.save.upgrades && state.save.upgrades.wash_unlock) >= 2;
+        ctx.fillStyle = washUnlocked ? 'rgba(79, 157, 105, 0.28)' : 'rgba(79, 157, 105, 0.1)';
+        roundRect(ctx, washCoord.x - 22, washCoord.y - 22, 44, 44, 10);
         ctx.fill();
-        ctx.strokeStyle = '#6b7075';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#4f9d69';
+        ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        // Dashed yellow heavy-vehicle parking bay box (x: 224..568, y: 466..558)
-        ctx.strokeStyle = '#f2c14e';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([16, 10]);
-        roundRect(ctx, 224, 466, 344, 92, 10);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        // Yellow Toník home pad matching schematic
+        const tonikHomePad =
+          stageId === 1
+            ? { x: 492, y: 174, w: 52, h: 44 }
+            : stageId === 2
+            ? { x: 32, y: 362, w: 52, h: 40 }
+            : { x: 32, y: 348, w: 52, h: 40 };
+        ctx.fillStyle = '#f2c14e';
+        roundRect(ctx, tonikHomePad.x, tonikHomePad.y, tonikHomePad.w, tonikHomePad.h, 10);
+        ctx.fill();
+        ctx.fillStyle = '#5c6670';
+        roundRect(ctx, tonikHomePad.x + 6, tonikHomePad.y + 5, tonikHomePad.w - 12, tonikHomePad.h - 10, 7);
+        ctx.fill();
 
-        // Vector lane guidance chevrons >>> on asphalt (no fillText)
-        ctx.strokeStyle = 'rgba(242, 193, 78, 0.55)';
-        ctx.lineWidth = 4;
-        [270, 340, 410, 480].forEach((cx) => {
-          ctx.beginPath();
-          ctx.moveTo(cx, 502);
-          ctx.lineTo(cx + 14, 512);
-          ctx.lineTo(cx, 522);
+        // Stage 2 & Stage 3 orange (air) + purple (vacuum) pads + dedicated car parking bays
+        if (stageId === 2 || stageId === 3) {
+          const stAir = window.GAME_DATA.STATIONS.air;
+          const stVac = window.GAME_DATA.STATIONS.vacuum;
+          const airPad = stAir ? { x: stAir.x, y: stAir.y, cx: stAir.carX, cy: stAir.carY } : { x: 42, y: 456, cx: 122, cy: 456 };
+          const vacPad = stVac ? { x: stVac.x, y: stVac.y, cx: stVac.carX, cy: stVac.carY } : { x: 42, y: 532, cx: 122, cy: 532 };
+          const airUnlocked = (state.save.upgrades && state.save.upgrades.air_unlock) >= 2;
+          const vacUnlocked = (state.save.upgrades && state.save.upgrades.vacuum_unlock) >= 2;
+
+          ctx.globalAlpha = airUnlocked ? 1 : 0.35;
+          ctx.fillStyle = '#3b424b';
+          roundRect(ctx, airPad.cx - 44, airPad.cy - 23, 88, 46, 10);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(244, 162, 97, 0.72)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([8, 6]);
           ctx.stroke();
-        });
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(244, 162, 97, 0.28)';
+          roundRect(ctx, airPad.x - 20, airPad.y - 22, 40, 44, 10);
+          ctx.fill();
+          ctx.strokeStyle = '#f4a261';
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+
+          ctx.globalAlpha = vacUnlocked ? 1 : 0.35;
+          ctx.fillStyle = '#3b424b';
+          roundRect(ctx, vacPad.cx - 44, vacPad.cy - 23, 88, 46, 10);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(142, 107, 191, 0.75)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([8, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(142, 107, 191, 0.28)';
+          roundRect(ctx, vacPad.x - 20, vacPad.y - 22, 40, 44, 10);
+          ctx.fill();
+          ctx.strokeStyle = '#8e6bbf';
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        // Stage 3 Horizontal Blue Truck Bay (mid-left x: 24..224, y: 422..514) with inner dispenser box on LEFT
+        if (stageId === 3) {
+          ctx.fillStyle = '#384049';
+          roundRect(ctx, 24, 422, 200, 92, 12);
+          ctx.fill();
+          ctx.strokeStyle = '#4ea8de';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Left inner blue pump pad
+          ctx.fillStyle = '#dce6ed';
+          roundRect(ctx, 30, 434, 44, 68, 8);
+          ctx.fill();
+          ctx.strokeStyle = '#3b8ec2';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Rightward guidance chevrons (>) exiting bay to stem
+          ctx.strokeStyle = 'rgba(78, 168, 222, 0.48)';
+          ctx.lineWidth = 3;
+          [116, 152, 188].forEach((cx) => {
+            ctx.beginPath();
+            ctx.moveTo(cx - 5, 456);
+            ctx.lineTo(cx + 6, 468);
+            ctx.lineTo(cx - 5, 480);
+            ctx.stroke();
+          });
+        }
         ctx.restore();
       } else {
-        // Massive 606x392 motorway megacenter forecourt + Mega TIR & BUS Terminal Bay
-        ctx.fillStyle = stStyle.forecourtColor;
-        roundRect(ctx, 6, 186, 606, 392, 24);
-        ctx.fill();
-
+        // Stage 4 Dálniční centrum: 2 vertical TIR bays + open apron (w/ orange air & purple vacuum corner) + 2-lane vertical road + 4 car bays + wash
         ctx.save();
-        ctx.fillStyle = '#383f47';
-        roundRect(ctx, 18, 448, 582, 124, 14);
+        ctx.fillStyle = '#363c44';
+        ctx.fillRect(228, 218, 146, 380);
+        ctx.fillStyle = '#cfd8dc';
+        roundRect(ctx, 224, 212, 154, 12, 6);
         ctx.fill();
-        ctx.strokeStyle = '#2a9d8f';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
 
-        // Illuminated emerald & yellow long-vehicle bay markings (x: 226..586, y: 462..560)
-        ctx.strokeStyle = '#80ed99';
+        ctx.fillStyle = '#cfd8dc';
+        ctx.fillRect(224, 224, 6, 152);
+        ctx.fillRect(224, 574, 6, 20);
+        ctx.fillRect(372, 224, 6, 370);
+
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 3;
-        ctx.setLineDash([18, 10]);
-        roundRect(ctx, 226, 462, 360, 98, 10);
+        ctx.setLineDash([18, 14]);
+        ctx.beginPath();
+        ctx.moveTo(301, 236);
+        ctx.lineTo(301, 586);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        ctx.strokeStyle = 'rgba(128, 237, 153, 0.5)';
-        ctx.lineWidth = 4;
-        [265, 335, 405, 475, 535].forEach((cx) => {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.36)';
+        ctx.lineWidth = 3;
+        [300, 440].forEach((ay) => {
           ctx.beginPath();
-          ctx.moveTo(cx, 500);
-          ctx.lineTo(cx + 15, 511);
-          ctx.lineTo(cx, 522);
+          ctx.moveTo(254, ay - 7);
+          ctx.lineTo(262, ay + 5);
+          ctx.lineTo(270, ay - 7);
           ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(332, ay + 5);
+          ctx.lineTo(340, ay - 7);
+          ctx.lineTo(348, ay + 5);
+          ctx.stroke();
+        });
+
+        // Yellow operator pad at top center for Toník (x=301, y=186)
+        ctx.fillStyle = '#f2c14e';
+        roundRect(ctx, 275, 166, 52, 40, 10);
+        ctx.fill();
+        ctx.fillStyle = '#5c6670';
+        roundRect(ctx, 281, 171, 40, 30, 7);
+        ctx.fill();
+
+        // Left side: 2 tall vertical TIR/Bus bays (x=38..130 & x=134..226, y=166..374)
+        [
+          { bx: 38, cx: 84 },
+          { bx: 134, cx: 180 }
+        ].forEach(({ bx, cx }) => {
+          ctx.fillStyle = '#384049';
+          roundRect(ctx, bx, 166, 92, 208, 12);
+          ctx.fill();
+          ctx.strokeStyle = '#4ea8de';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.fillStyle = '#dce6ed';
+          roundRect(ctx, bx + 12, 171, 68, 36, 8);
+          ctx.fill();
+          ctx.strokeStyle = '#3b8ec2';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(78, 168, 222, 0.48)';
+          ctx.lineWidth = 3;
+          [265, 305, 345].forEach((cy) => {
+            ctx.beginPath();
+            ctx.moveTo(cx - 12, cy - 6);
+            ctx.lineTo(cx, cy + 6);
+            ctx.lineTo(cx + 12, cy - 6);
+            ctx.stroke();
+          });
+        });
+
+        // Bottom-left orange (air) + purple (vacuum) pads + dedicated car parking bays
+        const airUnlocked4 = (state.save.upgrades && state.save.upgrades.air_unlock) >= 2;
+        const vacUnlocked4 = (state.save.upgrades && state.save.upgrades.vacuum_unlock) >= 2;
+        ctx.globalAlpha = airUnlocked4 ? 1 : 0.35;
+        ctx.fillStyle = '#3b424b';
+        roundRect(ctx, 64, 481, 88, 46, 10);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(244, 162, 97, 0.72)';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(244, 162, 97, 0.28)';
+        roundRect(ctx, 14, 482, 40, 44, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#f4a261';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.globalAlpha = vacUnlocked4 ? 1 : 0.35;
+        ctx.fillStyle = '#3b424b';
+        roundRect(ctx, 64, 535, 88, 46, 10);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(142, 107, 191, 0.75)';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(142, 107, 191, 0.28)';
+        roundRect(ctx, 14, 536, 40, 44, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#8e6bbf';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Truck turnaround apron corridor above air/vacuum bays (y: 382..468)
+        ctx.strokeStyle = 'rgba(78, 168, 222, 0.25)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([12, 10]);
+        roundRect(ctx, 26, 382, 194, 86, 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Right side: car bay strip (x: 374..596) with 4 red pump bays + wash bucket
+        ctx.fillStyle = '#dfe6ea';
+        roundRect(ctx, 512, 172, 46, 362, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#d1495b';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#cfd8dc';
+        roundRect(ctx, 562, 172, 38, 362, 10);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(79, 157, 105, 0.22)';
+        roundRect(ctx, 565, 322, 32, 62, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#4f9d69';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const carBayYs = [212, 306, 400, 494];
+        carBayYs.forEach((by) => {
+          ctx.fillStyle = '#3b424b';
+          roundRect(ctx, 392, by - 32, 106, 64, 10);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(209, 73, 91, 0.55)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([8, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
         });
         ctx.restore();
       }
 
-      // Road lane markings by location
+      // Unified 2-lane bottom highway markings (eastbound entry y=738, westbound exit y=628, central driveway opening x=236..366)
       ctx.save();
-      if (stageId === 3) {
-        // Double yellow center lines + white outer edge lines + road arrows + crash guardrail
-        ctx.strokeStyle = stStyle.dashColor;
-        ctx.lineWidth = 3.5;
-        ctx.setLineDash([34, 22]);
-        ctx.beginPath();
-        ctx.moveTo(0, 684);
-        ctx.lineTo(this.width, 684);
-        ctx.moveTo(0, 692);
-        ctx.lineTo(this.width, 692);
-        ctx.stroke();
+      ctx.strokeStyle = stStyle.dashColor;
+      ctx.lineWidth = 3.5;
+      ctx.setLineDash([36, 26]);
+      ctx.beginPath();
+      ctx.moveTo(0, 686);
+      ctx.lineTo(this.width, 686);
+      ctx.stroke();
 
-        ctx.setLineDash([]);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(0, 608);
-        ctx.lineTo(this.width, 608);
-        ctx.moveTo(0, 762);
-        ctx.lineTo(this.width, 762);
-        ctx.stroke();
-
-        ctx.fillStyle = 'rgba(255, 248, 230, 0.45)';
-        [180, 540, 960, 1340].forEach((ax) => {
-          ctx.beginPath();
-          ctx.moveTo(ax, 646);
-          ctx.lineTo(ax + 34, 646);
-          ctx.lineTo(ax + 34, 639);
-          ctx.lineTo(ax + 52, 650);
-          ctx.lineTo(ax + 34, 661);
-          ctx.lineTo(ax + 34, 654);
-          ctx.lineTo(ax, 654);
-          ctx.closePath();
-          ctx.fill();
-        });
-
+      ctx.setLineDash([]);
+      if (stageId === 4) {
+        ctx.fillStyle = '#2a9d8f';
+        ctx.fillRect(0, 598, 236, 5);
+        ctx.fillRect(366, 598, this.width - 366, 5);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillRect(0, 770, this.width, 3);
+      } else if (stageId === 3) {
         ctx.fillStyle = '#9aa1a8';
         ctx.fillRect(0, 768, this.width, 6);
         ctx.fillStyle = '#62686e';
         for (let gx = 16; gx < this.width; gx += 42) {
           ctx.fillRect(gx, 766, 5, 14);
         }
-      } else if (stageId === 4) {
-        // Dual lane dividers + emerald bay edge strip + directional arrows
-        ctx.strokeStyle = stStyle.dashColor;
-        ctx.lineWidth = 3.5;
-        ctx.setLineDash([36, 26]);
-        ctx.beginPath();
-        ctx.moveTo(0, 660);
-        ctx.lineTo(this.width, 660);
-        ctx.moveTo(0, 722);
-        ctx.lineTo(this.width, 722);
-        ctx.stroke();
+      }
 
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#2a9d8f';
-        ctx.fillRect(0, 602, this.width, 6);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillRect(0, 768, this.width, 3);
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-        [160, 520, 900, 1280].forEach((ax) => {
-          ctx.beginPath();
-          ctx.moveTo(ax, 687);
-          ctx.lineTo(ax + 38, 687);
-          ctx.lineTo(ax + 38, 680);
-          ctx.lineTo(ax + 58, 691);
-          ctx.lineTo(ax + 38, 702);
-          ctx.lineTo(ax + 38, 695);
-          ctx.lineTo(ax, 695);
-          ctx.closePath();
-          ctx.fill();
-        });
-      } else {
-        ctx.strokeStyle = stStyle.dashColor;
-        ctx.lineWidth = 4;
-        ctx.setLineDash([32, 24]);
-        ctx.beginPath();
-        ctx.moveTo(0, 688);
-        ctx.lineTo(this.width, 688);
-        ctx.stroke();
-
-        if (stageId === 2) {
-          // Pedestrian zebra crosswalk below shop doorway (x: 676..756, y: 606..668)
-          ctx.setLineDash([]);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
-          for (let zx = 678; zx <= 746; zx += 16) {
-            ctx.fillRect(zx, 606, 9, 58);
-          }
+      if (stageId === 2) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        for (let zx = 678; zx <= 746; zx += 16) {
+          ctx.fillRect(zx, 606, 9, 58);
         }
       }
+
+      // Eastbound arrival arrows on lower lane (y = 738)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.36)';
+      [140, 540, 920, 1300].forEach((ax) => {
+        ctx.beginPath();
+        ctx.moveTo(ax, 734);
+        ctx.lineTo(ax + 34, 734);
+        ctx.lineTo(ax + 34, 728);
+        ctx.lineTo(ax + 52, 738);
+        ctx.lineTo(ax + 34, 748);
+        ctx.lineTo(ax + 34, 742);
+        ctx.lineTo(ax, 742);
+        ctx.closePath();
+        ctx.fill();
+      });
+      // Westbound exit arrows on upper lane (y = 628)
+      [190, 610, 990, 1360].forEach((ax) => {
+        ctx.beginPath();
+        ctx.moveTo(ax + 52, 624);
+        ctx.lineTo(ax + 18, 624);
+        ctx.lineTo(ax + 18, 618);
+        ctx.lineTo(ax, 628);
+        ctx.lineTo(ax + 18, 638);
+        ctx.lineTo(ax + 18, 632);
+        ctx.lineTo(ax + 52, 632);
+        ctx.closePath();
+        ctx.fill();
+      });
       ctx.restore();
 
-      // Sidewalk / curb between forecourt/shop and road
+      // Sidewalk / curb between forecourt/shop and road (central driveway open x: 236..366 across ALL stages)
       ctx.fillStyle = stStyle.curbTop;
-      ctx.fillRect(0, 578, this.width, 22);
+      ctx.fillRect(0, 580, 236, 20);
+      ctx.fillRect(366, 580, this.width - 366, 20);
       ctx.fillStyle = stStyle.curbEdge;
-      ctx.fillRect(0, 596, this.width, 5);
+      ctx.fillRect(0, 596, 236, 4);
+      ctx.fillRect(366, 596, this.width - 366, 4);
 
-      // Pump island raised concrete pad
-      ctx.fillStyle = stStyle.islandFill;
-      if (stageId === 1) {
-        roundRect(ctx, 56, 272, 314, 60, 16);
-      } else {
-        roundRect(ctx, stStyle.islandX, 272, stStyle.islandW, 62, 16);
-      }
-      ctx.fill();
-      ctx.strokeStyle = stStyle.islandStroke;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      if (stageId === 3) {
-        // Yellow/black diagonal hazard stripes on upper island + lower TIR island + cantilever mini-canopy
-        ctx.save();
-        [62, 526].forEach((hx) => {
-          ctx.fillStyle = '#f2c14e';
-          ctx.fillRect(hx, 280, 16, 46);
-          ctx.fillStyle = '#2d3033';
-          for (let sy = 282; sy < 322; sy += 10) {
-            ctx.fillRect(hx, sy, 16, 5);
-          }
-        });
-        ctx.fillStyle = '#cbc6be';
-        roundRect(ctx, 58, 468, 156, 58, 12);
-        ctx.fill();
-        ctx.strokeStyle = '#f2c14e';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        [64, 194].forEach((hx) => {
-          ctx.fillStyle = '#f2c14e';
-          ctx.fillRect(hx, 476, 12, 42);
-          ctx.fillStyle = '#2d3033';
-          for (let sy = 478; sy < 516; sy += 9) {
-            ctx.fillRect(hx, sy, 12, 4);
-          }
-        });
-        ctx.fillStyle = '#6c737a';
-        ctx.fillRect(80, 444, 10, 40);
-        ctx.fillStyle = '#373b40';
-        roundRect(ctx, 50, 426, 172, 24, 8);
-        ctx.fill();
-        ctx.fillStyle = '#e0822d';
-        roundRect(ctx, 50, 442, 172, 8, 4);
-        ctx.fill();
-        ctx.restore();
-      } else if (stageId === 4) {
-        ctx.fillStyle = 'rgba(42, 157, 143, 0.35)';
-        roundRect(ctx, 64, 278, 476, 50, 12);
-        ctx.fill();
-
-        // Mega TIR & BUS raised granite island + illuminated portal roof
-        ctx.save();
-        ctx.fillStyle = '#dde5e9';
-        roundRect(ctx, 52, 466, 166, 60, 14);
-        ctx.fill();
-        ctx.strokeStyle = '#2a9d8f';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(42, 157, 143, 0.32)';
-        roundRect(ctx, 60, 473, 150, 46, 10);
-        ctx.fill();
-
-        ctx.fillStyle = '#788b94';
-        ctx.fillRect(72, 442, 10, 42);
-        ctx.fillRect(194, 442, 10, 42);
-        ctx.fillStyle = '#233138';
-        roundRect(ctx, 42, 422, 186, 26, 8);
-        ctx.fill();
-        ctx.fillStyle = '#2a9d8f';
-        roundRect(ctx, 42, 439, 186, 9, 4);
-        ctx.fill();
-        ctx.fillStyle = '#80ed99';
-        ctx.fillRect(48, 442, 174, 3);
-        ctx.restore();
-      }
-
-      // Canopy scaling by stage (short 2-pump in Stage 1 -> wider in Stage 3 -> widest in Stage 4)
-      const canopyGeom =
-        stageId === 1
-          ? { x: 46, y: 118, w: 340, h: 50, p1: 76, p2: 348, cx: 216 }
-          : stageId === 3
-          ? { x: 32, y: 110, w: 544, h: 58, p1: 72, p2: 520, cx: 304 }
-          : stageId === 4
-          ? { x: 20, y: 104, w: 568, h: 64, p1: 68, p2: 526, cx: 304 }
-          : { x: 36, y: 114, w: 536, h: 54, p1: 72, p2: 520, cx: 304 };
-
-      // Canopy shadow on ground
-      ctx.fillStyle = 'rgba(65, 48, 34, 0.14)';
-      roundRect(ctx, canopyGeom.x + 8, 210, canopyGeom.w - 16, 40, 12);
-      ctx.fill();
-
-      // Canopy pillars
-      ctx.fillStyle = stStyle.pillarColor;
-      ctx.fillRect(canopyGeom.p1, 162, 16, 120);
-      ctx.fillRect(canopyGeom.p2, 162, 16, 120);
-
-      // Pump Canopy Roof
+      // Sleek top forecourt sign bar without pillars blocking driveways or bays
       ctx.fillStyle = stStyle.canopyColor;
-      roundRect(ctx, canopyGeom.x, canopyGeom.y, canopyGeom.w, canopyGeom.h, 14);
+      roundRect(ctx, 18, 124, 578, 26, 10);
       ctx.fill();
       ctx.fillStyle = stStyle.canopyTrim;
-      roundRect(ctx, canopyGeom.x, 148, canopyGeom.w, 16, 6);
+      roundRect(ctx, 24, 143, 566, 6, 3);
       ctx.fill();
-      if (stageId === 4) {
-        ctx.fillStyle = '#80ed99';
-        ctx.fillRect(canopyGeom.x + 10, 155, canopyGeom.w - 20, 3);
-      }
-
-      // Decor upgrades: flower boxes and fairy lights
-      if (decorLvl >= 1) {
-        this._drawFlowerBox(ctx, 60, 294, t);
-        this._drawFlowerBox(ctx, stageId === 1 ? 354 : 526, 294, t);
-      }
       if (decorLvl >= 2) {
-        this._drawFairyLights(ctx, canopyGeom.x + 10, 164, canopyGeom.x + canopyGeom.w - 10, 164, t);
+        this._drawFairyLights(ctx, 28, 148, 588, 148, t);
+      }
+      if (decorLvl >= 1) {
+        this._drawFlowerBox(ctx, 42, 162, t);
+        if (stageId === 1) {
+          this._drawFlowerBox(ctx, 560, 558, t + 0.7);
+        } else {
+          this._drawFlowerBox(ctx, 560, 162, t + 0.7);
+        }
       }
       if (decorLvl >= 3) {
         this._drawFlowerBox(ctx, 648, 576, t);
@@ -1450,15 +1574,27 @@
       const upgrades = state.save.upgrades || {};
       const lim = state.stageLimits || {
         maxPumps: 3,
+        heavyPumpIndices: [],
         allowedUnlocks: ['pump_unlock', 'wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock']
       };
+      const heavyIndices = lim.heavyPumpIndices || (lim.hasHeavyPump ? [3] : []);
       const pumpsUnlocked = Math.min(lim.maxPumps || 3, upgrades.pump_unlock || 1);
 
       Object.values(stations).forEach((st) => {
         if (st.id === 'pump_1' && pumpsUnlocked < 2) return;
         if (st.id === 'pump_2' && pumpsUnlocked < 3) return;
-        if (st.id === 'pump_3' && !lim.hasHeavyPump) return;
+        if (st.id === 'pump_3') {
+          if ((lim.maxPumps || 3) >= 4) {
+            if (pumpsUnlocked < 4) return;
+          } else if (!heavyIndices.includes(3)) {
+            return;
+          }
+        }
+        if (st.id === 'pump_4' && !heavyIndices.includes(4)) return;
+        if (st.id === 'pump_5' && !heavyIndices.includes(5)) return;
         if (st.id === 'bucket' && (!lim.allowedUnlocks.includes('wash_unlock') || (upgrades.wash_unlock || 1) < 2)) return;
+        if (st.id === 'air' && (!lim.allowedUnlocks.includes('air_unlock') || (upgrades.air_unlock || 1) < 2)) return;
+        if (st.id === 'vacuum' && (!lim.allowedUnlocks.includes('vacuum_unlock') || (upgrades.vacuum_unlock || 1) < 2)) return;
         if (st.id === 'grill' && (!lim.allowedUnlocks.includes('grill_unlock') || (upgrades.grill_unlock || 1) < 2)) return;
         if (st.id === 'fridge' && (!lim.allowedUnlocks.includes('fridge_unlock') || (upgrades.fridge_unlock || 1) < 2)) return;
         const isLockedPump = false;
@@ -1477,14 +1613,18 @@
           this._drawFuelPump(ctx, st, isLockedPump, isHovered, state);
         } else if (st.id === 'bucket') {
           this._drawWashBucket(ctx, st, isHovered);
+        } else if (st.id === 'air') {
+          this._drawAirStation(ctx, st, isHovered);
+        } else if (st.id === 'vacuum') {
+          this._drawVacuumStation(ctx, st, isHovered);
         } else if (st.id === 'broom') {
           this._drawBroomStand(ctx, st, isHovered);
         } else if (st.id === 'coffee') {
-          this._drawCoffeeMachine(ctx, st, isHovered, t);
+          this._drawCoffeeMachine(ctx, st, isHovered, t, state);
         } else if (st.id === 'grill') {
-          this._drawGrillStation(ctx, st, isHovered, t);
+          this._drawGrillStation(ctx, st, isHovered, t, state);
         } else if (st.id === 'fridge') {
-          this._drawFridgeStation(ctx, st, isHovered);
+          this._drawFridgeStation(ctx, st, isHovered, t, state);
         } else if (st.id === 'storage') {
           this._drawStorageStation(ctx, st, isHovered);
         } else if (st.id === 'trash') {
@@ -1672,71 +1812,92 @@
       ctx.save();
       ctx.globalAlpha = isLocked ? 0.45 : 1;
       if (st.isHeavyPump) {
-        // Heavy-duty dual-hose high-flow TIR / BUS dispenser (w: 58, h: 74)
-        ctx.fillStyle = pal.heavyCap;
-        roundRect(ctx, st.x - 26, st.y - 42, 52, 8, 4);
+        const heavyFrame = '#1e425e';
+        const heavyBody = '#2b7bba';
+        const heavyPanel = '#1c5a8a';
+        const heavyCap = '#8ad0ff';
+
+        if (stageId === 4) {
+          // Compact Stage 4 blue TIR/Bus dispenser at top of vertical bay
+          ctx.fillStyle = heavyCap;
+          roundRect(ctx, st.x - 22, st.y - 26, 44, 7, 3);
+          ctx.fill();
+          ctx.fillStyle = heavyFrame;
+          roundRect(ctx, st.x - 24, st.y - 21, 48, 44, 8);
+          ctx.fill();
+          ctx.fillStyle = heavyBody;
+          roundRect(ctx, st.x - 21, st.y - 18, 42, 38, 6);
+          ctx.fill();
+          ctx.fillStyle = '#fff8eb';
+          roundRect(ctx, st.x - 14, st.y - 13, 28, 14, 3);
+          ctx.fill();
+          ctx.fillStyle = heavyPanel;
+          roundRect(ctx, st.x - 12, st.y + 4, 24, 11, 3);
+          ctx.fill();
+          ctx.restore();
+
+          this._drawStationTag(ctx, st.x, st.y + 34, st.label, isHovered && !isLocked);
+          return;
+        }
+
+        // Stage 3 compact blue TIR dispenser on LEFT end of horizontal blue truck bay
+        ctx.fillStyle = heavyCap;
+        roundRect(ctx, st.x - 16, st.y - 28, 32, 7, 3);
         ctx.fill();
-        ctx.fillStyle = pal.frame;
-        roundRect(ctx, st.x - 29, st.y - 37, 58, 74, 10);
+        ctx.fillStyle = heavyFrame;
+        roundRect(ctx, st.x - 18, st.y - 23, 36, 48, 8);
         ctx.fill();
-        ctx.fillStyle = pal.body;
-        roundRect(ctx, st.x - 26, st.y - 33, 52, 66, 8);
+        ctx.fillStyle = heavyBody;
+        roundRect(ctx, st.x - 15, st.y - 20, 30, 42, 6);
         ctx.fill();
         ctx.fillStyle = '#fff8eb';
-        roundRect(ctx, st.x - 19, st.y - 26, 38, 21, 4);
+        roundRect(ctx, st.x - 11, st.y - 14, 22, 14, 3);
         ctx.fill();
-
-        // Dual heavy-flow hoses (left & right)
-        ctx.strokeStyle = '#2d3033';
-        ctx.lineWidth = 4.5;
-        ctx.beginPath();
-        ctx.moveTo(st.x - 26, st.y - 8);
-        ctx.quadraticCurveTo(st.x - 40, st.y + 8, st.x - 26, st.y + 24);
-        ctx.moveTo(st.x + 26, st.y - 8);
-        ctx.quadraticCurveTo(st.x + 40, st.y + 8, st.x + 26, st.y + 24);
-        ctx.stroke();
-
-        ctx.fillStyle = pal.panel;
-        roundRect(ctx, st.x - 16, st.y + 4, 32, 16, 4);
+        ctx.fillStyle = heavyPanel;
+        roundRect(ctx, st.x - 10, st.y + 4, 20, 12, 3);
         ctx.fill();
         ctx.restore();
 
-        this._drawStationTag(ctx, st.x, st.y + 46, st.label, isHovered && !isLocked);
+        this._drawStationTag(ctx, st.x + 2, st.y + 34, st.label, isHovered && !isLocked);
         return;
       }
 
-      ctx.fillStyle = pal.frame;
-      roundRect(ctx, st.x - 24, st.y - 34, 48, 68, 10);
+      // Red car fuel dispensers across Stages 1..4 (Stages 1..3 use vertical dispenser beside vertical bay)
+      const isVerticalBay = stageId < 4;
+      const bodyW = isVerticalBay ? 32 : 36;
+      const bodyH = isVerticalBay ? 48 : 44;
+      ctx.fillStyle = '#5c1f28';
+      roundRect(ctx, st.x - bodyW / 2, st.y - bodyH / 2, bodyW, bodyH, 8);
       ctx.fill();
-      ctx.fillStyle = isLocked ? '#9e978e' : pal.body;
-      roundRect(ctx, st.x - 21, st.y - 31, 42, 60, 8);
+      ctx.fillStyle = isLocked ? '#9e978e' : '#d1495b';
+      roundRect(ctx, st.x - bodyW / 2 + 3, st.y - bodyH / 2 + 3, bodyW - 6, bodyH - 6, 6);
       ctx.fill();
       ctx.fillStyle = '#fff8eb';
-      roundRect(ctx, st.x - 15, st.y - 24, 30, 20, 4);
+      roundRect(ctx, st.x - 10, st.y - bodyH / 2 + 7, 20, 13, 3);
       ctx.fill();
-      ctx.strokeStyle = '#3d3430';
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#33292a';
+      ctx.lineWidth = 3.2;
       ctx.beginPath();
-      ctx.moveTo(st.x + 21, st.y - 8);
-      ctx.quadraticCurveTo(st.x + 34, st.y + 8, st.x + 22, st.y + 22);
+      // Car parks on the left side of the pump across Stages 1..3 (vertical bay) & Stage 4 (right-aligned bay)
+      ctx.moveTo(st.x - bodyW / 2 + 3, st.y - 4);
+      ctx.quadraticCurveTo(st.x - bodyW / 2 - 7, st.y + 7, st.x - bodyW / 2 + 3, st.y + 15);
       ctx.stroke();
-
-      ctx.fillStyle = isLocked ? '#7e766e' : pal.panel;
-      roundRect(ctx, st.x - 13, st.y + 4, 26, 14, 3);
+      ctx.fillStyle = isLocked ? '#7e766e' : '#9e2b3b';
+      roundRect(ctx, st.x - 9, st.y + 4, 18, 11, 3);
       ctx.fill();
       ctx.restore();
 
       this._drawStationTag(
         ctx,
         st.x,
-        st.y + 44,
-        isLocked ? 'Stojan 3 (Úr. 2)' : st.label,
+        isVerticalBay ? st.y - 35 : st.y + 28,
+        isLocked ? 'Stojan (Uzam.)' : st.label,
         isHovered && !isLocked
       );
     }
 
     _drawWashBucket(ctx, st, isHovered) {
-      ctx.fillStyle = '#5ca4a9';
+      ctx.fillStyle = '#4f9d69';
       ctx.beginPath();
       ctx.moveTo(st.x - 16, st.y - 10);
       ctx.lineTo(st.x + 16, st.y - 10);
@@ -1744,7 +1905,7 @@
       ctx.lineTo(st.x - 12, st.y + 18);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = '#3e7377';
+      ctx.strokeStyle = '#2d6a4f';
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -1758,7 +1919,65 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🧽', st.x, st.y + 4);
-      this._drawStationTag(ctx, st.x, st.y + 32, 'Mytí oken', isHovered);
+      this._drawStationTag(ctx, st.x, st.y + 30, 'Mytí oken', isHovered);
+    }
+
+    _drawAirStation(ctx, st, isHovered) {
+      // Orange tire-inflation stand (vector hardware, no emoji icon)
+      ctx.fillStyle = '#a8531b';
+      roundRect(ctx, st.x - 16, st.y - 20, 32, 40, 8);
+      ctx.fill();
+      ctx.fillStyle = '#f4a261';
+      roundRect(ctx, st.x - 13, st.y - 17, 26, 34, 6);
+      ctx.fill();
+      // White analog pressure dial
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(st.x, st.y - 7, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#33292a';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(st.x, st.y - 7);
+      ctx.lineTo(st.x + 4, st.y - 11);
+      ctx.stroke();
+      // Lower air hose coil block
+      ctx.fillStyle = '#c86a27';
+      roundRect(ctx, st.x - 9, st.y + 3, 18, 10, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#33292a';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(st.x + 12, st.y + 1);
+      ctx.quadraticCurveTo(st.x + 20, st.y + 9, st.x + 12, st.y + 15);
+      ctx.stroke();
+
+      this._drawStationTag(ctx, st.x, st.y + 28, 'Dofukování', isHovered);
+    }
+
+    _drawVacuumStation(ctx, st, isHovered) {
+      // Purple car-vacuum tower (vector hardware, no emoji icon)
+      ctx.fillStyle = '#52347a';
+      roundRect(ctx, st.x - 16, st.y - 20, 32, 40, 8);
+      ctx.fill();
+      ctx.fillStyle = '#8e6bbf';
+      roundRect(ctx, st.x - 13, st.y - 17, 26, 34, 6);
+      ctx.fill();
+      ctx.fillStyle = '#f3ebff';
+      roundRect(ctx, st.x - 9, st.y - 13, 18, 10, 3);
+      ctx.fill();
+      // Vacuum intake grille & suction hose
+      ctx.fillStyle = '#5e3f8d';
+      roundRect(ctx, st.x - 9, st.y + 2, 18, 11, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#36264d';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(st.x + 12, st.y - 2);
+      ctx.quadraticCurveTo(st.x + 21, st.y + 8, st.x + 12, st.y + 16);
+      ctx.stroke();
+
+      this._drawStationTag(ctx, st.x, st.y + 28, 'Vysavač', isHovered);
     }
 
     _drawBroomStand(ctx, st, isHovered) {
@@ -1774,60 +1993,134 @@
       this._drawStationTag(ctx, st.x, st.y + 34, 'Úklid', isHovered);
     }
 
-    _drawCoffeeMachine(ctx, st, isHovered, t) {
+    _drawMachineStatusBadge(ctx, st, t, state) {
+      const ms = state && state.machineState ? state.machineState[st.id] : null;
+      if (!ms) return;
+      ctx.save();
+      if (ms.broken) {
+        // Smoke & sparks above broken appliance
+        const bob = Math.sin(t * 7) * 2.5;
+        ctx.fillStyle = 'rgba(70, 62, 58, 0.55)';
+        ctx.beginPath();
+        ctx.arc(st.x - 10 + Math.sin(t * 3) * 3, st.y - 38 + bob, 6, 0, Math.PI * 2);
+        ctx.arc(st.x + 8 + Math.cos(t * 4) * 3, st.y - 44 - bob, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.arc(st.x + Math.sin(t * 14) * 8, st.y - 32 + Math.cos(t * 11) * 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        const pulse = Math.sin(t * 8) * 2.5;
+        ctx.font = '800 11px "Nunito", sans-serif';
+        const txt = '🔧 PORUCHA!';
+        const bw = ctx.measureText(txt).width + 14;
+        ctx.fillStyle = '#c94436';
+        roundRect(ctx, st.x - bw / 2, st.y - 62 + pulse, bw, 19, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(txt, st.x, st.y - 52 + pulse);
+        ctx.restore();
+        return;
+      }
+
+      if (state.prepMode) {
+        ctx.restore();
+        return;
+      }
+
+      const isEmpty = ms.stock <= 0;
+      const isLow = ms.stock <= 2;
+      const pulse = isEmpty ? Math.sin(t * 7) * 2.5 : 0;
+      const badgeText = isEmpty ? `DOŠLO 0/${ms.maxStock}` : `${ms.stock}/${ms.maxStock}`;
+      const by = (st.id === 'fridge' ? st.y - 58 : st.y - 54) + pulse;
+      ctx.font = '800 11px "Nunito", sans-serif';
+      const bw = ctx.measureText(badgeText).width + 12;
+      ctx.fillStyle = isEmpty ? '#c94436' : isLow ? '#d97706' : 'rgba(45, 34, 27, 0.78)';
+      roundRect(ctx, st.x - bw / 2, by, bw, 18, 9);
+      ctx.fill();
+      if (isEmpty) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fff9ee';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, st.x, by + 9.5);
+      ctx.restore();
+    }
+
+    _drawCoffeeMachine(ctx, st, isHovered, t, state) {
+      const ms = state && state.machineState ? state.machineState[st.id] : null;
+      const broken = Boolean(ms && ms.broken);
       ctx.fillStyle = '#b98b61';
       roundRect(ctx, st.x - 32, st.y - 14, 64, 44, 8);
       ctx.fill();
-      ctx.fillStyle = '#5a3d31';
+      ctx.fillStyle = broken ? '#4a4340' : '#5a3d31';
       roundRect(ctx, st.x - 22, st.y - 34, 44, 36, 7);
       ctx.fill();
-      ctx.fillStyle = '#d9b99b';
+      ctx.fillStyle = broken ? '#9c9288' : '#d9b99b';
       roundRect(ctx, st.x - 15, st.y - 26, 30, 14, 4);
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 2;
-      const sx = st.x + Math.sin(t * 4) * 3;
-      ctx.beginPath();
-      ctx.moveTo(sx, st.y - 38);
-      ctx.quadraticCurveTo(sx - 5, st.y - 46, sx + 2, st.y - 52);
-      ctx.stroke();
+      if (!broken) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.lineWidth = 2;
+        const sx = st.x + Math.sin(t * 4) * 3;
+        ctx.beginPath();
+        ctx.moveTo(sx, st.y - 38);
+        ctx.quadraticCurveTo(sx - 5, st.y - 46, sx + 2, st.y - 52);
+        ctx.stroke();
+      }
 
       ctx.font = '20px "Segoe UI Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('☕', st.x, st.y + 14);
+      this._drawMachineStatusBadge(ctx, st, t, state);
       this._drawStationTag(ctx, st.x, st.y + 42, 'Kávovar', isHovered);
     }
 
-    _drawGrillStation(ctx, st, isHovered, t) {
+    _drawGrillStation(ctx, st, isHovered, t, state) {
+      const ms = state && state.machineState ? state.machineState[st.id] : null;
+      const broken = Boolean(ms && ms.broken);
       ctx.fillStyle = '#b98b61';
       roundRect(ctx, st.x - 34, st.y - 14, 68, 44, 8);
       ctx.fill();
-      ctx.fillStyle = '#d98a3c';
+      ctx.fillStyle = broken ? '#6b625c' : '#d98a3c';
       roundRect(ctx, st.x - 24, st.y - 30, 48, 28, 6);
       ctx.fill();
-      ctx.fillStyle = '#fff3d6';
+      ctx.fillStyle = broken ? '#c7beb6' : '#fff3d6';
       roundRect(ctx, st.x - 18, st.y - 25, 36, 16, 4);
       ctx.fill();
 
-      ctx.fillStyle = `rgba(255, 145, 77, ${0.22 + 0.1 * Math.sin(t * 5)})`;
-      ctx.beginPath();
-      ctx.arc(st.x, st.y - 17, 16, 0, Math.PI * 2);
-      ctx.fill();
+      if (!broken) {
+        ctx.fillStyle = `rgba(255, 145, 77, ${0.22 + 0.1 * Math.sin(t * 5)})`;
+        ctx.beginPath();
+        ctx.arc(st.x, st.y - 17, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.font = '20px "Segoe UI Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🌭', st.x, st.y + 14);
+      this._drawMachineStatusBadge(ctx, st, t, state);
       this._drawStationTag(ctx, st.x, st.y + 42, 'Gril & Pečivo', isHovered);
     }
 
-    _drawFridgeStation(ctx, st, isHovered) {
-      ctx.fillStyle = '#7fb069';
+    _drawFridgeStation(ctx, st, isHovered, t, state) {
+      const ms = state && state.machineState ? state.machineState[st.id] : null;
+      const broken = Boolean(ms && ms.broken);
+      ctx.fillStyle = broken ? '#6d7a67' : '#7fb069';
       roundRect(ctx, st.x - 26, st.y - 38, 52, 68, 10);
       ctx.fill();
-      ctx.fillStyle = '#e7f5e1';
+      ctx.fillStyle = broken ? '#cfd6cc' : '#e7f5e1';
       roundRect(ctx, st.x - 19, st.y - 30, 38, 40, 6);
       ctx.fill();
 
@@ -1835,6 +2128,7 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🧃', st.x, st.y - 10);
+      this._drawMachineStatusBadge(ctx, st, t || 0, state);
       this._drawStationTag(ctx, st.x, st.y + 42, 'Limonády', isHovered);
     }
 
@@ -1989,6 +2283,10 @@
     }
 
     _drawCar(ctx, car, t, state) {
+      if (car.topDown) {
+        this._drawCarTopDown(ctx, car, t, state);
+        return;
+      }
       const isHovered =
         state.hoveredTarget &&
         state.hoveredTarget.kind === 'car' &&
@@ -2182,10 +2480,214 @@
       ctx.restore();
     }
 
+    _drawCarTopDown(ctx, car, t, state) {
+      const isHovered =
+        state.hoveredTarget &&
+        state.hoveredTarget.kind === 'car' &&
+        state.hoveredTarget.id === car.id;
+
+      ctx.save();
+      ctx.translate(car.x, car.y);
+      ctx.rotate(car.angle || 0);
+
+      if (isHovered) {
+        ctx.shadowColor = '#ffd166';
+        ctx.shadowBlur = 18;
+      }
+
+      const rearLightColor = car.reversing ? '#ffffff' : '#e05246';
+      const wantsWash = car.orders.some((o) => o.itemId === 'wash' && !o.done);
+
+      if (car.variant === 'truck') {
+        // Shadow
+        ctx.fillStyle = 'rgba(20, 24, 28, 0.34)';
+        roundRect(ctx, -56, -18, 114, 42, 9);
+        ctx.fill();
+
+        // Rear cargo semi-trailer (-56 .. +16)
+        ctx.fillStyle = '#eef2f6';
+        roundRect(ctx, -56, -20, 74, 38, 7);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(40, 50, 62, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Center stripe & roof ribs on trailer
+        ctx.fillStyle = car.color || '#4e79a7';
+        roundRect(ctx, -52, -7, 66, 12, 3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(90, 108, 128, 0.25)';
+        ctx.lineWidth = 1.5;
+        [-38, -20, -2].forEach((rx) => {
+          ctx.beginPath();
+          ctx.moveTo(rx, -17);
+          ctx.lineTo(rx, 15);
+          ctx.stroke();
+        });
+
+        // Fifth-wheel hitch neck
+        ctx.fillStyle = '#2d333b';
+        ctx.fillRect(16, -9, 7, 16);
+
+        // Tractor cab (+21 .. +56)
+        ctx.fillStyle = car.color || '#4e79a7';
+        roundRect(ctx, 21, -18, 35, 34, 8);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(30, 38, 48, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Front windshield & side mirrors
+        ctx.fillStyle = '#cfe8ef';
+        roundRect(ctx, 40, -14, 11, 26, 3);
+        ctx.fill();
+        ctx.fillStyle = '#2d333b';
+        ctx.fillRect(42, -22, 5, 4);
+        ctx.fillRect(42, 16, 5, 4);
+
+        // Headlights & rear brake/reverse lights
+        ctx.fillStyle = '#fff3b0';
+        roundRect(ctx, 53, -14, 4, 7, 2);
+        ctx.fill();
+        roundRect(ctx, 53, 5, 4, 7, 2);
+        ctx.fill();
+
+        ctx.fillStyle = rearLightColor;
+        roundRect(ctx, -57, -15, 4, 7, 2);
+        ctx.fill();
+        roundRect(ctx, -57, 6, 4, 7, 2);
+        ctx.fill();
+
+        if (wantsWash) {
+          ctx.fillStyle = 'rgba(130, 100, 72, 0.65)';
+          ctx.beginPath();
+          ctx.arc(45, -5, 3.2, 0, Math.PI * 2);
+          ctx.arc(46, 5, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (car.variant === 'bus') {
+        ctx.fillStyle = 'rgba(20, 24, 28, 0.34)';
+        roundRect(ctx, -54, -18, 110, 42, 11);
+        ctx.fill();
+
+        // Coach body & roof
+        ctx.fillStyle = car.color || '#e09f3e';
+        roundRect(ctx, -55, -19, 110, 38, 11);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(45, 35, 25, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = car.roofColor || '#fff3d6';
+        roundRect(ctx, -46, -14, 88, 28, 7);
+        ctx.fill();
+
+        // Roof AC pods
+        ctx.fillStyle = '#cfd8dc';
+        [-22, 6].forEach((px) => {
+          roundRect(ctx, px, -8, 14, 16, 3);
+          ctx.fill();
+        });
+
+        // Front panoramic windshield
+        ctx.fillStyle = '#cfe8ef';
+        roundRect(ctx, 41, -15, 10, 30, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff3b0';
+        roundRect(ctx, 52, -14, 4, 7, 2);
+        ctx.fill();
+        roundRect(ctx, 52, 5, 4, 7, 2);
+        ctx.fill();
+
+        ctx.fillStyle = rearLightColor;
+        roundRect(ctx, -56, -14, 4, 7, 2);
+        ctx.fill();
+        roundRect(ctx, -56, 5, 4, 7, 2);
+        ctx.fill();
+
+        if (wantsWash) {
+          ctx.fillStyle = 'rgba(130, 100, 72, 0.65)';
+          ctx.beginPath();
+          ctx.arc(46, -5, 3.2, 0, Math.PI * 2);
+          ctx.arc(46, 6, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        const len = car.variant === 'van' ? 68 : 62;
+        const halfL = len / 2;
+        const halfW = car.variant === 'van' ? 17 : 16;
+
+        ctx.fillStyle = 'rgba(20, 24, 28, 0.32)';
+        roundRect(ctx, -halfL + 2, -halfW + 3, len, halfW * 2, 10);
+        ctx.fill();
+
+        // Car body
+        ctx.fillStyle = car.color;
+        roundRect(ctx, -halfL, -halfW, len, halfW * 2, 10);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(35, 30, 28, 0.42)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Windshield & rear glass
+        ctx.fillStyle = '#cfe8ef';
+        roundRect(ctx, 2, -halfW + 4, 13, (halfW - 4) * 2, 3);
+        ctx.fill();
+        roundRect(ctx, -halfL + 6, -halfW + 5, 8, (halfW - 5) * 2, 3);
+        ctx.fill();
+
+        // Roof panel
+        ctx.fillStyle = car.roofColor || car.color;
+        roundRect(ctx, -halfL + 13, -halfW + 4, halfL + 1, (halfW - 4) * 2, 5);
+        ctx.fill();
+
+        // Side mirrors
+        ctx.fillStyle = car.color;
+        ctx.fillRect(8, -halfW - 3, 4, 4);
+        ctx.fillRect(8, halfW - 1, 4, 4);
+
+        // Headlights & rear/reverse lights
+        ctx.fillStyle = '#fff3b0';
+        roundRect(ctx, halfL - 4, -halfW + 3, 4, 6, 2);
+        ctx.fill();
+        roundRect(ctx, halfL - 4, halfW - 9, 4, 6, 2);
+        ctx.fill();
+
+        ctx.fillStyle = rearLightColor;
+        roundRect(ctx, -halfL, -halfW + 3, 4, 6, 2);
+        ctx.fill();
+        roundRect(ctx, -halfL, halfW - 9, 4, 6, 2);
+        ctx.fill();
+
+        if (wantsWash) {
+          ctx.fillStyle = 'rgba(130, 100, 72, 0.65)';
+          ctx.beginPath();
+          ctx.arc(8, -4, 3, 0, Math.PI * 2);
+          ctx.arc(9, 4, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (car.reversing && Math.sin(t * 10) > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        const backX = car.variant === 'truck' ? -58 : car.variant === 'bus' ? -57 : car.variant === 'van' ? -35 : -32;
+        ctx.arc(backX, -9, 6, 0, Math.PI * 2);
+        ctx.arc(backX, 9, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
     _drawCarBubble(ctx, car, t) {
+      const topDownVert = Boolean(car.topDown && Math.abs(Math.sin(car.angle || 0)) > 0.6);
+      const waitYOffset = car.topDown ? (topDownVert ? -18 : -42) : -68;
+      const driverYOffset = car.topDown ? (topDownVert ? -16 : -38) : -54;
       if (car.state === 'waiting_driver') {
         const bx = car.x;
-        const by = car.y - 54 + Math.sin(t * 2.5 + car.id) * 1.5;
+        const by = car.y + driverYOffset + Math.sin(t * 2.5 + car.id) * 1.5;
         ctx.save();
         const text = '🚶‍♂️ Řidič v obchodě';
         ctx.font = '700 11px "Nunito", "Segoe UI", sans-serif';
@@ -2205,7 +2707,7 @@
       }
       if (car.state !== 'waiting') return;
       const bx = car.x;
-      const by = car.y - 68 + Math.sin(t * 3 + car.id) * 2;
+      const by = car.y + waitYOffset + Math.sin(t * 3 + car.id) * 2;
       this._drawOrderBubble(ctx, bx, by, car.orders, car.patience / car.maxPatience, false);
     }
 
@@ -2395,7 +2897,7 @@
       ctx.restore();
     }
 
-    _drawWorker(ctx, w, t) {
+    _drawWorker(ctx, w, t, state) {
       ctx.save();
       const moving = w.moving;
       const bob = moving ? Math.abs(Math.sin(t * 14 + w.seed)) * 5 : Math.sin(t * 3 + w.seed) * 1.5;
@@ -2406,11 +2908,28 @@
       ctx.ellipse(0, 22 + bob, 17, 6.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      const isSelectedStaff = state && !w.isPlayer && state.selectedWorkerId === w.id;
+      const isHoveredStaff =
+        state && !w.isPlayer && state.hoveredTarget && state.hoveredTarget.kind === 'worker' && state.hoveredTarget.id === w.id;
+
       if (w.isPlayer) {
         ctx.strokeStyle = 'rgba(244, 162, 97, 0.65)';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.ellipse(0, 21 + bob, 20, 8, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (isSelectedStaff) {
+        const pulse = 1 + 0.08 * Math.sin(t * 8);
+        ctx.strokeStyle = '#2a9d8f';
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.ellipse(0, 21 + bob, 22 * pulse, 9 * pulse, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (isHoveredStaff) {
+        ctx.strokeStyle = 'rgba(42, 157, 143, 0.72)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.ellipse(0, 21 + bob, 21, 8.5, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
 
@@ -2474,19 +2993,36 @@
         const num = (task.pumpIndex || 0) + 1;
         return w.actionTimer > 0 ? `⛽ Tankuji (Stojan ${num})` : `⛽ Jdu natankovat (Stojan ${num})`;
       }
+      if (task.type === 'serviceCarBay') {
+        if (task.itemId === 'vacuum') {
+          return w.actionTimer > 0 ? '🌀 Vysávám auto' : '🌀 Jdu vysát auto';
+        }
+        return w.actionTimer > 0 ? '💨 Dofukuji kola u auta' : '💨 Jdu dofouknout kola u auta';
+      }
       if (task.type === 'prep') {
         if (task.itemId === 'wash') {
           return w.actionTimer > 0 ? '🧽 Nabírám vodu na okna' : '🧽 Jdu pro vodu na okna';
+        }
+        if (task.itemId === 'air') {
+          return w.actionTimer > 0 ? '💨 Beru hadici (dofukování)' : '💨 Jdu ke kompresoru (pneu)';
+        }
+        if (task.itemId === 'vacuum') {
+          return w.actionTimer > 0 ? '🌀 Připravuji vysavač' : '🌀 Jdu k vysavači';
         }
         if (task.itemId === 'crate') {
           return w.actionTimer > 0 ? '📦 Beru krabici ze skladu' : '📦 Jdu do skladu pro zboží';
         }
         const it = window.GAME_DATA.ITEMS[task.itemId];
+        if (it && it.isSupply) {
+          return w.actionTimer > 0 ? `${it.icon} Beru ze skladu: ${it.name}` : `${it.icon} Jdu do skladu (${it.name})`;
+        }
         const name = it ? it.name : task.itemId;
         const ic = it ? it.icon : '🍽️';
         return w.actionTimer > 0 ? `${ic} Připravuji: ${name}` : `${ic} Jdu připravit: ${name}`;
       }
       if (task.type === 'serveCar') {
+        if (task.itemId === 'air') return '💨 Jdu dofouknout kola u auta';
+        if (task.itemId === 'vacuum') return '🌀 Jdu vysát auto';
         return '🧽 Jdu umýt okna u auta';
       }
       if (task.type === 'serveCustomer') {
@@ -2500,6 +3036,18 @@
         const r = window.GAME_DATA.RACKS[task.rackId];
         const rName = r ? r.label.toLowerCase() : 'regál';
         return w.actionTimer > 0 ? `📦 Doplňuji ${rName}` : `📦 Jdu doplnit ${rName}`;
+      }
+      if (task.type === 'restockMachine') {
+        const mSpec = window.GAME_DATA.BISTRO_MACHINES && window.GAME_DATA.BISTRO_MACHINES[task.stationId];
+        const mLabel = mSpec ? mSpec.label.toLowerCase() : 'stroj';
+        const supIt = mSpec && window.GAME_DATA.ITEMS[mSpec.supplyItemId];
+        const ic = supIt ? supIt.icon : '📦';
+        return w.actionTimer > 0 ? `${ic} Doplňuji: ${mLabel}` : `${ic} Jdu doplnit: ${mLabel}`;
+      }
+      if (task.type === 'repairMachine') {
+        const mSpec = window.GAME_DATA.BISTRO_MACHINES && window.GAME_DATA.BISTRO_MACHINES[task.stationId];
+        const mLabel = mSpec ? mSpec.label.toLowerCase() : 'stroj';
+        return w.actionTimer > 0 ? `🔧 Opravuji: ${mLabel}` : `🔧 Jdu opravit: ${mLabel}`;
       }
       if (task.type === 'takeBroom') {
         return '🧹 Jdu uklízet';
@@ -2525,16 +3073,33 @@
 
     _drawWorkerOverlay(ctx, w, _t, state) {
       ctx.save();
+      const isSelectedStaff = state && !state.prepMode && !w.isPlayer && state.selectedWorkerId === w.id;
       ctx.font = '800 11px "Nunito", sans-serif';
       const label = w.label;
       const bw = ctx.measureText(label).width + 12;
-      ctx.fillStyle = w.isPlayer ? '#f4a261' : 'rgba(78, 54, 41, 0.85)';
+      ctx.fillStyle = w.isPlayer ? '#f4a261' : isSelectedStaff ? '#2a9d8f' : 'rgba(78, 54, 41, 0.85)';
       roundRect(ctx, w.x - bw / 2, w.y + 24, bw, 17, 8);
       ctx.fill();
       ctx.fillStyle = w.isPlayer ? '#3c2415' : '#fff9ee';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, w.x, w.y + 33);
+
+      if (isSelectedStaff) {
+        const selText = '👆 Vybrán – klikni na úkol';
+        ctx.font = '800 11px "Nunito", sans-serif';
+        const sw = ctx.measureText(selText).width + 16;
+        const sx = Math.min(Math.max(w.x, sw / 2 + 8), this.width - sw / 2 - 8);
+        const sy = Math.max(24, w.y - 54);
+        ctx.fillStyle = '#1f7a6f';
+        roundRect(ctx, sx - sw / 2, sy - 10, sw, 20, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(selText, sx, sy + 0.5);
+      }
 
       if ((!state || !state.prepMode) && !w.isPlayer) {
         const taskLabel = this._getWorkerTaskLabel(w);
@@ -2730,12 +3295,10 @@
 
     _drawPrepUpgradeBadges(ctx, t, state) {
       const upgrades = state.save.upgrades || {};
-      const staff = state.save.staff || {};
-      const staffEnabled = state.save.staffEnabled || {};
+      const staffWage = state.save.staffWage || {};
       const lim = state.stageLimits || {
         maxUpgradeLevel: 4,
         maxCarryLevel: 3,
-        maxStaffLevel: 3,
         allowedUnlocks: ['pump_unlock', 'wash_unlock', 'rack_sweets_unlock', 'fridge_unlock', 'grill_unlock', 'rack_auto_unlock']
       };
       const stations = window.GAME_DATA.STATIONS;
@@ -2749,7 +3312,11 @@
           const upgDef = window.GAME_DATA.UPGRADES.find((u) => u.id === upgId);
           const rawMax = upgDef ? upgDef.maxLevel : 4;
           const capMax =
-            upgId === 'carry' ? Math.min(rawMax, lim.maxCarryLevel || 3) : Math.min(rawMax, lim.maxUpgradeLevel || 4);
+            upgId === 'shoes'
+              ? 2
+              : upgId === 'carry'
+              ? 3
+              : Math.min(rawMax, lim.maxUpgradeLevel || 4);
           const lvl = upgrades[upgId] || 1;
           bought += Math.max(0, Math.min(capMax, lvl) - 1);
           maxBought += Math.max(1, capMax - 1);
@@ -2764,17 +3331,29 @@
           hovered:
             hoverId === id ||
             (upgIds.includes('pumps') &&
-              (hoverId === 'pump_0' || hoverId === 'pump_1' || hoverId === 'pump_2' || hoverId === 'pump_3'))
+              (hoverId === 'pump_0' ||
+                hoverId === 'pump_1' ||
+                hoverId === 'pump_2' ||
+                hoverId === 'pump_3' ||
+                hoverId === 'pump_4' ||
+                hoverId === 'pump_5'))
         });
       };
 
-      pushPairUpg('pump_0', stations.pump_0.x, stations.pump_0.y - 52, ['pumps', 'pumps_price'], '🛠️');
+      const stageId = this._getStageId(state);
+      pushPairUpg('pump_0', stations.pump_0.x, stations.pump_0.y - 40, ['pumps', 'pumps_price'], '🛠️');
       pushPairUpg('coffee', stations.coffee.x, stations.coffee.y - 52, ['coffee', 'coffee_price'], '🛠️');
       if (lim.allowedUnlocks.includes('grill_unlock') && (upgrades.grill_unlock || 1) >= 2) {
         pushPairUpg('grill', stations.grill.x, stations.grill.y - 50, ['grill', 'grill_price'], '🛠️');
       }
       if (lim.allowedUnlocks.includes('wash_unlock') && (upgrades.wash_unlock || 1) >= 2) {
         pushPairUpg('bucket', stations.bucket.x, stations.bucket.y - 34, ['wash', 'wash_price'], '🛠️');
+      }
+      if (lim.allowedUnlocks.includes('air_unlock') && (upgrades.air_unlock || 1) >= 2) {
+        pushPairUpg('air', stations.air.x, stations.air.y - 34, ['air', 'air_price'], '🛠️');
+      }
+      if (lim.allowedUnlocks.includes('vacuum_unlock') && (upgrades.vacuum_unlock || 1) >= 2) {
+        pushPairUpg('vacuum', stations.vacuum.x, stations.vacuum.y - 34, ['vacuum', 'vacuum_price'], '🛠️');
       }
       if (lim.allowedUnlocks.includes('fridge_unlock') && (upgrades.fridge_unlock || 1) >= 2) {
         pushPairUpg('fridge', stations.fridge.x, stations.fridge.y - 54, ['drink_speed', 'drink_price'], '🛠️');
@@ -2803,15 +3382,13 @@
         if (w.isPlayer) {
           pushPairUpg('player', w.x, w.y - 46, ['shoes', 'carry'], '👟');
         } else {
-          const stDef = window.GAME_DATA.STAFF.find((s) => s.id === w.id);
-          const maxLvl = Math.min(stDef ? stDef.maxLevel : 3, lim.maxStaffLevel || 3);
-          const curLvl = Math.min(maxLvl, staff[w.id] || 1);
-          const resting = staffEnabled[w.id] === false;
+          const wage = typeof staffWage[w.id] === 'number' ? Math.max(0, staffWage[w.id]) : 10;
+          const resting = wage <= 0;
           badges.push({
             x: w.x,
             y: w.y - 46,
-            text: `${curLvl >= maxLvl ? '✨ MAX' : `⬆️ Úr. ${curLvl}/${maxLvl}`}${resting ? ' 💤' : ''}`,
-            isMax: curLvl >= maxLvl,
+            text: resting ? '💤 0 Kč/den' : `💸 ${wage} Kč/den`,
+            isMax: false,
             hovered: hoverId === w.id
           });
         }

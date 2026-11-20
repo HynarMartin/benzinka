@@ -33,8 +33,10 @@ function createAdminSave() {
       4: Object.assign({}, fullStageStars)
     },
     upgrades: {
-      pump_unlock: 3,
+      pump_unlock: 4,
       wash_unlock: 2,
+      air_unlock: 2,
+      vacuum_unlock: 2,
       grill_unlock: 2,
       fridge_unlock: 2,
       rack_sweets_unlock: 2,
@@ -47,6 +49,10 @@ function createAdminSave() {
       grill_price: 4,
       wash: 4,
       wash_price: 4,
+      air: 4,
+      air_price: 4,
+      vacuum: 4,
+      vacuum_price: 4,
       drink_speed: 4,
       drink_price: 4,
       racks: 4,
@@ -117,7 +123,7 @@ function loadUsers() {
       users.admin.save = createAdminSave();
     } else {
       users.admin.save.upgrades = Object.assign({}, adminUpgrades, users.admin.save.upgrades || {}, {
-        pump_unlock: 3,
+        pump_unlock: 4,
         wash_unlock: 2,
         grill_unlock: 2,
         fridge_unlock: 2,
